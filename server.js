@@ -8,48 +8,44 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 /* =========================
-   MEMORY CACHE
+   CACHE
 ========================= */
 let cache = [];
 
 /* =========================
-   GET ALL PRODUCTS (REAL PAGINATION)
+   GET ALL PRODUCTS (SHOPIFY SAFE PAGINATION)
 ========================= */
 async function fetchAllProducts() {
 
   let all = [];
-  let url = `https://${process.env.SHOPIFY_STORE}/products.json?limit=250`;
+  let since_id = 0;
 
   try {
 
-    while (url) {
+    while (true) {
+
+      let url = `https://${process.env.SHOPIFY_STORE}/products.json?limit=250`;
+
+      if (since_id > 0) {
+        url += `&since_id=${since_id}`;
+      }
 
       const res = await axios.get(url);
 
       const products = res.data.products || [];
 
+      if (products.length === 0) break;
+
       all = all.concat(products);
 
-      console.log(`📦 Got: ${products.length}`);
+      since_id = products[products.length - 1].id;
 
-      // Shopify pagination (real link header)
-      const link = res.headers.link;
+      console.log(`📦 Got: ${products.length} | Total: ${all.length}`);
 
-      if (link && link.includes('rel="next"')) {
-
-        const nextUrl = link
-          .split(",")
-          .find(s => s.includes('rel="next"'))
-          ?.match(/<([^>]+)>/)?.[1];
-
-        url = nextUrl || null;
-
-      } else {
-        url = null;
-      }
+      if (products.length < 250) break;
     }
 
-    console.log("✅ TOTAL PRODUCTS:", all.length);
+    console.log("✅ FINAL TOTAL:", all.length);
 
     return all;
 
@@ -60,7 +56,7 @@ async function fetchAllProducts() {
 }
 
 /* =========================
-   SYNC PRODUCTS
+   SYNC CACHE
 ========================= */
 async function syncProducts() {
 
@@ -69,13 +65,11 @@ async function syncProducts() {
   if (products.length > 0) {
     cache = products;
     console.log("💾 Cached:", cache.length);
-  } else {
-    console.log("⚠️ No products loaded");
   }
 }
 
 /* =========================
-   PRODUCTS API
+   API - PRODUCTS (AED + VARIANTS)
 ========================= */
 app.get("/products", (req, res) => {
 
@@ -83,19 +77,21 @@ app.get("/products", (req, res) => {
 
     const v = p.variants?.[0];
 
+    const price = parseFloat(v?.price || 0);
+
     return {
       title: p.title,
       handle: p.handle,
       image: p.images?.[0]?.src || "",
 
-      // 💎 AED PRICE (as requested)
-      price: `${v?.price || 0} AED`,
+      // 💎 AED PRICE
+      price: `${price.toFixed(2)} AED`,
 
-      // full variants (colors/metals/sizes)
+      // 💎 FULL VARIANTS
       variants: (p.variants || []).map(v => ({
         id: v.id,
         title: v.title,
-        price: `${v.price} AED`,
+        price: `${parseFloat(v.price || 0).toFixed(2)} AED`,
         option1: v.option1,
         option2: v.option2,
         option3: v.option3,
@@ -111,6 +107,7 @@ app.get("/products", (req, res) => {
    MANUAL SYNC
 ========================= */
 app.get("/sync", async (req, res) => {
+
   await syncProducts();
 
   res.json({
@@ -120,7 +117,7 @@ app.get("/sync", async (req, res) => {
 });
 
 /* =========================
-   HOME PAGE
+   HOME
 ========================= */
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
@@ -136,11 +133,7 @@ app.listen(PORT, async () => {
   console.log("🚀 Server running on", PORT);
 
   setTimeout(async () => {
-    try {
-      await syncProducts();
-    } catch (err) {
-      console.log("❌ sync error:", err.message);
-    }
+    await syncProducts();
   }, 5000);
 
 });
