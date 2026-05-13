@@ -11,52 +11,38 @@ app.use(express.static(__dirname));
 
 const CACHE_FILE = path.join(__dirname, "products-cache.json");
 
-// ================= GET ALL PRODUCTS FROM SHOPIFY =================
-async function fetchAllProductsFromShopify() {
-  let products = [];
-  let page = 1;
-
+// ================= FETCH SHOPIFY =================
+async function fetchProducts() {
   try {
-    while (true) {
-      const res = await axios.get(
-        `https://${process.env.SHOPIFY_STORE}/products.json?limit=250&page=${page}`
-      );
+    const res = await axios.get(
+      `https://${process.env.SHOPIFY_STORE}/products.json?limit=250`
+    );
 
-      const data = res.data.products;
-
-      if (!data || data.length === 0) break;
-
-      products = products.concat(data);
-      page++;
-    }
-
-    console.log(`✅ Fetched ${products.length} products from Shopify`);
-    return products;
-
+    return res.data.products || [];
   } catch (err) {
-    console.log("❌ Shopify fetch error:", err.message);
+    console.log("❌ Shopify error:", err.message);
     return [];
   }
 }
 
-// ================= SAVE TO CACHE =================
+// ================= SAVE CACHE =================
 function saveCache(products) {
   fs.writeFileSync(CACHE_FILE, JSON.stringify(products, null, 2));
-  console.log("💾 Products saved to cache");
 }
 
-// ================= LOAD FROM CACHE =================
+// ================= LOAD CACHE =================
 function loadCache() {
   if (!fs.existsSync(CACHE_FILE)) return [];
   return JSON.parse(fs.readFileSync(CACHE_FILE, "utf-8"));
 }
 
-// ================= INIT SYNC =================
+// ================= SYNC =================
 async function syncProducts() {
-  const products = await fetchAllProductsFromShopify();
+  const products = await fetchProducts();
 
   if (products.length > 0) {
     saveCache(products);
+    console.log("💾 Cached:", products.length);
   }
 }
 
@@ -74,10 +60,15 @@ app.get("/products", (req, res) => {
   res.json(formatted);
 });
 
-// ================= FORCE SYNC =================
+// manual sync
 app.get("/sync", async (req, res) => {
   await syncProducts();
-  res.send("Sync done");
+  res.send("Sync Done");
+});
+
+// ================= HOME =================
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
 // ================= START =================
@@ -86,6 +77,8 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
   console.log("🚀 Server running on", PORT);
 
-  // أول تشغيل يعمل sync
-  await syncProducts();
+  // important for Render
+  setTimeout(async () => {
+    await syncProducts();
+  }, 3000);
 });
