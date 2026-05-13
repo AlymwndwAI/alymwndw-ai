@@ -12,7 +12,6 @@ body{
   background:#f5f5f5;
 }
 
-/* CHAT */
 #chat{
   height:calc(100vh - 60px);
   overflow-y:auto;
@@ -27,10 +26,8 @@ body{
   padding:10px;
   border-radius:12px;
   max-width:85%;
-  word-wrap:break-word;
 }
 
-/* PRODUCT CARD */
 .card{
   background:white;
   margin:10px auto;
@@ -48,7 +45,6 @@ body{
   border-radius:10px;
 }
 
-/* INPUT BAR */
 #box{
   position:fixed;
   bottom:0;
@@ -64,7 +60,6 @@ input{
   padding:10px;
   border:1px solid #ddd;
   border-radius:8px;
-  outline:none;
 }
 
 button{
@@ -74,9 +69,7 @@ button{
   background:black;
   color:white;
   border-radius:8px;
-  cursor:pointer;
 }
-
 </style>
 </head>
 
@@ -94,42 +87,24 @@ button{
 const chat = document.getElementById("chat");
 const input = document.getElementById("msg");
 
-/* ENTER KEY */
-input.addEventListener("keydown", function(e){
-  if(e.key === "Enter"){
-    send();
-  }
+input.addEventListener("keydown", (e)=>{
+  if(e.key === "Enter") send();
 });
 
-/* ADD MESSAGE */
 function add(text){
   chat.innerHTML += `<div class="msg">🧑‍💬 ${text}</div>`;
   chat.scrollTop = chat.scrollHeight;
 }
 
-/* SHOW PRODUCTS */
 function show(products){
 
   products.forEach(p => {
 
-    const title = p.title || "No title";
-
-    const image =
-      p.image?.src ||
-      (p.images && p.images.length ? p.images[0].src : "") ||
-      p.featured_image ||
-      "";
-
-    const price =
-      p.variants?.[0]?.price ||
-      p.price ||
-      "0";
-
     chat.innerHTML += `
       <div class="card">
-        <img src="${image}" onerror="this.style.display='none'" />
-        <b>${title}</b><br/>
-        💰 ${price}
+        ${p.image ? `<img src="${p.image}" />` : ""}
+        <b>${p.title}</b><br/>
+        💰 ${p.price}
       </div>
     `;
   });
@@ -137,7 +112,6 @@ function show(products){
   chat.scrollTop = chat.scrollHeight;
 }
 
-/* SEND MESSAGE */
 async function send(){
 
   const msg = input.value;
