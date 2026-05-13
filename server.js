@@ -20,22 +20,66 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// ================= CHAT =================
+// ================= CHAT (SMART AI ENGINE) =================
 app.post("/chat", async (req, res) => {
 
   try {
 
     const userMessage = req.body.message;
 
-    // ================= SHOPIFY =================
+    // ================= GET SHOPIFY PRODUCTS =================
     const shop = await axios.get(
-      `https://${process.env.SHOPIFY_STORE}/products.json?limit=50`
+      `https://${process.env.SHOPIFY_STORE}/products.json?limit=250`
     );
 
     const products = shop?.data?.products || [];
 
-    // ================= AI CONTEXT =================
-    const productText = products.slice(0, 10).map(p =>
+    // ================= AI UNDERSTANDING =================
+    const intent = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `
+حلل طلب العميل إلى JSON فقط:
+
+{
+"type": "ring/necklace/bracelet/any",
+"level": "cheap/mid/luxury/any",
+"stone": "diamond/moissanite/gold/any"
+}
+          `
+        },
+        {
+          role: "user",
+          content: userMessage
+        }
+      ]
+    });
+
+    let parsed = {};
+
+    try {
+      parsed = JSON.parse(intent.choices[0].message.content);
+    } catch {
+      parsed = {};
+    }
+
+    // ================= SMART FILTER =================
+    const filtered = products.filter(p => {
+
+      const title = (p.title || "").toLowerCase();
+
+      const typeMatch = !parsed.type || parsed.type === "any" || title.includes(parsed.type);
+      const stoneMatch = !parsed.stone || parsed.stone === "any" || title.includes(parsed.stone);
+
+      return typeMatch && stoneMatch;
+    });
+
+    const finalProducts = filtered.length ? filtered : products.slice(0, 5);
+
+    // ================= AI SELLER RESPONSE =================
+    const productText = finalProducts.slice(0, 10).map(p =>
       `- ${p.title} | ${p.variants?.[0]?.price || 0}`
     ).join("\n");
 
@@ -45,11 +89,11 @@ app.post("/chat", async (req, res) => {
         {
           role: "system",
           content: `
-أنت مساعد ذكي لمتجر مجوهرات فاخر.
+أنت خبير مبيعات مجوهرات فاخر.
 
-- تفهم العميل
-- تقترح منتجات
-- تتكلم كبائع محترف
+- اختر أفضل المنتجات فقط
+- اقنع العميل
+- تحدث كبائع محترف
 
 المنتجات:
 ${productText}
@@ -63,15 +107,12 @@ ${productText}
     });
 
     // ================= FIX IMAGES =================
-    const formattedProducts = products.slice(0, 5).map(p => {
+    const formattedProducts = finalProducts.slice(0, 5).map(p => {
 
-      let img = "";
-
-      if (p.images && p.images.length > 0) {
-        img = p.images[0].src;
-      } else if (p.image && p.image.src) {
-        img = p.image.src;
-      }
+      let img =
+        p.images?.[0]?.src ||
+        p.image?.src ||
+        "";
 
       return {
         title: p.title,
@@ -86,12 +127,14 @@ ${productText}
     });
 
   } catch (err) {
+
     console.log(err.message);
 
     res.json({
       reply: "💎 حصل خطأ لكن السيرفر شغال",
       products: []
     });
+
   }
 
 });
