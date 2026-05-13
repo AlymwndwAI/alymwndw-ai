@@ -2,7 +2,6 @@ const express = require("express");
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
-require("dotenv").config();
 
 const app = express();
 
@@ -11,7 +10,7 @@ app.use(express.static(__dirname));
 
 const CACHE_FILE = path.join(__dirname, "products-cache.json");
 
-// ================= GET ALL PRODUCTS (PAGINATION) =================
+// ================= FETCH ALL PRODUCTS =================
 async function fetchAllProducts() {
 
   let allProducts = [];
@@ -31,34 +30,43 @@ async function fetchAllProducts() {
 
       allProducts = allProducts.concat(products);
 
-      console.log(`📦 Page ${page}: ${products.length} products`);
+      console.log(`📦 Page ${page}: ${products.length}`);
 
       page++;
     }
 
-    console.log(`✅ Total products fetched: ${allProducts.length}`);
+    console.log(`✅ Total products: ${allProducts.length}`);
 
     return allProducts;
 
   } catch (err) {
-    console.log("❌ Error fetching Shopify:", err.message);
+    console.log("❌ Shopify error:", err.message);
     return [];
   }
 }
 
 // ================= SAVE CACHE =================
 function saveCache(products) {
-  fs.writeFileSync(CACHE_FILE, JSON.stringify(products, null, 2));
-  console.log("💾 Cache saved");
+  try {
+    fs.writeFileSync(CACHE_FILE, JSON.stringify(products, null, 2));
+    console.log("💾 Cache saved");
+  } catch (e) {
+    console.log("Cache write error:", e.message);
+  }
 }
 
 // ================= LOAD CACHE =================
 function loadCache() {
-  if (!fs.existsSync(CACHE_FILE)) return [];
-  return JSON.parse(fs.readFileSync(CACHE_FILE, "utf-8"));
+  try {
+    if (!fs.existsSync(CACHE_FILE)) return [];
+    return JSON.parse(fs.readFileSync(CACHE_FILE, "utf-8"));
+  } catch (e) {
+    console.log("Cache read error:", e.message);
+    return [];
+  }
 }
 
-// ================= SYNC =================
+// ================= SYNC PRODUCTS =================
 async function syncProducts() {
   const products = await fetchAllProducts();
 
@@ -82,10 +90,10 @@ app.get("/products", (req, res) => {
   res.json(formatted);
 });
 
-// ================= FORCE SYNC =================
+// ================= MANUAL SYNC =================
 app.get("/sync", async (req, res) => {
   await syncProducts();
-  res.send("Sync Done");
+  res.send("Sync done");
 });
 
 // ================= HOME =================
@@ -96,13 +104,18 @@ app.get("/", (req, res) => {
 // ================= START SERVER =================
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
 
   console.log("🚀 Server running on", PORT);
 
-  // important for Render startup
+  // safe startup (prevents Render crash)
   setTimeout(async () => {
-    await syncProducts();
-  }, 3000);
+    try {
+      await syncProducts();
+      console.log("💾 Initial sync done");
+    } catch (err) {
+      console.log("❌ Sync error:", err.message);
+    }
+  }, 5000);
 
 });
