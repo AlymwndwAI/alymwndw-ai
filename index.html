@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AI Jewelry Chat</title>
+  <title>AI Jewelry Store</title>
 
   <style>
     body {
@@ -11,13 +11,10 @@
       color:white;
     }
 
-    #chat {
-      width:100%;
-      max-width:420px;
-      margin:0 auto;
-      padding:10px;
-      height:90vh;
-      overflow-y:auto;
+    #app {
+      max-width:450px;
+      margin:auto;
+      padding-bottom:120px;
     }
 
     .msg-user {
@@ -25,9 +22,7 @@
       padding:10px;
       margin:8px;
       border-radius:10px;
-      width:fit-content;
-      margin-left:auto;
-      max-width:80%;
+      text-align:right;
     }
 
     .msg-ai {
@@ -35,46 +30,70 @@
       padding:10px;
       margin:8px;
       border-radius:10px;
-      width:fit-content;
-      max-width:80%;
     }
 
-    .product {
+    .grid {
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      margin:10px;
+    }
+
+    .card {
       background:#111b21;
+      border-radius:15px;
+      overflow:hidden;
       padding:10px;
-      margin:8px;
+    }
+
+    .card img {
+      width:100%;
+      height:220px;
+      object-fit:cover;
       border-radius:10px;
     }
 
-    .product img {
-      width:100px;
+    .price {
+      color:#d4af37;
+      margin-top:5px;
+      font-weight:bold;
+    }
+
+    .btn {
+      background:#00a884;
+      border:none;
+      color:white;
+      padding:10px;
+      width:100%;
       border-radius:10px;
+      margin-top:10px;
+      cursor:pointer;
     }
 
     #inputBox {
       position:fixed;
       bottom:0;
-      width:100%;
+      left:0;
+      right:0;
+      background:#0b141a;
       display:flex;
-      background:#202c33;
       padding:10px;
     }
 
     input {
       flex:1;
-      padding:10px;
-      border:none;
+      padding:12px;
       border-radius:20px;
+      border:none;
       outline:none;
     }
 
     button {
       margin-left:10px;
-      background:#00a884;
-      border:none;
-      color:white;
-      padding:10px 15px;
+      padding:12px 16px;
       border-radius:20px;
+      border:none;
+      background:#d4af37;
       cursor:pointer;
     }
   </style>
@@ -82,7 +101,9 @@
 
 <body>
 
-<div id="chat"></div>
+<div id="app">
+  <div id="chat"></div>
+</div>
 
 <div id="inputBox">
   <input id="msg" placeholder="اكتب رسالة..." />
@@ -93,57 +114,50 @@
 
 function addUser(text){
   document.getElementById("chat").innerHTML +=
-  `<div class="msg-user">${text}</div>`;
+    `<div class="msg-user">${text}</div>`;
 }
 
 function addAI(text){
   document.getElementById("chat").innerHTML +=
-  `<div class="msg-ai">🤖 ${text}</div>`;
+    `<div class="msg-ai">🤖 ${text}</div>`;
 }
 
 function addProducts(products){
 
   if(!Array.isArray(products)) return;
 
-  products.forEach(p => {
+  const html = products.map(p => `
+    <div class="card">
+      <img src="${p.image || ''}" />
+      <div><b>${p.title || ''}</b></div>
+      <div class="price">💰 ${p.price || ''}</div>
+      <button class="btn">Buy Now</button>
+    </div>
+  `).join("");
 
-    if(!p) return;
-
-    document.getElementById("chat").innerHTML += `
-      <div class="product">
-        <img src="${p.image || ''}" />
-        <div><b>${p.title || ''}</b></div>
-        <div>💰 ${p.price || ''}</div>
-        <button onclick="buy('${p.title}')">Buy</button>
-      </div>
-    `;
-  });
-}
-
-function buy(title){
-  alert("Buying: " + title);
+  document.getElementById("chat").innerHTML +=
+    `<div class="grid">${html}</div>`;
 }
 
 async function send(){
 
   const msg = document.getElementById("msg").value;
-
   if(!msg) return;
 
   addUser(msg);
 
-  document.getElementById("msg").value = "";
-
   const res = await fetch("/chat", {
     method:"POST",
-    headers: {"Content-Type":"application/json"},
+    headers:{"Content-Type":"application/json"},
     body: JSON.stringify({ message: msg })
   });
 
   const data = await res.json();
 
-  addAI(data.text || "...");
+  addAI(data.text || "");
   addProducts(data.products);
+
+  document.getElementById("msg").value = "";
 
   document.getElementById("chat").scrollTop =
     document.getElementById("chat").scrollHeight;
