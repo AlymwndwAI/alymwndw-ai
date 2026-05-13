@@ -8,17 +8,17 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 /* =========================
-   CACHE
+   CACHE (in memory)
 ========================= */
 let cache = [];
 
 /* =========================
-   SLEEP (ANTI 429)
+   SLEEP (anti 429 safety)
 ========================= */
 const sleep = (ms) => new Promise(res => setTimeout(res, ms));
 
 /* =========================
-   GET ALL PRODUCTS (SAFE + RATE LIMIT FIX)
+   FETCH ALL PRODUCTS (SAFE)
 ========================= */
 async function fetchAllProducts() {
 
@@ -37,15 +37,14 @@ async function fetchAllProducts() {
 
       let res;
 
-      // 🔥 retry logic for 429
-      for (let attempt = 0; attempt < 3; attempt++) {
+      // retry if 429
+      for (let i = 0; i < 3; i++) {
         try {
           res = await axios.get(url);
           break;
         } catch (err) {
-
           if (err.response?.status === 429) {
-            console.log("⛔ 429 Rate limit... waiting 2s");
+            console.log("⛔ 429 - waiting...");
             await sleep(2000);
           } else {
             throw err;
@@ -63,8 +62,7 @@ async function fetchAllProducts() {
 
       console.log(`📦 Got: ${products.length} | Total: ${all.length}`);
 
-      // 🔥 مهم: تهدئة Shopify
-      await sleep(500);
+      await sleep(400);
 
       if (products.length < 250) break;
     }
@@ -80,22 +78,29 @@ async function fetchAllProducts() {
 }
 
 /* =========================
-   SYNC CACHE
+   SYNC PRODUCTS
 ========================= */
 async function syncProducts() {
 
+  console.log("🔄 Sync started...");
+
   const products = await fetchAllProducts();
 
-  if (products.length > 0) {
-    cache = products;
-    console.log("💾 Cached:", cache.length);
-  }
+  cache = products || [];
+
+  console.log("💾 Cached products:", cache.length);
 }
 
 /* =========================
-   PRODUCTS API (AED + VARIANTS)
+   GET PRODUCTS API
 ========================= */
 app.get("/products", (req, res) => {
+
+  if (!cache || cache.length === 0) {
+    return res.json({
+      error: "No products in cache. Call /sync first"
+    });
+  }
 
   const formatted = cache.map(p => {
 
@@ -111,15 +116,14 @@ app.get("/products", (req, res) => {
       // 💎 AED PRICE
       price: `${price.toFixed(2)} AED`,
 
-      // 💎 VARIANTS FULL (colors/metals/sizes)
+      // variants (colors / metals / sizes)
       variants: (p.variants || []).map(v => ({
         id: v.id,
         title: v.title,
         price: `${parseFloat(v.price || 0).toFixed(2)} AED`,
         option1: v.option1,
         option2: v.option2,
-        option3: v.option3,
-        sku: v.sku
+        option3: v.option3
       }))
     };
   });
@@ -128,7 +132,7 @@ app.get("/products", (req, res) => {
 });
 
 /* =========================
-   MANUAL SYNC
+   FORCE SYNC
 ========================= */
 app.get("/sync", async (req, res) => {
 
@@ -141,10 +145,10 @@ app.get("/sync", async (req, res) => {
 });
 
 /* =========================
-   HOME
+   HEALTH CHECK
 ========================= */
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
+  res.send("🚀 Server is running");
 });
 
 /* =========================
@@ -156,12 +160,9 @@ app.listen(PORT, async () => {
 
   console.log("🚀 Server running on", PORT);
 
+  // auto sync on start
   setTimeout(async () => {
-    try {
-      await syncProducts();
-    } catch (err) {
-      console.log("❌ sync error:", err.message);
-    }
+    await syncProducts();
   }, 5000);
 
 });
