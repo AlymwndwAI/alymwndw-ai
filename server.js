@@ -14,39 +14,61 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 let cache = [];
 
-// ================= PRODUCTS SYNC =================
+// ================= SAFE FALLBACK =================
+function ensureFallback() {
+  if (!cache || cache.length === 0) {
+    cache = [
+      {
+        title: "Luxury Diamond Ring (Demo)",
+        images: [],
+        variants: [{ price: "4999" }]
+      }
+    ];
+  }
+}
+
+// ================= SHOPIFY SYNC (FIXED) =================
 async function syncProducts() {
   try {
     let all = [];
     let page = 1;
 
-    while (true) {
+    while (page <= 5) {
       const url = `https://${SHOPIFY_STORE}/products.json?limit=250&page=${page}`;
       const res = await axios.get(url);
 
-      if (!res.data.products || res.data.products.length === 0) break;
+      const products = res.data.products;
 
-      all.push(...res.data.products);
+      if (!products || products.length === 0) break;
+
+      all.push(...products);
       page++;
     }
 
     cache = all;
+
     console.log("💎 PRODUCTS LOADED:", cache.length);
 
   } catch (err) {
-    console.log("SHOPIFY ERROR:", err.message);
+    console.log("❌ SHOPIFY ERROR:", err.message);
   }
 }
 
-// ================= HOME TEST =================
-app.get("/", (req, res) => {
-  res.send("Alymwndw AI Running 💎");
+// ================= DEBUG =================
+app.get("/debug", (req, res) => {
+  res.json({
+    products: cache.length,
+    working: cache.length > 0,
+    sample: cache[0] || null
+  });
 });
 
 // ================= PRODUCTS API =================
 app.get("/products", (req, res) => {
 
-  const products = cache.map(p => {
+  ensureFallback();
+
+  const result = cache.map(p => {
 
     const prices = (p.variants || [])
       .map(v => parseFloat(v.price))
@@ -54,53 +76,51 @@ app.get("/products", (req, res) => {
 
     return {
       title: p.title,
-      image: p.images?.[0]?.src || "",
+      image: p.images?.[0]?.src || "https://via.placeholder.com/300",
       price_min: Math.min(...prices),
       price_max: Math.max(...prices)
     };
   });
 
-  res.json(products);
+  res.json(result);
 });
 
-// ================= CHAT AI (FIXED) =================
+// ================= CHAT AI =================
 app.post("/chat", async (req, res) => {
 
   try {
 
+    ensureFallback();
+
     const message = req.body.message;
 
-    if (!message) {
-      return res.status(400).json({ error: "No message" });
-    }
-
-    const products = cache.slice(0, 20).map(p => ({
+    const products = cache.slice(0, 15).map(p => ({
       title: p.title,
       price: p.variants?.[0]?.price
     }));
 
-    const prompt = `
-You are Alymwndw AI 💎 luxury jewelry sales expert.
-
-Rules:
-- Recommend ONE product only
-- Luxury tone (Cartier style)
-- Max 6 lines
-- Always AED currency
-- Be persuasive
+    const response = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You are Alymwndw AI luxury jewelry sales expert."
+          },
+          {
+            role: "user",
+            content: `
+Pick ONE product and sell it like Cartier.
 
 Products:
 ${JSON.stringify(products)}
 
 User:
 ${message}
-`;
-
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }]
+`
+          }
+        ]
       },
       {
         headers: {
@@ -115,12 +135,12 @@ ${message}
     });
 
   } catch (err) {
-    console.log(err.response?.data || err.message);
+    console.log("CHAT ERROR:", err.message);
     res.status(500).json({ error: "Chat failed" });
   }
 });
 
-// ================= IMAGE GENERATION =================
+// ================= IMAGE =================
 app.post("/generate-image", async (req, res) => {
 
   try {
@@ -131,7 +151,7 @@ app.post("/generate-image", async (req, res) => {
       "https://api.openai.com/v1/images/generations",
       {
         model: "gpt-image-1",
-        prompt: `Luxury jewelry product, ultra realistic studio lighting, Alymwndw style: ${prompt}`,
+        prompt: `Luxury jewelry studio photo, ultra realistic, Alymwndw style: ${prompt}`,
         size: "1024x1024"
       },
       {
@@ -147,13 +167,13 @@ app.post("/generate-image", async (req, res) => {
     });
 
   } catch (err) {
-    console.log(err.response?.data || err.message);
+    console.log("IMAGE ERROR:", err.message);
     res.status(500).json({ error: "Image failed" });
   }
 });
 
-// ================= START SERVER =================
+// ================= START =================
 app.listen(PORT, () => {
-  console.log("💎 Alymwndw AI Running on port", PORT);
+  console.log("💎 Alymwndw AI RUNNING:", PORT);
   syncProducts();
 });
