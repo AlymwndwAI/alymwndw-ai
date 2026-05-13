@@ -13,68 +13,54 @@ app.use(express.static(__dirname));
 let cache = [];
 
 /* =========================
-   GET PRODUCTS LIST
+   GET ALL PRODUCTS (REAL PAGINATION)
 ========================= */
-async function getProductsList() {
-  try {
-    const res = await axios.get(
-      `https://${process.env.SHOPIFY_STORE}/products.json?limit=250`
-    );
+async function fetchAllProducts() {
 
-    return res.data.products || [];
+  let all = [];
+  let url = `https://${process.env.SHOPIFY_STORE}/products.json?limit=250`;
+
+  try {
+
+    while (url) {
+
+      const res = await axios.get(url);
+
+      const products = res.data.products || [];
+
+      all = all.concat(products);
+
+      console.log(`📦 Got: ${products.length}`);
+
+      // Shopify pagination (real link header)
+      const link = res.headers.link;
+
+      if (link && link.includes('rel="next"')) {
+
+        const nextUrl = link
+          .split(",")
+          .find(s => s.includes('rel="next"'))
+          ?.match(/<([^>]+)>/)?.[1];
+
+        url = nextUrl || null;
+
+      } else {
+        url = null;
+      }
+    }
+
+    console.log("✅ TOTAL PRODUCTS:", all.length);
+
+    return all;
 
   } catch (err) {
-    console.log("❌ list error:", err.message);
+    console.log("❌ Shopify error:", err.message);
     return [];
   }
 }
 
 /* =========================
-   GET FULL PRODUCT (WITH VARIANTS)
-========================= */
-async function getFullProduct(handle) {
-  try {
-    const res = await axios.get(
-      `https://${process.env.SHOPIFY_STORE}/products/${handle}.json`
-    );
-
-    return res.data.product;
-
-  } catch (err) {
-    console.log("❌ product error:", handle);
-    return null;
-  }
-}
-
-/* =========================
-   FETCH ALL PRODUCTS FULL
-========================= */
-async function fetchAllProducts() {
-
-  let finalProducts = [];
-
-  const list = await getProductsList();
-
-  console.log("📦 LIST:", list.length);
-
-  for (let i = 0; i < list.length; i++) {
-
-    const p = list[i];
-
-    const full = await getFullProduct(p.handle);
-
-    if (full) finalProducts.push(full);
-
-    console.log(`🔄 ${i + 1}/${list.length}`);
-  }
-
-  console.log("✅ TOTAL:", finalProducts.length);
-
-  return finalProducts;
-}
-
-/* =========================
-   SYNC
+   SYNC PRODUCTS
 ========================= */
 async function syncProducts() {
 
@@ -83,35 +69,40 @@ async function syncProducts() {
   if (products.length > 0) {
     cache = products;
     console.log("💾 Cached:", cache.length);
+  } else {
+    console.log("⚠️ No products loaded");
   }
 }
 
 /* =========================
-   API - PRODUCTS (FIX PRICE + VARIANTS)
+   PRODUCTS API
 ========================= */
 app.get("/products", (req, res) => {
 
-  const formatted = cache.map(p => ({
+  const formatted = cache.map(p => {
 
-    title: p.title,
-    handle: p.handle,
+    const v = p.variants?.[0];
 
-    image: p.images?.[0]?.src,
+    return {
+      title: p.title,
+      handle: p.handle,
+      image: p.images?.[0]?.src || "",
 
-    // ✅ FIXED PRICE (important)
-    price: p.variants?.[0]?.price || "0",
+      // 💎 AED PRICE (as requested)
+      price: `${v?.price || 0} AED`,
 
-    // FULL VARIANTS (colors/metals/sizes)
-    variants: (p.variants || []).map(v => ({
-      id: v.id,
-      title: v.title,
-      price: v.price,
-      option1: v.option1,
-      option2: v.option2,
-      option3: v.option3,
-      sku: v.sku
-    }))
-  }));
+      // full variants (colors/metals/sizes)
+      variants: (p.variants || []).map(v => ({
+        id: v.id,
+        title: v.title,
+        price: `${v.price} AED`,
+        option1: v.option1,
+        option2: v.option2,
+        option3: v.option3,
+        sku: v.sku
+      }))
+    };
+  });
 
   res.json(formatted);
 });
@@ -129,7 +120,7 @@ app.get("/sync", async (req, res) => {
 });
 
 /* =========================
-   HOME
+   HOME PAGE
 ========================= */
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
