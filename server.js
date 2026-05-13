@@ -1,11 +1,14 @@
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
+const path = require("path");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static("public"));
+
+// 🔥 مهم جدًا عشان الـ frontend
+app.use(express.static(path.join(__dirname, "public")));
 
 const PORT = process.env.PORT || 10000;
 
@@ -14,22 +17,15 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 let cache = [];
 
-// ================= SAFE FALLBACK =================
-function ensureFallback() {
-  if (!cache || cache.length === 0) {
-    cache = [
-      {
-        title: "Luxury Diamond Ring (Demo)",
-        images: [],
-        variants: [{ price: "4999" }]
-      }
-    ];
-  }
-}
+// ================= ROOT PAGE FIX =================
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 
-// ================= SHOPIFY SYNC (FIXED) =================
+// ================= SHOPIFY SYNC =================
 async function syncProducts() {
   try {
+
     let all = [];
     let page = 1;
 
@@ -38,7 +34,6 @@ async function syncProducts() {
       const res = await axios.get(url);
 
       const products = res.data.products;
-
       if (!products || products.length === 0) break;
 
       all.push(...products);
@@ -50,25 +45,14 @@ async function syncProducts() {
     console.log("💎 PRODUCTS LOADED:", cache.length);
 
   } catch (err) {
-    console.log("❌ SHOPIFY ERROR:", err.message);
+    console.log("SHOPIFY ERROR:", err.message);
   }
 }
 
-// ================= DEBUG =================
-app.get("/debug", (req, res) => {
-  res.json({
-    products: cache.length,
-    working: cache.length > 0,
-    sample: cache[0] || null
-  });
-});
-
-// ================= PRODUCTS API =================
+// ================= PRODUCTS =================
 app.get("/products", (req, res) => {
 
-  ensureFallback();
-
-  const result = cache.map(p => {
+  const data = cache.map(p => {
 
     const prices = (p.variants || [])
       .map(v => parseFloat(v.price))
@@ -82,15 +66,13 @@ app.get("/products", (req, res) => {
     };
   });
 
-  res.json(result);
+  res.json(data);
 });
 
 // ================= CHAT AI =================
 app.post("/chat", async (req, res) => {
 
   try {
-
-    ensureFallback();
 
     const message = req.body.message;
 
@@ -106,12 +88,12 @@ app.post("/chat", async (req, res) => {
         messages: [
           {
             role: "system",
-            content: "You are Alymwndw AI luxury jewelry sales expert."
+            content: "You are Alymwndw AI luxury jewelry sales assistant."
           },
           {
             role: "user",
             content: `
-Pick ONE product and sell it like Cartier.
+Pick ONE jewelry product and sell it like luxury Cartier advisor.
 
 Products:
 ${JSON.stringify(products)}
@@ -174,6 +156,6 @@ app.post("/generate-image", async (req, res) => {
 
 // ================= START =================
 app.listen(PORT, () => {
-  console.log("💎 Alymwndw AI RUNNING:", PORT);
+  console.log("💎 Alymwndw AI RUNNING ON", PORT);
   syncProducts();
 });
