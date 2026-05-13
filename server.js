@@ -6,72 +6,44 @@ const app = express();
 app.use(express.json());
 app.use(express.static(__dirname));
 
-/* =========================
-   CACHE
-========================= */
 let cache = [];
 
-/* =========================
-   UTIL
-========================= */
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 /* =========================
-   FETCH ALL PRODUCTS (FULL VARIANTS FIX)
+   SAFE SHOPIFY FETCH (NO 429)
 ========================= */
 async function fetchAllProducts() {
 
   let all = [];
-  let page = 1;
+  let since_id = 0;
 
   try {
 
     while (true) {
 
-      const listUrl = `https://${process.env.SHOPIFY_STORE}/products.json?limit=250&page=${page}`;
+      const url = `https://${process.env.SHOPIFY_STORE}/products.json?limit=250&since_id=${since_id}`;
 
-      const listRes = await axios.get(listUrl, { timeout: 15000 });
+      const res = await axios.get(url, { timeout: 20000 });
 
-      const products = listRes?.data?.products || [];
+      const products = res.data.products || [];
 
       if (!products.length) break;
 
-      // 🔥 أهم جزء: نجيب كل منتج كامل عشان variants
-      for (let p of products) {
+      all = all.concat(products);
 
-        try {
+      since_id = products[products.length - 1].id;
 
-          const fullUrl = `https://${process.env.SHOPIFY_STORE}/products/${p.handle}.json`;
+      console.log(`📦 Got: ${products.length} | Total: ${all.length}`);
 
-          const fullRes = await axios.get(fullUrl, { timeout: 15000 });
-
-          const fullProduct = fullRes?.data?.product;
-
-          if (fullProduct?.variants?.length) {
-            all.push(fullProduct);
-          }
-
-          await sleep(300); // ضد 429
-
-        } catch (err) {
-          console.log("skip:", p.handle);
-        }
-      }
-
-      console.log(`📦 Page ${page} | Total: ${all.length}`);
-
-      page++;
-
-      await sleep(1000);
+      await sleep(800); // 🔥 مهم جدًا ضد 429
     }
-
-    console.log("✅ FINAL PRODUCTS:", all.length);
 
     return all;
 
   } catch (err) {
-    console.log("❌ Fatal error:", err.message);
-    return [];
+    console.log("❌ Error:", err.message);
+    return all;
   }
 }
 
@@ -82,44 +54,37 @@ async function syncProducts() {
 
   console.log("🔄 Sync started...");
 
-  const products = await fetchAllProducts();
-
-  cache = products || [];
+  cache = await fetchAllProducts();
 
   console.log("💾 Cached:", cache.length);
 }
 
 /* =========================
-   PRODUCTS API (FULL VARIANTS)
+   PRODUCTS API (VARIANTS FIXED)
 ========================= */
 app.get("/products", (req, res) => {
 
   if (!cache.length) {
-    return res.json({ error: "No products - run /sync" });
+    return res.json({ error: "No products yet" });
   }
 
   const formatted = cache.map(p => {
-
-    const v = p.variants?.[0];
-    const price = parseFloat(v?.price || 0);
 
     return {
       title: p.title,
       handle: p.handle,
       image: p.images?.[0]?.src || "",
 
-      price: `${price.toFixed(2)} AED`,
-
-      // 💎 FULL VARIANTS (REAL SHOPIFY DATA)
+      // 💎 IMPORTANT: variants from Shopify مباشرة
       variants: (p.variants || []).map(v => ({
         id: v.id,
         title: v.title,
         price: `${parseFloat(v.price || 0).toFixed(2)} AED`,
 
-        // 🪙 REAL DATA FROM SHOPIFY
-        option1: v.option1,
-        option2: v.option2,
-        option3: v.option3
+        // 🪙 REAL OPTIONS (NO EXTRA REQUESTS)
+        option1: v.option1, // metal
+        option2: v.option2, // stone color
+        option3: v.option3  // size
       }))
     };
   });
@@ -143,22 +108,7 @@ app.get("/sync", async (req, res) => {
 });
 
 /* =========================
-   HEALTH
-========================= */
-app.get("/", (req, res) => {
-  res.send("🚀 AI Jewelry Store RUNNING");
-});
-
-/* =========================
-   AUTO SYNC
-========================= */
-setInterval(async () => {
-  console.log("🔄 Auto sync...");
-  await syncProducts();
-}, 1000 * 60 * 15);
-
-/* =========================
-   START SERVER
+   START
 ========================= */
 const PORT = process.env.PORT || 3000;
 
@@ -166,8 +116,6 @@ app.listen(PORT, async () => {
 
   console.log("🚀 Server running on", PORT);
 
-  setTimeout(async () => {
-    await syncProducts();
-  }, 5000);
+  setTimeout(syncProducts, 5000);
 
 });
