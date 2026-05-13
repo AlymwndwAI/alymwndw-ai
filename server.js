@@ -5,7 +5,7 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.static("public"));
 
 const PORT = process.env.PORT || 10000;
 
@@ -14,7 +14,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 let cache = [];
 
-// ================= LOAD PRODUCTS =================
+// ================= PRODUCTS SYNC =================
 async function syncProducts() {
   try {
     let all = [];
@@ -24,138 +24,76 @@ async function syncProducts() {
       const url = `https://${SHOPIFY_STORE}/products.json?limit=250&page=${page}`;
       const res = await axios.get(url);
 
-      const products = res.data.products;
-      if (!products || products.length === 0) break;
+      if (!res.data.products || res.data.products.length === 0) break;
 
-      all.push(...products);
+      all.push(...res.data.products);
       page++;
     }
 
     cache = all;
-    console.log("💎 Alymwndw Loaded:", cache.length);
+    console.log("💎 PRODUCTS LOADED:", cache.length);
 
   } catch (err) {
-    console.log("Shopify error:", err.message);
+    console.log("SHOPIFY ERROR:", err.message);
   }
 }
 
-// ================= SMART DETECT =================
-function detectMetal(text) {
-  text = text.toLowerCase();
-  if (text.includes("gold")) return "gold";
-  if (text.includes("silver")) return "silver";
-  if (text.includes("platinum")) return "platinum";
-  return null;
-}
-
-function detectStone(text) {
-  text = text.toLowerCase();
-  if (text.includes("diamond")) return "diamond";
-  if (text.includes("ruby")) return "ruby";
-  if (text.includes("sapphire")) return "sapphire";
-  if (text.includes("moissanite")) return "moissanite";
-  return null;
-}
-
-function matchProduct(p, f) {
-  const text = (p.title + JSON.stringify(p.variants)).toLowerCase();
-
-  if (f.metal && !text.includes(f.metal)) return false;
-  if (f.stone && !text.includes(f.stone)) return false;
-
-  if (f.maxPrice) {
-    const prices = (p.variants || []).map(v => parseFloat(v.price));
-    const min = Math.min(...prices);
-    if (min > f.maxPrice) return false;
-  }
-
-  return true;
-}
+// ================= HOME TEST =================
+app.get("/", (req, res) => {
+  res.send("Alymwndw AI Running 💎");
+});
 
 // ================= PRODUCTS API =================
 app.get("/products", (req, res) => {
-  res.json(
-    cache.map(p => {
-      const prices = (p.variants || []).map(v => parseFloat(v.price)).filter(Boolean);
 
-      return {
-        title: p.title,
-        image: p.images?.[0]?.src || "",
-        price_min: Math.min(...prices),
-        price_max: Math.max(...prices),
-      };
-    })
-  );
+  const products = cache.map(p => {
+
+    const prices = (p.variants || [])
+      .map(v => parseFloat(v.price))
+      .filter(Boolean);
+
+    return {
+      title: p.title,
+      image: p.images?.[0]?.src || "",
+      price_min: Math.min(...prices),
+      price_max: Math.max(...prices)
+    };
+  });
+
+  res.json(products);
 });
 
-// ================= CHAT (AUTO SALES AI) =================
+// ================= CHAT AI (FIXED) =================
 app.post("/chat", async (req, res) => {
 
   try {
 
-    const userMessage = req.body.message;
+    const message = req.body.message;
 
-    // 🧠 extract filters
-    const filterPrompt = `
-Extract jewelry filters JSON:
-{
-  "metal": "gold/silver/platinum/null",
-  "stone": "diamond/ruby/sapphire/null",
-  "maxPrice": number or null
-}
-
-User:
-${userMessage}
-`;
-
-    const filterRes = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: filterPrompt }]
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-
-    let filters = {};
-
-    try {
-      filters = JSON.parse(filterRes.data.choices[0].message.content);
-    } catch {}
-
-    // 🔍 filter products
-    let filtered = cache.filter(p => matchProduct(p, filters));
-
-    if (filtered.length === 0) {
-      filtered = cache.slice(0, 5);
+    if (!message) {
+      return res.status(400).json({ error: "No message" });
     }
 
-    const context = filtered.slice(0, 10).map(p => ({
-      name: p.title,
-      price: p.variants?.[0]?.price,
+    const products = cache.slice(0, 20).map(p => ({
+      title: p.title,
+      price: p.variants?.[0]?.price
     }));
 
-    // 💎 sales prompt
     const prompt = `
-You are "Alymwndw AI" 💎 luxury jewelry sales expert.
+You are Alymwndw AI 💎 luxury jewelry sales expert.
 
 Rules:
-- Recommend ONLY ONE product
-- Speak like Cartier / Tiffany advisor
+- Recommend ONE product only
+- Luxury tone (Cartier style)
 - Max 6 lines
-- Always AED
-- Close the sale (urgency + luxury tone)
+- Always AED currency
+- Be persuasive
 
 Products:
-${JSON.stringify(context)}
+${JSON.stringify(products)}
 
 User:
-${userMessage}
+${message}
 `;
 
     const response = await axios.post(
@@ -173,12 +111,12 @@ ${userMessage}
     );
 
     res.json({
-      reply: response.data.choices[0].message.content,
-      brand: "Alymwndw 💎"
+      reply: response.data.choices[0].message.content
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.log(err.response?.data || err.message);
+    res.status(500).json({ error: "Chat failed" });
   }
 });
 
@@ -193,7 +131,7 @@ app.post("/generate-image", async (req, res) => {
       "https://api.openai.com/v1/images/generations",
       {
         model: "gpt-image-1",
-        prompt: `Luxury jewelry product, studio lighting, ultra realistic, 8k, Alymwndw style: ${prompt}`,
+        prompt: `Luxury jewelry product, ultra realistic studio lighting, Alymwndw style: ${prompt}`,
         size: "1024x1024"
       },
       {
@@ -210,18 +148,12 @@ app.post("/generate-image", async (req, res) => {
 
   } catch (err) {
     console.log(err.response?.data || err.message);
-    res.status(500).json({ error: "Image generation failed" });
+    res.status(500).json({ error: "Image failed" });
   }
 });
 
-// ================= SYNC =================
-app.get("/sync", async (req, res) => {
-  await syncProducts();
-  res.json({ ok: true, total: cache.length });
-});
-
-// ================= START =================
+// ================= START SERVER =================
 app.listen(PORT, () => {
-  console.log("💎 Alymwndw AI FULL SYSTEM RUNNING");
+  console.log("💎 Alymwndw AI Running on port", PORT);
   syncProducts();
 });
