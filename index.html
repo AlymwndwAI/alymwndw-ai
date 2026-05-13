@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AI Jewelry Chat Designer</title>
+  <title>AI Jewelry Chat</title>
 
   <style>
     body {
@@ -19,32 +19,29 @@
       overflow-y:auto;
     }
 
-    .msg-user {
+    .user {
       background:#005c4b;
       padding:10px;
       margin:8px;
       border-radius:10px;
       text-align:right;
-      max-width:80%;
-      margin-left:auto;
     }
 
-    .msg-ai {
+    .ai {
       background:#1f2c34;
       padding:10px;
       margin:8px;
       border-radius:10px;
-      max-width:80%;
     }
 
-    .design {
+    .card {
       background:#111b21;
-      padding:10px;
       margin:8px;
+      padding:10px;
       border-radius:10px;
     }
 
-    .design img {
+    .card img {
       width:100%;
       border-radius:10px;
       margin-top:10px;
@@ -55,8 +52,8 @@
       bottom:0;
       width:100%;
       display:flex;
-      background:#202c33;
       padding:10px;
+      background:#202c33;
     }
 
     input {
@@ -83,7 +80,7 @@
 <div id="chat"></div>
 
 <div id="inputBox">
-  <input id="msg" placeholder="اكتب اسم / تصميم / فكرة مجوهرات..." />
+  <input id="msg" placeholder="اكتب رسالة أو اطلب تصميم..." />
   <button onclick="send()">Send</button>
 </div>
 
@@ -91,20 +88,19 @@
 
 function addUser(text){
   document.getElementById("chat").innerHTML += `
-    <div class="msg-user">${text}</div>
+    <div class="user">${text}</div>
   `;
 }
 
 function addAI(text){
   document.getElementById("chat").innerHTML += `
-    <div class="msg-ai">🤖 ${text}</div>
+    <div class="ai">🤖 ${text}</div>
   `;
 }
 
 function addDesign(text, image){
-
   document.getElementById("chat").innerHTML += `
-    <div class="design">
+    <div class="card">
       🤖 ${text}
       <img src="${image}" />
     </div>
