@@ -13,42 +13,66 @@ app.use(express.static(__dirname));
 let cache = [];
 
 /* =========================
-   FETCH PRODUCTS (NO TOKEN)
+   GET PRODUCTS LIST
+========================= */
+async function getProductsList() {
+  try {
+    const res = await axios.get(
+      `https://${process.env.SHOPIFY_STORE}/products.json?limit=250`
+    );
+
+    return res.data.products || [];
+
+  } catch (err) {
+    console.log("❌ list error:", err.message);
+    return [];
+  }
+}
+
+/* =========================
+   GET FULL PRODUCT (WITH VARIANTS)
+========================= */
+async function getFullProduct(handle) {
+  try {
+    const res = await axios.get(
+      `https://${process.env.SHOPIFY_STORE}/products/${handle}.json`
+    );
+
+    return res.data.product;
+
+  } catch (err) {
+    console.log("❌ detail error:", handle);
+    return null;
+  }
+}
+
+/* =========================
+   FETCH ALL (FULL DATA)
 ========================= */
 async function fetchAllProducts() {
 
-  let allProducts = [];
-  let page = 1;
+  let finalProducts = [];
 
-  try {
+  const list = await getProductsList();
 
-    while (true) {
+  console.log("📦 List products:", list.length);
 
-      const res = await axios.get(
-        `https://${process.env.SHOPIFY_STORE}/products.json?limit=250&page=${page}`
-      );
+  for (let i = 0; i < list.length; i++) {
 
-      const products = res.data.products || [];
+    const p = list[i];
 
-      if (products.length === 0) break;
+    const full = await getFullProduct(p.handle);
 
-      allProducts = allProducts.concat(products);
-
-      console.log(`📦 Page ${page}: ${products.length}`);
-
-      if (products.length < 250) break;
-
-      page++;
+    if (full) {
+      finalProducts.push(full);
     }
 
-    console.log("✅ TOTAL PRODUCTS:", allProducts.length);
-
-    return allProducts;
-
-  } catch (err) {
-    console.log("❌ Shopify error:", err.message);
-    return [];
+    console.log(`🔄 Loaded: ${i + 1}/${list.length}`);
   }
+
+  console.log("✅ TOTAL FULL PRODUCTS:", finalProducts.length);
+
+  return finalProducts;
 }
 
 /* =========================
@@ -67,17 +91,16 @@ async function syncProducts() {
 }
 
 /* =========================
-   API - PRODUCTS (WITH VARIANTS FIX)
+   API - PRODUCTS (FULL VARIANTS)
 ========================= */
 app.get("/products", (req, res) => {
 
   const formatted = cache.map(p => ({
     title: p.title,
     handle: p.handle,
-
     image: p.images?.[0]?.src,
 
-    // all variants (IMPORTANT FIX)
+    // FULL VARIANTS (colors, metals, sizes)
     variants: (p.variants || []).map(v => ({
       id: v.id,
       title: v.title,
@@ -97,6 +120,7 @@ app.get("/products", (req, res) => {
 ========================= */
 app.get("/sync", async (req, res) => {
   await syncProducts();
+
   res.json({
     success: true,
     total: cache.length
@@ -104,7 +128,7 @@ app.get("/sync", async (req, res) => {
 });
 
 /* =========================
-   HOME PAGE
+   HOME
 ========================= */
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
