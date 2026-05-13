@@ -5,14 +5,41 @@
 <title>AI Jewelry Store</title>
 
 <style>
-body{margin:0;background:#0b141a;color:white;font-family:Arial}
-.container{max-width:500px;margin:auto;padding:10px}
-.card{background:#111b21;margin:10px 0;padding:10px;border-radius:15px}
-img{width:100%;border-radius:10px}
+body{
+  margin:0;
+  background:#0b141a;
+  color:white;
+  font-family:Arial;
+}
 
-.price{color:#00d2a0;font-weight:bold;margin-top:5px}
-.variant{font-size:12px;color:#aaa;margin-top:5px}
-.btn{background:#00d2a0;border:none;padding:8px;color:#000;margin-top:5px;border-radius:8px}
+.container{
+  max-width:600px;
+  margin:auto;
+  padding:10px;
+}
+
+.card{
+  background:#111b21;
+  margin:10px 0;
+  padding:10px;
+  border-radius:15px;
+}
+
+img{
+  width:100%;
+  border-radius:10px;
+}
+
+.price{
+  color:#00d2a0;
+  font-weight:bold;
+}
+
+.variant{
+  font-size:12px;
+  color:#aaa;
+  margin-top:5px;
+}
 </style>
 
 </head>
@@ -23,7 +50,7 @@ img{width:100%;border-radius:10px}
 
 <script>
 
-async function loadProducts(){
+async function load(){
 
 try {
 
@@ -33,19 +60,18 @@ const data = await res.json();
 let html = "";
 
 if(!data.length){
-html = "<h3>❌ No products</h3>";
-document.getElementById("app").innerHTML = html;
-return;
+  document.getElementById("app").innerHTML = "❌ No products";
+  return;
 }
 
-data.forEach(p=>{
+data.forEach(p => {
 
 let variantsHTML = "";
 
-p.variants.forEach(v=>{
+p.variants.forEach(v => {
 variantsHTML += `
 <div class="variant">
-💎 ${v.option1 || ""} | ${v.option2 || ""} | ${v.option3 || ""}
+💎 Metal: ${v.metal || "-"} | Stone: ${v.stone || "-"} | Size: ${v.size || "-"}
 <br>💰 ${v.price}
 </div>
 `;
@@ -55,10 +81,7 @@ html += `
 <div class="card">
 <img src="${p.image}" />
 <h3>${p.title}</h3>
-
 ${variantsHTML}
-
-<button class="btn">Buy Now</button>
 </div>
 `;
 
@@ -66,14 +89,14 @@ ${variantsHTML}
 
 document.getElementById("app").innerHTML = html;
 
-} catch(err){
+} catch(e){
 document.getElementById("app").innerHTML =
-"<h3>❌ Failed to load products</h3>";
+"❌ Failed to load products";
 }
 
 }
 
-loadProducts();
+load();
 
 </script>
 
