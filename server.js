@@ -27,19 +27,18 @@ app.post("/chat", async (req, res) => {
 
     const userMessage = req.body.message;
 
-    // 🛍️ Shopify products (زودنا العدد)
+    // ================= SHOPIFY =================
     const shop = await axios.get(
       `https://${process.env.SHOPIFY_STORE}/products.json?limit=50`
     );
 
-    const products = shop.data.products || [];
+    const products = shop?.data?.products || [];
 
-    // 🧠 نعرض AI جزء مفيد فقط
+    // ================= AI TEXT =================
     const productText = products.slice(0, 10).map(p =>
-      `- ${p.title} | ${p.variants?.[0]?.price || 0} AED`
+      `- ${p.title} | ${p.variants?.[0]?.price || 0}`
     ).join("\n");
 
-    // 🧠 AI
     const response = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -50,9 +49,8 @@ app.post("/chat", async (req, res) => {
 
 وظيفتك:
 - تفهم العميل
-- تقترح منتجات من المتجر
-- تتكلم كبائع محترف
-- تساعد في اختيار التصميم
+- تقترح منتجات
+- تساعد في اختيار المجوهرات
 
 المنتجات:
 ${productText}
@@ -65,13 +63,22 @@ ${productText}
       ]
     });
 
-    res.json({
-      reply: response.choices[0].message.content,
-      products: products.slice(0, 5).map(p => ({
+    // ================= FIX IMAGES (IMPORTANT) =================
+    const formattedProducts = products.slice(0, 5).map(p => {
+
+      const rawImage = p.images?.[0]?.src || "";
+
+      return {
         title: p.title,
         price: p.variants?.[0]?.price || 0,
-        image: p.images?.[0]?.src || ""
-      }))
+        image: rawImage ? `https:${rawImage}` : ""
+      };
+    });
+
+    // ================= RESPONSE =================
+    res.json({
+      reply: response.choices[0].message.content,
+      products: formattedProducts
     });
 
   } catch (err) {
@@ -87,7 +94,7 @@ ${productText}
 
 });
 
-// ================= START (IMPORTANT FOR RENDER) =================
+// ================= START =================
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
