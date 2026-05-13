@@ -55,7 +55,7 @@ button{
 <input id="msg" placeholder="Ask about jewelry..." />
 <button onclick="send()">Ask AI</button>
 
-<input id="imgPrompt" placeholder="Generate image..." />
+<input id="imgPrompt" placeholder="Generate jewelry image..." />
 <button onclick="generateImage()">Generate Image</button>
 
 <div id="chat"></div>
@@ -79,8 +79,9 @@ async function send(){
 
   const data = await res.json();
 
-  document.getElementById("chat").innerHTML =
-    `<div class="card">${data.reply || data.error}</div>`;
+  document.getElementById("chat").innerHTML = `
+    <div class="card">${data.reply || data.error}</div>
+  `;
 }
 
 // ================= IMAGE =================
@@ -97,46 +98,42 @@ async function generateImage(){
   const data = await res.json();
 
   if(!data.image){
-    alert(data.error || "Image failed");
+    alert("Image failed ❌");
     return;
   }
 
-  document.getElementById("imageBox").innerHTML =
-    `<div class="card"><img src="${data.image}"/></div>`;
+  document.getElementById("imageBox").innerHTML = `
+    <div class="card">
+      <img src="${data.image}" />
+    </div>
+  `;
 }
 
 // ================= PRODUCTS =================
 async function load(){
 
-  try {
+  const res = await fetch("/products");
+  const data = await res.json();
 
-    const res = await fetch("/products");
-    const data = await res.json();
+  let html = "";
 
-    let html = "";
+  data.forEach(p => {
 
-    data.forEach(p => {
+    let price =
+      p.price_min === p.price_max
+        ? `${p.price_min} AED`
+        : `${p.price_min} - ${p.price_max} AED`;
 
-      let price =
-        p.price_min === p.price_max
-          ? `${p.price_min} AED`
-          : `${p.price_min} - ${p.price_max} AED`;
+    html += `
+      <div class="card">
+        <img src="${p.image}" />
+        <h3>${p.title}</h3>
+        <div>${price}</div>
+      </div>
+    `;
+  });
 
-      html += `
-        <div class="card">
-          <img src="${p.image}" />
-          <h3>${p.title}</h3>
-          <div>${price}</div>
-        </div>
-      `;
-    });
-
-    document.getElementById("products").innerHTML = html;
-
-  } catch(e){
-    document.getElementById("products").innerHTML =
-      `<div class="card">Loading failed</div>`;
-  }
+  document.getElementById("products").innerHTML = html;
 }
 
 load();
