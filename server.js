@@ -1,161 +1,127 @@
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
-const path = require("path");
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
-
-// 🔥 مهم جدًا عشان الـ frontend
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(__dirname));
 
 const PORT = process.env.PORT || 10000;
-
-const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const SHOPIFY_STORE = process.env.SHOPIFY_STORE || "";
 
 let cache = [];
 
-// ================= ROOT PAGE FIX =================
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+/* =========================
+   SAFETY (prevent crash)
+========================= */
+process.on("uncaughtException", (err) => {
+  console.log("CRASH:", err.message);
 });
 
-// ================= SHOPIFY SYNC =================
+process.on("unhandledRejection", (err) => {
+  console.log("PROMISE ERROR:", err.message);
+});
+
+/* =========================
+   SHOPIFY SYNC (FIXED)
+========================= */
 async function syncProducts() {
   try {
 
+    if (!SHOPIFY_STORE) {
+      console.log("❌ SHOPIFY_STORE missing");
+      cache = [];
+      return;
+    }
+
     let all = [];
-    let page = 1;
+    let since_id = 0;
 
-    while (page <= 5) {
-      const url = `https://${SHOPIFY_STORE}/products.json?limit=250&page=${page}`;
-      const res = await axios.get(url);
+    while (true) {
 
-      const products = res.data.products;
-      if (!products || products.length === 0) break;
+      const url = `https://${SHOPIFY_STORE}/products.json?limit=250&since_id=${since_id}`;
+
+      const res = await axios.get(url, { timeout: 20000 });
+
+      const products = res?.data?.products || [];
+
+      if (!products.length) break;
 
       all.push(...products);
-      page++;
+
+      since_id = products[products.length - 1].id;
+
+      console.log(`📦 Got: ${products.length} | Total: ${all.length}`);
     }
 
     cache = all;
 
-    console.log("💎 PRODUCTS LOADED:", cache.length);
+    console.log("✅ FINAL PRODUCTS:", cache.length);
 
   } catch (err) {
-    console.log("SHOPIFY ERROR:", err.message);
+    console.log("SYNC ERROR:", err.message);
   }
 }
 
-// ================= PRODUCTS =================
+/* =========================
+   PRODUCTS API (FIXED)
+========================= */
 app.get("/products", (req, res) => {
 
-  const data = cache.map(p => {
-
-    const prices = (p.variants || [])
-      .map(v => parseFloat(v.price))
-      .filter(Boolean);
-
-    return {
-      title: p.title,
-      image: p.images?.[0]?.src || "https://via.placeholder.com/300",
-      price_min: Math.min(...prices),
-      price_max: Math.max(...prices)
-    };
-  });
-
-  res.json(data);
-});
-
-// ================= CHAT AI =================
-app.post("/chat", async (req, res) => {
-
   try {
 
-    const message = req.body.message;
+    const data = (cache || []).map(p => ({
 
-    const products = cache.slice(0, 15).map(p => ({
-      title: p.title,
-      price: p.variants?.[0]?.price
+      id: p.id,
+      title: p.title || "No Title",
+
+      image: p.images?.[0]?.src || "https://via.placeholder.com/300",
+
+      variants: (p.variants || []).map(v => ({
+        id: v.id,
+
+        title: v.title || "variant",
+
+        price: Number(v.price || 0),   // FIXED
+
+        metal: v.option1 || "Unknown Metal",
+        stone: v.option2 || "Unknown Stone",
+        size: v.option3 || "Unknown Size"
+      }))
     }));
 
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are Alymwndw AI luxury jewelry sales assistant."
-          },
-          {
-            role: "user",
-            content: `
-Pick ONE jewelry product and sell it like luxury Cartier advisor.
-
-Products:
-${JSON.stringify(products)}
-
-User:
-${message}
-`
-          }
-        ]
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-
-    res.json({
-      reply: response.data.choices[0].message.content
-    });
+    res.json(data);
 
   } catch (err) {
-    console.log("CHAT ERROR:", err.message);
-    res.status(500).json({ error: "Chat failed" });
+    res.status(500).json({
+      error: "products_error",
+      message: err.message
+    });
   }
 });
 
-// ================= IMAGE =================
-app.post("/generate-image", async (req, res) => {
-
-  try {
-
-    const prompt = req.body.prompt;
-
-    const response = await axios.post(
-      "https://api.openai.com/v1/images/generations",
-      {
-        model: "gpt-image-1",
-        prompt: `Luxury jewelry studio photo, ultra realistic, Alymwndw style: ${prompt}`,
-        size: "1024x1024"
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-
-    res.json({
-      image: response.data.data?.[0]?.url
-    });
-
-  } catch (err) {
-    console.log("IMAGE ERROR:", err.message);
-    res.status(500).json({ error: "Image failed" });
-  }
+/* =========================
+   MANUAL SYNC
+========================= */
+app.get("/sync", async (req, res) => {
+  await syncProducts();
+  res.json({ ok: true, total: cache.length });
 });
 
-// ================= START =================
-app.listen(PORT, () => {
-  console.log("💎 Alymwndw AI RUNNING ON", PORT);
+/* =========================
+   HEALTH CHECK
+========================= */
+app.get("/", (req, res) => {
+  res.send("🚀 Alymwndw AI Store Running");
+});
+
+/* =========================
+   START SERVER
+========================= */
+app.listen(PORT, "0.0.0.0", () => {
+  console.log("🚀 Server running on", PORT);
+
   syncProducts();
 });
