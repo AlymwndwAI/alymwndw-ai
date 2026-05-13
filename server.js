@@ -11,7 +11,9 @@ const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 
 let cache = [];
 
-// 🛡️ حماية من الكراش
+/* =========================
+   SAFETY (prevent crash)
+========================= */
 process.on("uncaughtException", (err) => {
   console.log("CRASH:", err.message);
 });
@@ -20,18 +22,21 @@ process.on("unhandledRejection", (err) => {
   console.log("PROMISE ERROR:", err.message);
 });
 
-// 🔥 جلب المنتجات بطريقة آمنة
+/* =========================
+   SHOPIFY SYNC (SAFE)
+========================= */
 async function syncProducts() {
   try {
-    console.log("🔄 Sync started...");
 
     let all = [];
     let since_id = 0;
 
     while (true) {
+
       const url = `https://${SHOPIFY_STORE}/products.json?limit=250&since_id=${since_id}`;
 
       const res = await axios.get(url, { timeout: 20000 });
+
       const products = res?.data?.products || [];
 
       if (!products.length) break;
@@ -52,9 +57,17 @@ async function syncProducts() {
   }
 }
 
-// 🚀 API المنتجات
+/* =========================
+   API: PRODUCTS
+========================= */
 app.get("/products", (req, res) => {
+
   try {
+
+    if (!cache || !cache.length) {
+      return res.json([]);
+    }
+
     const data = cache.map(p => ({
       id: p.id,
       title: p.title,
@@ -64,13 +77,11 @@ app.get("/products", (req, res) => {
         id: v.id,
         title: v.title,
 
-        // 💎 AED price
         price: `${parseFloat(v.price || 0).toFixed(2)} AED`,
 
-        // 🪙 Options (Metal / Stone / Size)
-        metal: v.option1,
-        stone: v.option2,
-        size: v.option3
+        metal: v.option1 || null,
+        stone: v.option2 || null,
+        size: v.option3 || null
       }))
     }));
 
@@ -84,17 +95,24 @@ app.get("/products", (req, res) => {
   }
 });
 
-// 🔄 manual sync
+/* =========================
+   SYNC MANUAL
+========================= */
 app.get("/sync", async (req, res) => {
   await syncProducts();
   res.json({ ok: true, total: cache.length });
 });
 
-// 🟢 health
+/* =========================
+   HEALTH CHECK
+========================= */
 app.get("/", (req, res) => {
   res.send("🚀 AI Jewelry Store Running");
 });
 
+/* =========================
+   START SERVER
+========================= */
 app.listen(PORT, "0.0.0.0", () => {
   console.log("🚀 Server running on", PORT);
 });
