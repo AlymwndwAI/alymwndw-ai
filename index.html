@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>AI Jewelry Store</title>
+
+<style>
+body {
+  margin:0;
+  font-family: Arial;
+  background:#e5ddd5;
+}
+
+#chat {
+  height:80vh;
+  overflow:auto;
+  padding:10px;
+  display:flex;
+  flex-direction:column;
+}
+
+.msg {
+  max-width:70%;
+  padding:10px;
+  margin:5px;
+  border-radius:10px;
+}
+
+.user { align-self:flex-end; background:#dcf8c6; }
+.ai { align-self:flex-start; background:#fff; }
+
+.card {
+  background:#fff;
+  margin:10px;
+  padding:10px;
+  border-radius:10px;
+}
+
+.card img {
+  width:100%;
+  border-radius:10px;
+}
+
+#inputBox {
+  position:fixed;
+  bottom:0;
+  width:100%;
+  display:flex;
+  padding:10px;
+  background:#fff;
+}
+
+input {
+  flex:1;
+  padding:10px;
+  border-radius:20px;
+  border:1px solid #ccc;
+}
+
+button {
+  margin-left:10px;
+  padding:10px 15px;
+  border:none;
+  border-radius:20px;
+  background:#128C7E;
+  color:white;
+}
+</style>
+</head>
+
+<body>
+
+<div id="chat"></div>
+
+<div id="inputBox">
+  <input id="msg" placeholder="اكتب طلبك..." />
+  <button onclick="send()">➤</button>
+</div>
+
+<script>
+
+function add(text, type){
+  const div = document.createElement("div");
+  div.className = "msg " + type;
+  div.innerText = text;
+  document.getElementById("chat").appendChild(div);
+}
+
+function showProducts(products){
+
+  const chat = document.getElementById("chat");
+
+  products.forEach(p => {
+
+    const div = document.createElement("div");
+    div.className = "card";
+
+    div.innerHTML = `
+      <img src="${p.image}" />
+      <b>${p.title}</b><br/>
+      💰 ${p.price} AED
+    `;
+
+    chat.appendChild(div);
+  });
+
+}
+
+async function send(){
+
+  const input = document.getElementById("msg");
+  const text = input.value;
+
+  if(!text) return;
+
+  add(text, "user");
+  input.value = "";
+
+  const res = await fetch("/chat", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({message: text})
+  });
+
+  const data = await res.json();
+
+  add(data.reply, "ai");
+
+  if(data.products){
+    showProducts(data.products);
+  }
+}
+
+document.getElementById("msg").addEventListener("keydown", e=>{
+  if(e.key === "Enter") send();
+});
+
+</script>
+
+</body>
+</html>
