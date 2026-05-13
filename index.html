@@ -1,114 +1,155 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AI Jewelry Store</title>
+<meta charset="UTF-8">
+<title>AI Jewelry Store</title>
 
-  <style>
-    body {
-      margin:0;
-      font-family: Arial;
-      background:#0b141a;
-      color:white;
-    }
+<style>
+body{
+margin:0;
+font-family:Arial;
+background:linear-gradient(180deg,#050b10,#0b141a);
+color:white;
+}
 
-    .chat {
-      height: 90vh;
-      overflow-y: auto;
-      padding: 10px;
-    }
+/* CHAT */
+.chat{
+height:90vh;
+overflow:auto;
+padding:15px;
+}
 
-    .msg {
-      background:#1f2c34;
-      padding:10px;
-      margin:10px;
-      border-radius:10px;
-      max-width:70%;
-    }
+.msg{
+padding:12px 14px;
+margin:10px;
+border-radius:14px;
+max-width:75%;
+animation:fade .3s ease;
+}
 
-    .me {
-      background:#005c4b;
-      margin-left:auto;
-    }
+.me{
+background:#0aa37f;
+margin-left:auto;
+}
 
-    .products {
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-    }
+.ai{
+background:#1b2730;
+border:1px solid #2b3b45;
+}
 
-    .card {
-      background:#111b21;
-      padding:10px;
-      border-radius:10px;
-      width:200px;
-    }
+/* PRODUCTS */
+.products{
+display:grid;
+grid-template-columns:repeat(2,1fr);
+gap:10px;
+margin-top:10px;
+}
 
-    img {
-      width:100%;
-      border-radius:10px;
-    }
+.card{
+background:#111b21;
+border-radius:14px;
+padding:10px;
+box-shadow:0 0 10px rgba(0,0,0,0.4);
+transition:.2s;
+}
 
-    .inputBox {
-      display:flex;
-      position:fixed;
-      bottom:0;
-      width:100%;
-    }
+.card:hover{
+transform:scale(1.03);
+}
 
-    input {
-      flex:1;
-      padding:15px;
-      border:none;
-    }
+.card img{
+width:100%;
+border-radius:10px;
+}
 
-    button {
-      padding:15px;
-      background:#00a884;
-      border:none;
-      color:white;
-    }
-  </style>
+.price{
+color:#00d2a0;
+font-weight:bold;
+}
+
+/* INPUT */
+.input{
+position:fixed;
+bottom:0;
+width:100%;
+display:flex;
+background:#0b141a;
+padding:10px;
+}
+
+input{
+flex:1;
+padding:14px;
+border:none;
+border-radius:10px;
+outline:none;
+}
+
+button{
+padding:14px;
+margin-left:10px;
+border:none;
+border-radius:10px;
+background:#00a884;
+color:white;
+font-weight:bold;
+}
+
+@keyframes fade{
+from{opacity:0;transform:translateY(10px)}
+to{opacity:1;transform:translateY(0)}
+}
+</style>
 </head>
 
 <body>
 
 <div class="chat" id="chat"></div>
 
-<div class="inputBox">
-  <input id="text" placeholder="اكتب رسالتك..." />
-  <button onclick="send()">Send</button>
+<div class="input">
+<input id="text" placeholder="اكتب عن الخاتم اللي عايزه..." />
+<button onclick="send()">Send</button>
 </div>
 
 <script>
-async function send() {
+async function send(){
 
-  let text = document.getElementById("text").value;
+let t=document.getElementById("text").value;
+let chat=document.getElementById("chat");
 
-  let chat = document.getElementById("chat");
+if(!t) return;
 
-  chat.innerHTML += `<div class="msg me">${text}</div>`;
+chat.innerHTML+=`
+<div class="msg me">${t}</div>
+`;
 
-  document.getElementById("text").value = "";
+document.getElementById("text").value="";
 
-  let res = await fetch("/products");
-  let products = await res.json();
+/* AI reply fake intro */
+chat.innerHTML+=`
+<div class="msg ai">💎 تمام… بدور لك على أفضل قطع مناسبة</div>
+`;
 
-  let html = `<div class="msg">💎 منتجات الكولكشن:</div><div class="products">`;
+/* products */
+let res=await fetch("/products");
+let data=await res.json();
 
-  products.forEach(p => {
-    html += `
-      <div class="card">
-        <img src="${p.image}" />
-        <h4>${p.title}</h4>
-        <p>$${p.price}</p>
-      </div>
-    `;
-  });
+let html=`<div class="msg ai">💍 هذه أفضل القطع لك:</div><div class="products">`;
 
-  html += `</div>`;
+data.slice(0,6).forEach(p=>{
+html+=`
+<div class="card">
+<img src="${p.image}" />
+<div>${p.title}</div>
+<div class="price">$${p.price}</div>
+</div>
+`;
+});
 
-  chat.innerHTML += html;
-  chat.scrollTop = chat.scrollHeight;
+html+=`</div>`;
+
+chat.innerHTML+=html;
+chat.scrollTop=chat.scrollHeight;
 }
 </script>
 
