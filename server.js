@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 10000;
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 
 /* =========================
-   MEMORY CACHE
+   CACHE
 ========================= */
 let cache = [];
 
@@ -33,7 +33,7 @@ process.on("unhandledRejection", (err) => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* =========================
-   SHOPIFY SYNC (FIXED 429)
+   SHOPIFY SYNC (SAFE + FIXED)
 ========================= */
 async function syncProducts() {
   try {
@@ -41,7 +41,6 @@ async function syncProducts() {
 
     let all = [];
     let since_id = 0;
-    let retries = 0;
 
     while (true) {
       const url = `https://${SHOPIFY_STORE}/products.json?limit=250&since_id=${since_id}`;
@@ -50,26 +49,18 @@ async function syncProducts() {
 
       try {
         res = await axios.get(url, { timeout: 20000 });
-        retries = 0; // reset retries on success
       } catch (err) {
         const status = err.response?.status;
 
-        // 🚨 RATE LIMIT HANDLING
+        // handle rate limit
         if (status === 429) {
-          console.log("⛔ 429 Rate limit hit → waiting 5s...");
+          console.log("⛔ 429 detected → waiting 5s...");
           await sleep(5000);
           continue;
         }
 
-        retries++;
-
-        if (retries < 3) {
-          console.log("⚠️ retry request...");
-          await sleep(2000);
-          continue;
-        }
-
-        throw err;
+        console.log("SYNC ERROR:", err.message);
+        break;
       }
 
       const products = res?.data?.products || [];
@@ -82,28 +73,38 @@ async function syncProducts() {
 
       console.log(`📦 Got: ${products.length} | Total: ${all.length}`);
 
-      // ⛔ IMPORTANT: throttle requests
+      // throttle request
       await sleep(800);
     }
 
     cache = all;
 
-    console.log("✅ SYNC COMPLETE:", cache.length);
+    console.log("✅ SYNC DONE:", cache.length);
 
   } catch (err) {
-    console.log("SYNC ERROR:", err.message);
+    console.log("SYNC FAILED:", err.message);
   }
 }
 
 /* =========================
-   API: PRODUCTS (FAST)
+   AUTO SYNC (FIXED LOOP)
+========================= */
+async function startAutoSync() {
+  await syncProducts();
+
+  console.log("⏳ Auto sync enabled (every 30 min)");
+
+  setInterval(async () => {
+    console.log("🔄 Running scheduled sync...");
+    await syncProducts();
+  }, 30 * 60 * 1000); // 30 minutes
+}
+
+/* =========================
+   API: PRODUCTS
 ========================= */
 app.get("/products", (req, res) => {
   try {
-    if (!cache.length) {
-      return res.json({ success: true, products: [] });
-    }
-
     const data = cache.map((p) => ({
       id: p.id,
       title: p.title,
@@ -137,9 +138,10 @@ app.get("/products", (req, res) => {
 ========================= */
 app.get("/sync", async (req, res) => {
   await syncProducts();
+
   res.json({
     success: true,
-    message: "sync done",
+    message: "Manual sync completed",
     total: cache.length,
   });
 });
@@ -152,15 +154,11 @@ app.get("/", (req, res) => {
 });
 
 /* =========================
-   AUTO SYNC ON START
-========================= */
-setTimeout(() => {
-  syncProducts();
-}, 3000);
-
-/* =========================
    START SERVER
 ========================= */
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, "0.0.0.0", async () => {
   console.log("🚀 Server running on port:", PORT);
+
+  // start safe sync
+  startAutoSync();
 });
