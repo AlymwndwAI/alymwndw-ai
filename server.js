@@ -11,16 +11,37 @@ app.use(express.static(__dirname));
 
 const CACHE_FILE = path.join(__dirname, "products-cache.json");
 
-// ================= FETCH SHOPIFY =================
-async function fetchProducts() {
-  try {
-    const res = await axios.get(
-      `https://${process.env.SHOPIFY_STORE}/products.json?limit=250`
-    );
+// ================= GET ALL PRODUCTS (PAGINATION) =================
+async function fetchAllProducts() {
 
-    return res.data.products || [];
+  let allProducts = [];
+  let page = 1;
+
+  try {
+
+    while (true) {
+
+      const res = await axios.get(
+        `https://${process.env.SHOPIFY_STORE}/products.json?limit=250&page=${page}`
+      );
+
+      const products = res.data.products;
+
+      if (!products || products.length === 0) break;
+
+      allProducts = allProducts.concat(products);
+
+      console.log(`📦 Page ${page}: ${products.length} products`);
+
+      page++;
+    }
+
+    console.log(`✅ Total products fetched: ${allProducts.length}`);
+
+    return allProducts;
+
   } catch (err) {
-    console.log("❌ Shopify error:", err.message);
+    console.log("❌ Error fetching Shopify:", err.message);
     return [];
   }
 }
@@ -28,6 +49,7 @@ async function fetchProducts() {
 // ================= SAVE CACHE =================
 function saveCache(products) {
   fs.writeFileSync(CACHE_FILE, JSON.stringify(products, null, 2));
+  console.log("💾 Cache saved");
 }
 
 // ================= LOAD CACHE =================
@@ -38,16 +60,16 @@ function loadCache() {
 
 // ================= SYNC =================
 async function syncProducts() {
-  const products = await fetchProducts();
+  const products = await fetchAllProducts();
 
   if (products.length > 0) {
     saveCache(products);
-    console.log("💾 Cached:", products.length);
   }
 }
 
 // ================= API =================
 app.get("/products", (req, res) => {
+
   const products = loadCache();
 
   const formatted = products.map(p => ({
@@ -60,7 +82,7 @@ app.get("/products", (req, res) => {
   res.json(formatted);
 });
 
-// manual sync
+// ================= FORCE SYNC =================
 app.get("/sync", async (req, res) => {
   await syncProducts();
   res.send("Sync Done");
@@ -71,14 +93,16 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// ================= START =================
+// ================= START SERVER =================
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, async () => {
+
   console.log("🚀 Server running on", PORT);
 
-  // important for Render
+  // important for Render startup
   setTimeout(async () => {
     await syncProducts();
   }, 3000);
+
 });
