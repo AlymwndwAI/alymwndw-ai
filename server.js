@@ -15,7 +15,7 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// ================= PAGE =================
+// ================= HOME =================
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
@@ -34,11 +34,12 @@ app.post("/chat", async (req, res) => {
 
     const products = shop?.data?.products || [];
 
-    // ================= AI TEXT =================
+    // ================= SAFE PRODUCT TEXT =================
     const productText = products.slice(0, 10).map(p =>
       `- ${p.title} | ${p.variants?.[0]?.price || 0}`
     ).join("\n");
 
+    // ================= AI =================
     const response = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -47,10 +48,10 @@ app.post("/chat", async (req, res) => {
           content: `
 أنت مساعد ذكي لمتجر مجوهرات فاخر.
 
-وظيفتك:
 - تفهم العميل
 - تقترح منتجات
-- تساعد في اختيار المجوهرات
+- تتكلم كبائع محترف
+- تساعد في البيع
 
 المنتجات:
 ${productText}
@@ -66,7 +67,10 @@ ${productText}
     // ================= FIX IMAGES (IMPORTANT) =================
     const formattedProducts = products.slice(0, 5).map(p => {
 
-      const rawImage = p.images?.[0]?.src || "";
+      const rawImage =
+        p.images?.[0]?.src ||
+        p.image?.src ||
+        "";
 
       return {
         title: p.title,
@@ -98,5 +102,5 @@ ${productText}
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log("🚀 Running on port", PORT);
+  console.log("🚀 Server running on port", PORT);
 });
