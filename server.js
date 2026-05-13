@@ -14,51 +14,77 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
+// ================= SAFE JSON =================
+function safeJSON(text) {
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    const cleaned = text
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
+
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      return {
+        text: text,
+        products: []
+      };
+    }
+  }
+}
+
 // ================= SHOPIFY =================
 async function getProducts() {
 
-  const query = `
-  {
-    products(first: 50) {
-      edges {
-        node {
-          title
-          images(first: 1) {
-            edges { node { originalSrc } }
-          }
-          variants(first: 1) {
-            edges { node { price } }
+  try {
+
+    const query = `
+    {
+      products(first: 50) {
+        edges {
+          node {
+            title
+            images(first: 1) {
+              edges { node { originalSrc } }
+            }
+            variants(first: 1) {
+              edges { node { price } }
+            }
           }
         }
       }
-    }
-  }`;
+    }`;
 
-  const res = await axios.post(
-    `https://${process.env.SHOPIFY_STORE}/admin/api/${process.env.SHOPIFY_API_VERSION}/graphql.json`,
-    { query },
-    {
-      headers: {
-        "X-Shopify-Access-Token": process.env.SHOPIFY_TOKEN,
-        "Content-Type": "application/json"
+    const res = await axios.post(
+      `https://${process.env.SHOPIFY_STORE}/admin/api/${process.env.SHOPIFY_API_VERSION}/graphql.json`,
+      { query },
+      {
+        headers: {
+          "X-Shopify-Access-Token": process.env.SHOPIFY_TOKEN,
+          "Content-Type": "application/json"
+        }
       }
-    }
-  );
+    );
 
-  const products = res.data.data.products.edges;
+    return res.data.data.products.edges.map(p => {
+      const n = p.node;
 
-  return products.map(p => {
-    const n = p.node;
+      return {
+        title: n.title,
+        price: n.variants?.edges?.[0]?.node?.price || 0,
+        image: n.images?.edges?.[0]?.node?.originalSrc || ""
+      };
+    });
 
-    return {
-      title: n.title,
-      price: n.variants?.edges?.[0]?.node?.price || 0,
-      image: n.images?.edges?.[0]?.node?.originalSrc || ""
-    };
-  });
+  } catch (err) {
+    console.log(err.message);
+    return [];
+  }
 }
 
-// ================= CHAT API (STRUCTURED) =================
+// ================= CHAT API =================
 app.post("/chat", async (req, res) => {
 
   try {
@@ -67,8 +93,9 @@ app.post("/chat", async (req, res) => {
 
     const products = await getProducts();
 
-    const productList = products.slice(0, 20)
-      .map(p => `${p.title} | ${p.price}`)
+    const productList = products
+      .slice(0, 20)
+      .map(p => `- ${p.title} | ${p.price}`)
       .join("\n");
 
     const ai = await client.chat.completions.create({
@@ -79,10 +106,10 @@ app.post("/chat", async (req, res) => {
           content: `
 أنت مساعد مبيعات مجوهرات فاخر.
 
-ارجع JSON فقط بدون أي نص إضافي:
+🚨 ارجع JSON فقط:
 
 {
-  "text": "رد مختصر احترافي",
+  "text": "رد قصير احترافي",
   "products": [
     {
       "title": "",
@@ -92,7 +119,7 @@ app.post("/chat", async (req, res) => {
   ]
 }
 
-اختار أفضل 2 منتجات فقط من القائمة.
+اختار أفضل 2 منتجات فقط.
 
 المنتجات:
 ${productList}
@@ -105,28 +132,17 @@ ${productList}
       ]
     });
 
-    let result;
-
-    try {
-      result = JSON.parse(ai.choices[0].message.content);
-    } catch (e) {
-      result = {
-        text: ai.choices[0].message.content,
-        products: []
-      };
-    }
+    const result = safeJSON(ai.choices[0].message.content);
 
     res.json(result);
 
   } catch (err) {
-
     console.log(err.message);
 
     res.json({
-      text: "حدث خطأ",
+      text: "حدث خطأ في النظام",
       products: []
     });
-
   }
 
 });
@@ -138,5 +154,5 @@ app.get("/", (req, res) => {
 
 // ================= START =================
 app.listen(3000, () => {
-  console.log("🚀 AI Jewelry V2 Running");
+  console.log("🚀 WhatsApp Style AI Running");
 });
