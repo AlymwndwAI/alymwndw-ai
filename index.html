@@ -22,7 +22,7 @@ padding:10px;
 background:#111b21;
 margin:10px 0;
 padding:10px;
-border-radius:12px;
+border-radius:15px;
 }
 
 img{
@@ -52,7 +52,7 @@ const data = await res.json();
 let html = "";
 
 if(!data.length){
-html = "<h3>❌ مفيش منتجات ظاهرة</h3>";
+html = "<h3>❌ No products yet</h3>";
 }
 
 data.forEach(p=>{
