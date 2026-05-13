@@ -34,12 +34,11 @@ app.post("/chat", async (req, res) => {
 
     const products = shop?.data?.products || [];
 
-    // ================= SAFE PRODUCT TEXT =================
+    // ================= AI CONTEXT =================
     const productText = products.slice(0, 10).map(p =>
       `- ${p.title} | ${p.variants?.[0]?.price || 0}`
     ).join("\n");
 
-    // ================= AI =================
     const response = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -51,7 +50,6 @@ app.post("/chat", async (req, res) => {
 - تفهم العميل
 - تقترح منتجات
 - تتكلم كبائع محترف
-- تساعد في البيع
 
 المنتجات:
 ${productText}
@@ -64,36 +62,36 @@ ${productText}
       ]
     });
 
-    // ================= FIX IMAGES (IMPORTANT) =================
+    // ================= FIX IMAGES =================
     const formattedProducts = products.slice(0, 5).map(p => {
 
-      const rawImage =
-        p.images?.[0]?.src ||
-        p.image?.src ||
-        "";
+      let img = "";
+
+      if (p.images && p.images.length > 0) {
+        img = p.images[0].src;
+      } else if (p.image && p.image.src) {
+        img = p.image.src;
+      }
 
       return {
         title: p.title,
         price: p.variants?.[0]?.price || 0,
-        image: rawImage ? `https:${rawImage}` : ""
+        image: img ? (img.startsWith("//") ? `https:${img}` : img) : ""
       };
     });
 
-    // ================= RESPONSE =================
     res.json({
       reply: response.choices[0].message.content,
       products: formattedProducts
     });
 
   } catch (err) {
-
-    console.log("ERROR:", err.message);
+    console.log(err.message);
 
     res.json({
       reply: "💎 حصل خطأ لكن السيرفر شغال",
       products: []
     });
-
   }
 
 });
