@@ -1,52 +1,80 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AI Jewelry Store</title>
+  <title>AI Jewelry Chat</title>
 
   <style>
     body {
-      background:#0e0e0e;
-      color:white;
+      margin:0;
       font-family:Arial;
+      background:#0b141a;
+      color:white;
     }
 
     #chat {
-      width:420px;
-      margin:30px auto;
+      width:100%;
+      max-width:420px;
+      margin:0 auto;
+      padding:10px;
+      height:90vh;
+      overflow-y:auto;
     }
 
-    .msg {
-      background:#222;
+    .msg-user {
+      background:#005c4b;
       padding:10px;
-      margin:10px 0;
+      margin:8px;
       border-radius:10px;
-      white-space:pre-wrap;
+      width:fit-content;
+      margin-left:auto;
+      max-width:80%;
+    }
+
+    .msg-ai {
+      background:#1f2c34;
+      padding:10px;
+      margin:8px;
+      border-radius:10px;
+      width:fit-content;
+      max-width:80%;
     }
 
     .product {
-      background:#1a1a1a;
+      background:#111b21;
       padding:10px;
-      border-radius:12px;
-      margin:10px 0;
-    }
-
-    .product img {
-      width:120px;
+      margin:8px;
       border-radius:10px;
     }
 
-    input {
-      width:70%;
+    .product img {
+      width:100px;
+      border-radius:10px;
+    }
+
+    #inputBox {
+      position:fixed;
+      bottom:0;
+      width:100%;
+      display:flex;
+      background:#202c33;
       padding:10px;
-      border-radius:8px;
+    }
+
+    input {
+      flex:1;
+      padding:10px;
       border:none;
+      border-radius:20px;
+      outline:none;
     }
 
     button {
-      padding:10px;
+      margin-left:10px;
+      background:#00a884;
       border:none;
-      background:#d4af37;
-      border-radius:8px;
+      color:white;
+      padding:10px 15px;
+      border-radius:20px;
       cursor:pointer;
     }
   </style>
@@ -56,59 +84,69 @@
 
 <div id="chat"></div>
 
-<div style="text-align:center">
-  <input id="msg" placeholder="اكتب..." />
+<div id="inputBox">
+  <input id="msg" placeholder="اكتب رسالة..." />
   <button onclick="send()">Send</button>
 </div>
 
 <script>
 
-function addText(text) {
+function addUser(text){
   document.getElementById("chat").innerHTML +=
-    `<div class="msg">🤖 ${text}</div>`;
+  `<div class="msg-user">${text}</div>`;
 }
 
-function addProducts(products) {
+function addAI(text){
+  document.getElementById("chat").innerHTML +=
+  `<div class="msg-ai">🤖 ${text}</div>`;
+}
+
+function addProducts(products){
+
+  if(!Array.isArray(products)) return;
 
   products.forEach(p => {
 
+    if(!p) return;
+
     document.getElementById("chat").innerHTML += `
       <div class="product">
-        <img src="${p.image}" />
-        <div><b>${p.title}</b></div>
-        <div>💰 ${p.price}</div>
-        <button onclick="buy('${p.title}')">Buy Now</button>
+        <img src="${p.image || ''}" />
+        <div><b>${p.title || ''}</b></div>
+        <div>💰 ${p.price || ''}</div>
+        <button onclick="buy('${p.title}')">Buy</button>
       </div>
     `;
-
   });
-
-}
-
-async function send() {
-
-  const message = document.getElementById("msg").value;
-
-  const res = await fetch("/chat", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ message })
-  });
-
-  const data = await res.json();
-
-  addText(data.text || "");
-
-  if (data.products) {
-    addProducts(data.products);
-  }
-
 }
 
 function buy(title){
   alert("Buying: " + title);
+}
+
+async function send(){
+
+  const msg = document.getElementById("msg").value;
+
+  if(!msg) return;
+
+  addUser(msg);
+
+  document.getElementById("msg").value = "";
+
+  const res = await fetch("/chat", {
+    method:"POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ message: msg })
+  });
+
+  const data = await res.json();
+
+  addAI(data.text || "...");
+  addProducts(data.products);
+
+  document.getElementById("chat").scrollTop =
+    document.getElementById("chat").scrollHeight;
 }
 
 </script>
