@@ -2,38 +2,14 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>AI Jewelry Store</title>
+<title>AI Store</title>
 
 <style>
-body{
-margin:0;
-background:#0b141a;
-color:white;
-font-family:Arial;
-}
-
-.container{
-max-width:500px;
-margin:auto;
-padding:10px;
-}
-
-.card{
-background:#111b21;
-margin:10px 0;
-padding:10px;
-border-radius:15px;
-}
-
-img{
-width:100%;
-border-radius:10px;
-}
-
-.price{
-color:#00d2a0;
-font-weight:bold;
-}
+body{margin:0;background:#0b141a;color:white;font-family:Arial}
+.container{max-width:500px;margin:auto;padding:10px}
+.card{background:#111b21;margin:10px 0;padding:10px;border-radius:15px}
+img{width:100%;border-radius:10px}
+.price{color:#00d2a0;font-weight:bold}
 </style>
 
 </head>
@@ -52,7 +28,7 @@ const data = await res.json();
 let html = "";
 
 if(!data.length){
-html = "<h3>❌ No products found</h3>";
+html = "<h3>❌ No products</h3>";
 }
 
 data.forEach(p=>{
