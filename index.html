@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>AI Jewelry Store</title>
+<title>Alymwndw AI Store</title>
 
 <style>
 body{
@@ -16,6 +16,12 @@ body{
   max-width:520px;
   margin:auto;
   padding:10px;
+}
+
+.brand{
+  text-align:center;
+  font-size:22px;
+  margin:10px 0;
 }
 
 .card{
@@ -33,7 +39,6 @@ img{
 .price{
   color:#00d2a0;
   font-weight:bold;
-  margin-top:5px;
 }
 
 input, button{
@@ -56,12 +61,18 @@ button{
 
 <div class="container">
 
-<h2>💎 AI Jewelry Store</h2>
+<div class="brand">💎 Alymwndw AI Luxury Store</div>
 
-<input id="msg" placeholder="Ask AI..." />
-<button onclick="send()">Send</button>
+<!-- CHAT -->
+<input id="msg" placeholder="Ask about jewelry..." />
+<button onclick="send()">Ask AI</button>
+
+<!-- IMAGE GENERATOR -->
+<input id="imgPrompt" placeholder="Describe jewelry to generate image..." />
+<button onclick="generateImage()">Generate Image</button>
 
 <div id="chat"></div>
+<div id="imageBox"></div>
 <div id="products"></div>
 
 </div>
@@ -81,8 +92,28 @@ async function send(){
 
   const data = await res.json();
 
-  document.getElementById("chat").innerHTML += `
+  document.getElementById("chat").innerHTML = `
     <div class="card">${data.reply}</div>
+  `;
+}
+
+// ================= IMAGE GENERATION =================
+async function generateImage(){
+
+  const prompt = document.getElementById("imgPrompt").value;
+
+  const res = await fetch("/generate-image", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ prompt })
+  });
+
+  const data = await res.json();
+
+  document.getElementById("imageBox").innerHTML = `
+    <div class="card">
+      <img src="${data.image}" />
+    </div>
   `;
 }
 
@@ -97,7 +128,8 @@ async function load(){
   data.forEach(p => {
 
     let prices = (p.variants || [])
-      .map(v => parseFloat(v.price));
+      .map(v => parseFloat(v.price))
+      .filter(Boolean);
 
     let min = Math.min(...prices);
     let max = Math.max(...prices);
