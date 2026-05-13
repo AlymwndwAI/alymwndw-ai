@@ -5,29 +5,14 @@
 
   <style>
     body {
-      background:#0f0f0f;
+      background:#0e0e0e;
       color:white;
       font-family:Arial;
     }
 
     #chat {
-      width:400px;
-      margin:40px auto;
-    }
-
-    input {
-      width:75%;
-      padding:10px;
-      border-radius:8px;
-      border:none;
-    }
-
-    button {
-      padding:10px;
-      border-radius:8px;
-      border:none;
-      background:#d4af37;
-      cursor:pointer;
+      width:420px;
+      margin:30px auto;
     }
 
     .msg {
@@ -38,10 +23,31 @@
       white-space:pre-wrap;
     }
 
-    img {
-      width:100px;
+    .product {
+      background:#1a1a1a;
+      padding:10px;
+      border-radius:12px;
+      margin:10px 0;
+    }
+
+    .product img {
+      width:120px;
       border-radius:10px;
-      margin-top:5px;
+    }
+
+    input {
+      width:70%;
+      padding:10px;
+      border-radius:8px;
+      border:none;
+    }
+
+    button {
+      padding:10px;
+      border:none;
+      background:#d4af37;
+      border-radius:8px;
+      cursor:pointer;
     }
   </style>
 </head>
@@ -51,31 +57,27 @@
 <div id="chat"></div>
 
 <div style="text-align:center">
-  <input id="msg" placeholder="اكتب رسالتك..." />
+  <input id="msg" placeholder="اكتب..." />
   <button onclick="send()">Send</button>
 </div>
 
 <script>
 
-function addMsg(text) {
-  const chat = document.getElementById("chat");
-
-  chat.innerHTML += `
-    <div class="msg">🤖 ${text}</div>
-  `;
+function addText(text) {
+  document.getElementById("chat").innerHTML +=
+    `<div class="msg">🤖 ${text}</div>`;
 }
 
 function addProducts(products) {
 
-  const chat = document.getElementById("chat");
-
   products.forEach(p => {
 
-    chat.innerHTML += `
-      <div class="msg">
-        <b>${p.title}</b><br>
-        💰 ${p.price}<br>
+    document.getElementById("chat").innerHTML += `
+      <div class="product">
         <img src="${p.image}" />
+        <div><b>${p.title}</b></div>
+        <div>💰 ${p.price}</div>
+        <button onclick="buy('${p.title}')">Buy Now</button>
       </div>
     `;
 
@@ -85,22 +87,28 @@ function addProducts(products) {
 
 async function send() {
 
-  const msg = document.getElementById("msg").value;
+  const message = document.getElementById("msg").value;
 
   const res = await fetch("/chat", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ message: msg })
+    body: JSON.stringify({ message })
   });
 
   const data = await res.json();
 
-  addMsg(data.reply);
+  addText(data.text || "");
 
-  addProducts(data.products);
+  if (data.products) {
+    addProducts(data.products);
+  }
 
+}
+
+function buy(title){
+  alert("Buying: " + title);
 }
 
 </script>
