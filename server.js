@@ -18,24 +18,33 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// ================= AI CHAT + DESIGN =================
+// ================= CHAT + DESIGN =================
 app.post("/chat", async (req, res) => {
 
   try {
 
+    console.log("📩 REQUEST:", req.body);
+
     const message = req.body.message;
 
-    // ================= 1. AI decides if design needed =================
+    if (!message) {
+      return res.json({
+        type: "error",
+        text: "لا يوجد رسالة"
+      });
+    }
+
+    // ================= AI DECISION =================
     const decision = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
           content: `
-أنت مساعد مجوهرات.
+حدد هل المستخدم يريد تصميم مجوهرات أم محادثة عادية.
 
-إذا المستخدم طلب تصميم مجوهرات → رد DESIGN
-غير ذلك → رد CHAT
+إذا تصميم → اكتب DESIGN
+غير ذلك → CHAT
           `
         },
         {
@@ -45,9 +54,11 @@ app.post("/chat", async (req, res) => {
       ]
     });
 
-    const mode = decision.choices[0].message.content.trim();
+    const mode = decision.choices[0].message.content;
 
-    // ================= 2. DESIGN MODE =================
+    console.log("🧠 MODE:", mode);
+
+    // ================= DESIGN MODE =================
     if (mode.includes("DESIGN")) {
 
       const image = await client.images.generate({
@@ -57,10 +68,16 @@ Luxury jewelry design:
 
 ${message}
 
-18k gold, diamonds, ultra realistic, studio lighting, premium product photography
+- ultra realistic jewelry
+- gold 18k
+- diamonds
+- studio lighting
+- white background
         `,
         size: "1024x1024"
       });
+
+      console.log("🎨 IMAGE GENERATED");
 
       return res.json({
         type: "design",
@@ -69,7 +86,7 @@ ${message}
       });
     }
 
-    // ================= 3. NORMAL CHAT =================
+    // ================= CHAT MODE =================
     const chat = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -77,10 +94,7 @@ ${message}
           role: "system",
           content: `
 أنت مساعد مجوهرات فاخر.
-
-- رد مختصر
-- بيع بطريقة راقية
-- كأنك موظف VIP
+ردك قصير وراقي.
           `
         },
         {
@@ -90,24 +104,28 @@ ${message}
       ]
     });
 
+    const reply = chat.choices[0].message.content;
+
+    console.log("🤖 CHAT:", reply);
+
     res.json({
       type: "chat",
-      text: chat.choices[0].message.content
+      text: reply
     });
 
   } catch (err) {
 
-    console.log(err.message);
+    console.log("🔥 ERROR:", err);
 
-    res.json({
+    res.status(500).json({
       type: "error",
-      text: "حدث خطأ"
+      text: "حصل خطأ في السيرفر"
     });
-
   }
 
 });
 
+// ================= START =================
 app.listen(3000, () => {
-  console.log("🚀 AI Jewelry Chat Designer Running");
+  console.log("🚀 AI Jewelry System Running on port 3000");
 });
