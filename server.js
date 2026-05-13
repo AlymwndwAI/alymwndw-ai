@@ -14,7 +14,7 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// ================= SAFE JSON =================
+// ================= CLEAN JSON =================
 function safeJSON(text) {
   try {
     return JSON.parse(text);
@@ -35,7 +35,7 @@ function safeJSON(text) {
   }
 }
 
-// ================= SHOPIFY =================
+// ================= SHOPIFY PRODUCTS =================
 async function getProducts() {
 
   try {
@@ -46,11 +46,20 @@ async function getProducts() {
         edges {
           node {
             title
-            images(first: 1) {
-              edges { node { originalSrc } }
+            images(first: 5) {
+              edges {
+                node {
+                  originalSrc
+                  url
+                }
+              }
             }
             variants(first: 1) {
-              edges { node { price } }
+              edges {
+                node {
+                  price
+                }
+              }
             }
           }
         }
@@ -71,20 +80,25 @@ async function getProducts() {
     return res.data.data.products.edges.map(p => {
       const n = p.node;
 
+      const img =
+        n.images?.edges?.[0]?.node?.originalSrc ||
+        n.images?.edges?.[0]?.node?.url ||
+        "";
+
       return {
         title: n.title,
         price: n.variants?.edges?.[0]?.node?.price || 0,
-        image: n.images?.edges?.[0]?.node?.originalSrc || ""
+        image: img
       };
     });
 
   } catch (err) {
-    console.log(err.message);
+    console.log("SHOPIFY ERROR:", err.message);
     return [];
   }
 }
 
-// ================= CHAT API =================
+// ================= CHAT =================
 app.post("/chat", async (req, res) => {
 
   try {
@@ -109,7 +123,7 @@ app.post("/chat", async (req, res) => {
 🚨 ارجع JSON فقط:
 
 {
-  "text": "رد قصير احترافي",
+  "text": "رد مختصر واحترافي",
   "products": [
     {
       "title": "",
@@ -120,6 +134,8 @@ app.post("/chat", async (req, res) => {
 }
 
 اختار أفضل 2 منتجات فقط.
+
+لا تكتب أي شيء خارج JSON.
 
 المنتجات:
 ${productList}
@@ -140,7 +156,7 @@ ${productList}
     console.log(err.message);
 
     res.json({
-      text: "حدث خطأ في النظام",
+      text: "حدث خطأ في السيرفر",
       products: []
     });
   }
@@ -154,5 +170,5 @@ app.get("/", (req, res) => {
 
 // ================= START =================
 app.listen(3000, () => {
-  console.log("🚀 WhatsApp Style AI Running");
+  console.log("🚀 AI Jewelry FULL SYSTEM RUNNING");
 });
