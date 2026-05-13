@@ -12,12 +12,12 @@ app.use(express.static(__dirname));
 let cache = [];
 
 /* =========================
-   UTIL
+   SLEEP
 ========================= */
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 /* =========================
-   FETCH ALL PRODUCTS (STABLE + SAFE)
+   FETCH ALL PRODUCTS (STABLE)
 ========================= */
 async function fetchAllProducts() {
 
@@ -32,7 +32,7 @@ async function fetchAllProducts() {
 
       let res;
 
-      // retry system
+      // retry system (429 / 503)
       for (let i = 0; i < 5; i++) {
         try {
           res = await axios.get(url, { timeout: 15000 });
@@ -60,7 +60,7 @@ async function fetchAllProducts() {
 
       page++;
 
-      await sleep(900);
+      await sleep(800);
     }
 
     console.log("✅ FINAL PRODUCTS:", all.length);
@@ -86,80 +86,91 @@ async function syncProducts() {
 }
 
 /* =========================
-   SMART VARIANT DETECTOR
+   REAL REVIEWS (Judge.me)
 ========================= */
+async function getReviews(handle) {
 
-function detectFromOptions(options, keywords) {
-  if (!options) return [];
+  try {
 
-  const opt = options.find(o =>
-    keywords.some(k =>
-      (o.name || "").toLowerCase().includes(k)
-    )
-  );
+    const url = `https://judge.me/api/v1/reviews?shop_domain=${process.env.SHOPIFY_STORE}&product_handle=${handle}`;
 
-  return opt?.values || [];
-}
+    const res = await axios.get(url, { timeout: 10000 });
 
-function guessFromTitle(text, keywords) {
-  text = (text || "").toLowerCase();
-  return keywords.find(k => text.includes(k)) || "unknown";
-}
+    const reviews = res?.data?.reviews || [];
 
-function guessSize(text) {
-  const match = text?.match(/\d+/);
-  return match ? match[0] : "N/A";
+    return reviews.map(r => ({
+      name: r.reviewer_name,
+      rating: r.rating,
+      text: r.body
+    }));
+
+  } catch (err) {
+    return []; // مهم: ما نكسرش الموقع
+  }
 }
 
 /* =========================
-   PRODUCTS API (SMART AI OUTPUT)
+   PRODUCTS API (FULL DATA)
 ========================= */
-app.get("/products", (req, res) => {
+app.get("/products", async (req, res) => {
 
   if (!cache || cache.length === 0) {
     return res.json({ error: "No products - run /sync" });
   }
 
-  const formatted = cache.map(p => {
+  const formatted = [];
+
+  for (let p of cache) {
 
     const v = p.variants?.[0];
     const price = parseFloat(v?.price || 0);
 
+    // 🧠 REAL SHOPIFY OPTIONS
     const options = p.options || [];
 
-    return {
+    const detect = (keywords) => {
+      const opt = options.find(o =>
+        keywords.some(k =>
+          (o.name || "").toLowerCase().includes(k)
+        )
+      );
+      return opt?.values || [];
+    };
+
+    // 💎 REVIEWS FROM SHOPIFY APP (if exists)
+    const reviews = await getReviews(p.handle);
+
+    formatted.push({
       title: p.title,
       handle: p.handle,
       image: p.images?.[0]?.src || "",
 
-      // 💎 base price
       price: `${price.toFixed(2)} AED`,
 
-      // 🧠 SMART ATTRIBUTES
+      // 💎 VARIANTS FULL
+      variants: (p.variants || []).map(v => ({
+        id: v.id,
+        title: v.title,
+        price: `${parseFloat(v.price || 0).toFixed(2)} AED`,
+        option1: v.option1,
+        option2: v.option2,
+        option3: v.option3
+      })),
+
+      // 💎 REAL OPTIONS
       attributes: {
-        metals: detectFromOptions(options, ["metal", "material", "gold", "silver", "platinum"]),
-        stones: detectFromOptions(options, ["stone", "diamond", "moissanite", "gem"]),
-        sizes: detectFromOptions(options, ["size", "ring"])
+        metals: detect(["metal", "gold", "silver", "platinum"]),
+        stones: detect(["stone", "diamond", "moissanite", "gem"]),
+        sizes: detect(["size", "ring"])
       },
 
-      // 💎 FULL VARIANTS
-      variants: (p.variants || []).map(variant => {
-
-        const title = (variant.title || "").toLowerCase();
-
-        return {
-          id: variant.id,
-          title: variant.title,
-          price: `${parseFloat(variant.price || 0).toFixed(2)} AED`,
-
-          // 🧠 intelligent guess
-          metal: guessFromTitle(title, ["gold", "silver", "platinum"]),
-          stone: guessFromTitle(title, ["diamond", "moissanite", "ruby", "emerald"]),
-          size: guessSize(variant.title)
-        };
-      })
-    };
-  });
+      // ⭐ REAL REVIEWS (Shopify App)
+      reviews: reviews,
+      rating: reviews.length
+        ? (reviews.reduce((a, b) => a + b.rating, 0) / reviews.length).toFixed(1)
+        : 0
+    });
+  }
 
   res.json(formatted);
 });
@@ -168,6 +179,8 @@ app.get("/products", (req, res) => {
    SYNC ENDPOINT
 ========================= */
 app.get("/sync", async (req, res) => {
+
+  cache = [];
 
   await syncProducts();
 
@@ -181,7 +194,7 @@ app.get("/sync", async (req, res) => {
    HEALTH
 ========================= */
 app.get("/", (req, res) => {
-  res.send("🚀 AI Jewelry Store Running");
+  res.send("🚀 AI Jewelry Store FULL SYSTEM RUNNING");
 });
 
 /* =========================
@@ -193,7 +206,7 @@ setInterval(async () => {
 }, 1000 * 60 * 15);
 
 /* =========================
-   START SERVER
+   START
 ========================= */
 const PORT = process.env.PORT || 3000;
 
