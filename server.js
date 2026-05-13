@@ -11,9 +11,7 @@ const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 
 let cache = [];
 
-/* =========================
-   SAFETY (prevent crash)
-========================= */
+// 🛡️ حماية من الكراش
 process.on("uncaughtException", (err) => {
   console.log("CRASH:", err.message);
 });
@@ -22,9 +20,7 @@ process.on("unhandledRejection", (err) => {
   console.log("PROMISE ERROR:", err.message);
 });
 
-/* =========================
-   SHOPIFY SYNC (SAFE)
-========================= */
+// 🔥 جلب المنتجات (Safe Sync)
 async function syncProducts() {
   try {
 
@@ -57,16 +53,12 @@ async function syncProducts() {
   }
 }
 
-/* =========================
-   API: PRODUCTS
-========================= */
+// 🚀 API PRODUCTS
 app.get("/products", (req, res) => {
 
   try {
 
-    if (!cache || !cache.length) {
-      return res.json([]);
-    }
+    if (!cache.length) return res.json([]);
 
     const data = cache.map(p => ({
       id: p.id,
@@ -79,9 +71,9 @@ app.get("/products", (req, res) => {
 
         price: `${parseFloat(v.price || 0).toFixed(2)} AED`,
 
-        metal: v.option1 || null,
-        stone: v.option2 || null,
-        size: v.option3 || null
+        metal: v.option1 || "N/A",
+        stone: v.option2 || "N/A",
+        size: v.option3 || "N/A"
       }))
     }));
 
@@ -95,24 +87,18 @@ app.get("/products", (req, res) => {
   }
 });
 
-/* =========================
-   SYNC MANUAL
-========================= */
+// 🔄 manual sync
 app.get("/sync", async (req, res) => {
   await syncProducts();
   res.json({ ok: true, total: cache.length });
 });
 
-/* =========================
-   HEALTH CHECK
-========================= */
+// 🟢 health check
 app.get("/", (req, res) => {
   res.send("🚀 AI Jewelry Store Running");
 });
 
-/* =========================
-   START SERVER
-========================= */
+// 🚀 start server
 app.listen(PORT, "0.0.0.0", () => {
   console.log("🚀 Server running on", PORT);
 });
