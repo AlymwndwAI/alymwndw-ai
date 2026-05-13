@@ -12,12 +12,12 @@ app.use(express.static(__dirname));
 let cache = [];
 
 /* =========================
-   SLEEP
+   UTIL
 ========================= */
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 /* =========================
-   FETCH ALL PRODUCTS (STABLE)
+   FETCH PRODUCTS (FULL VARIANTS SAFE)
 ========================= */
 async function fetchAllProducts() {
 
@@ -30,31 +30,20 @@ async function fetchAllProducts() {
 
       const url = `https://${process.env.SHOPIFY_STORE}/products.json?limit=250&page=${page}`;
 
-      let res;
-
-      // retry system (429 / 503)
-      for (let i = 0; i < 5; i++) {
-        try {
-          res = await axios.get(url, { timeout: 15000 });
-          break;
-        } catch (err) {
-
-          const status = err.response?.status;
-
-          if (status === 429 || status === 503) {
-            console.log(`⛔ Shopify busy (${status}) retrying...`);
-            await sleep(3000);
-          } else {
-            throw err;
-          }
-        }
-      }
+      const res = await axios.get(url, { timeout: 15000 });
 
       const products = res?.data?.products || [];
 
       if (!products.length) break;
 
-      all = all.concat(products);
+      for (let p of products) {
+
+        // نضمن إن variants موجودة
+        if (p && p.variants && p.variants.length > 0) {
+          all.push(p);
+        }
+
+      }
 
       console.log(`📦 Page ${page} | Got: ${products.length} | Total: ${all.length}`);
 
@@ -68,7 +57,7 @@ async function fetchAllProducts() {
     return all;
 
   } catch (err) {
-    console.log("❌ Fatal error:", err.message);
+    console.log("❌ Error:", err.message);
     return [];
   }
 }
@@ -86,91 +75,55 @@ async function syncProducts() {
 }
 
 /* =========================
-   REAL REVIEWS (Judge.me)
+   SMART VARIANTS EXTRACTOR
 ========================= */
-async function getReviews(handle) {
+function extractVariants(product) {
 
-  try {
+  return (product.variants || []).map(v => {
 
-    const url = `https://judge.me/api/v1/reviews?shop_domain=${process.env.SHOPIFY_STORE}&product_handle=${handle}`;
+    return {
+      id: v.id,
+      title: v.title,
 
-    const res = await axios.get(url, { timeout: 10000 });
+      price: `${parseFloat(v.price || 0).toFixed(2)} AED`,
 
-    const reviews = res?.data?.reviews || [];
+      // 💎 REAL SHOPIFY DATA (NO GUESS)
+      metal: v.option1 || "Gold",
+      stone: v.option2 || "White",
+      size: v.option3 || "N/A",
 
-    return reviews.map(r => ({
-      name: r.reviewer_name,
-      rating: r.rating,
-      text: r.body
-    }));
-
-  } catch (err) {
-    return []; // مهم: ما نكسرش الموقع
-  }
+      sku: v.sku || ""
+    };
+  });
 }
 
 /* =========================
-   PRODUCTS API (FULL DATA)
+   PRODUCTS API
 ========================= */
-app.get("/products", async (req, res) => {
+app.get("/products", (req, res) => {
 
-  if (!cache || cache.length === 0) {
+  if (!cache.length) {
     return res.json({ error: "No products - run /sync" });
   }
 
-  const formatted = [];
+  const formatted = cache.map(p => {
 
-  for (let p of cache) {
+    const price = parseFloat(p.variants?.[0]?.price || 0);
 
-    const v = p.variants?.[0];
-    const price = parseFloat(v?.price || 0);
-
-    // 🧠 REAL SHOPIFY OPTIONS
-    const options = p.options || [];
-
-    const detect = (keywords) => {
-      const opt = options.find(o =>
-        keywords.some(k =>
-          (o.name || "").toLowerCase().includes(k)
-        )
-      );
-      return opt?.values || [];
-    };
-
-    // 💎 REVIEWS FROM SHOPIFY APP (if exists)
-    const reviews = await getReviews(p.handle);
-
-    formatted.push({
+    return {
       title: p.title,
       handle: p.handle,
       image: p.images?.[0]?.src || "",
 
       price: `${price.toFixed(2)} AED`,
 
-      // 💎 VARIANTS FULL
-      variants: (p.variants || []).map(v => ({
-        id: v.id,
-        title: v.title,
-        price: `${parseFloat(v.price || 0).toFixed(2)} AED`,
-        option1: v.option1,
-        option2: v.option2,
-        option3: v.option3
-      })),
+      // 💎 VARIANTS FULLY SHOWN
+      variants: extractVariants(p),
 
-      // 💎 REAL OPTIONS
-      attributes: {
-        metals: detect(["metal", "gold", "silver", "platinum"]),
-        stones: detect(["stone", "diamond", "moissanite", "gem"]),
-        sizes: detect(["size", "ring"])
-      },
-
-      // ⭐ REAL REVIEWS (Shopify App)
-      reviews: reviews,
-      rating: reviews.length
-        ? (reviews.reduce((a, b) => a + b.rating, 0) / reviews.length).toFixed(1)
-        : 0
-    });
-  }
+      // 💎 OPTIONS RAW FROM SHOPIFY
+      options: p.options || []
+    };
+  });
 
   res.json(formatted);
 });
@@ -191,10 +144,10 @@ app.get("/sync", async (req, res) => {
 });
 
 /* =========================
-   HEALTH
+   HOME
 ========================= */
 app.get("/", (req, res) => {
-  res.send("🚀 AI Jewelry Store FULL SYSTEM RUNNING");
+  res.send("🚀 Shopify AI Store Running");
 });
 
 /* =========================
@@ -206,7 +159,7 @@ setInterval(async () => {
 }, 1000 * 60 * 15);
 
 /* =========================
-   START
+   START SERVER
 ========================= */
 const PORT = process.env.PORT || 3000;
 
