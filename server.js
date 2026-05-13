@@ -1,5 +1,6 @@
 const express = require("express");
 const axios = require("axios");
+const path = require("path");
 
 const app = express();
 
@@ -12,12 +13,12 @@ app.use(express.static(__dirname));
 let cache = [];
 
 /* =========================
-   SLEEP
+   SLEEP (safe requests)
 ========================= */
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 /* =========================
-   FETCH ALL PRODUCTS (FIXED PAGINATION)
+   FETCH ALL PRODUCTS (STABLE)
 ========================= */
 async function fetchAllProducts() {
 
@@ -32,7 +33,7 @@ async function fetchAllProducts() {
 
       let res;
 
-      // retry system for 429 / 503
+      // retry system (429 / 503)
       for (let i = 0; i < 5; i++) {
         try {
           res = await axios.get(url, { timeout: 15000 });
@@ -52,10 +53,7 @@ async function fetchAllProducts() {
 
       const products = res?.data?.products || [];
 
-      if (!products.length) {
-        console.log(`🛑 Page ${page} empty → stop`);
-        break;
-      }
+      if (!products.length) break;
 
       all = all.concat(products);
 
@@ -63,11 +61,10 @@ async function fetchAllProducts() {
 
       page++;
 
-      // slow down requests (VERY IMPORTANT)
-      await sleep(1200);
+      await sleep(800);
     }
 
-    console.log("✅ FINAL TOTAL PRODUCTS:", all.length);
+    console.log("✅ FINAL PRODUCTS:", all.length);
 
     return all;
 
@@ -82,48 +79,86 @@ async function fetchAllProducts() {
 ========================= */
 async function syncProducts() {
 
-  console.log("🔄 Sync started...");
-
   const products = await fetchAllProducts();
 
   cache = products || [];
 
-  console.log("💾 Cached products:", cache.length);
+  console.log("💾 Cached:", cache.length);
 }
 
 /* =========================
-   PRODUCTS API
+   SMART DETECTION ENGINE
+========================= */
+
+function detectFromOptions(options, keywords) {
+  if (!options) return [];
+
+  const opt = options.find(o =>
+    keywords.some(k =>
+      (o.name || "").toLowerCase().includes(k)
+    )
+  );
+
+  return opt?.values || [];
+}
+
+function guessFromTitle(text, keywords) {
+  text = (text || "").toLowerCase();
+  return keywords.find(k => text.includes(k)) || "unknown";
+}
+
+function guessSize(text) {
+  const match = text?.match(/\d+/);
+  return match ? match[0] : "N/A";
+}
+
+/* =========================
+   PRODUCTS API (SMART AI STRUCTURE)
 ========================= */
 app.get("/products", (req, res) => {
 
   if (!cache || cache.length === 0) {
-    return res.json({
-      error: "No products - run /sync"
-    });
+    return res.json({ error: "No products - run /sync" });
   }
 
   const formatted = cache.map(p => {
 
     const v = p.variants?.[0];
-
     const price = parseFloat(v?.price || 0);
+
+    const options = p.options || [];
 
     return {
       title: p.title,
       handle: p.handle,
       image: p.images?.[0]?.src || "",
 
-      // 💎 AED ONLY
+      // 💎 base price
       price: `${price.toFixed(2)} AED`,
 
-      variants: (p.variants || []).map(v => ({
-        id: v.id,
-        title: v.title,
-        price: `${parseFloat(v.price || 0).toFixed(2)} AED`,
-        option1: v.option1,
-        option2: v.option2,
-        option3: v.option3
-      }))
+      // 🧠 SMART ATTRIBUTES (AI STRUCTURE)
+      attributes: {
+        metals: detectFromOptions(options, ["metal", "material", "gold", "silver", "platinum"]),
+        stones: detectFromOptions(options, ["stone", "diamond", "moissanite", "gem"]),
+        sizes: detectFromOptions(options, ["size", "ring"])
+      },
+
+      // 💎 SMART VARIANTS
+      variants: (p.variants || []).map(v => {
+
+        const title = (v.title || "").toLowerCase();
+
+        return {
+          id: v.id,
+          title: v.title,
+          price: `${parseFloat(v.price || 0).toFixed(2)} AED`,
+
+          // 🧠 intelligent guess (not fixed mapping)
+          metal: guessFromTitle(title, ["gold", "silver", "platinum"]),
+          stone: guessFromTitle(title, ["diamond", "moissanite", "ruby", "emerald"]),
+          size: guessSize(v.title)
+        };
+      })
     };
   });
 
@@ -134,8 +169,6 @@ app.get("/products", (req, res) => {
    SYNC ENDPOINT
 ========================= */
 app.get("/sync", async (req, res) => {
-
-  cache = []; // clear old data
 
   await syncProducts();
 
@@ -149,16 +182,16 @@ app.get("/sync", async (req, res) => {
    HEALTH
 ========================= */
 app.get("/", (req, res) => {
-  res.send("🚀 AI Store Running");
+  res.send("🚀 Smart AI Jewelry Store Running");
 });
 
 /* =========================
-   AUTO SYNC (SAFE)
+   AUTO SYNC
 ========================= */
 setInterval(async () => {
   console.log("🔄 Auto sync...");
   await syncProducts();
-}, 1000 * 60 * 15); // كل 15 دقيقة
+}, 1000 * 60 * 15);
 
 /* =========================
    START
