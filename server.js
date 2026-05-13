@@ -1,131 +1,36 @@
 const express = require("express");
-const path = require("path");
-const dotenv = require("dotenv");
-const OpenAI = require("openai");
-
-dotenv.config();
+const axios = require("axios");
+require("dotenv").config();
 
 const app = express();
 app.use(express.json());
 app.use(express.static(__dirname));
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const COLLECTION = process.env.COLLECTION_HANDLE;
 
-// ================= HOME =================
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
+// ================= GET COLLECTION PRODUCTS =================
+async function getCollectionProducts() {
+  const url = `https://${process.env.SHOPIFY_STORE}/products.json?limit=250`;
 
-// ================= CHAT + DESIGN =================
-app.post("/chat", async (req, res) => {
+  const res = await axios.get(url);
 
-  try {
+  const products = res.data.products || [];
 
-    console.log("📩 REQUEST:", req.body);
+  return products
+    .filter(p => p.handle.includes(COLLECTION.split("-")[0])) // filter simple
+    .map(p => ({
+      title: p.title,
+      price: p.variants?.[0]?.price,
+      image: p.images?.[0]?.src,
+      link: `https://${process.env.SHOPIFY_STORE}/products/${p.handle}`
+    }));
+}
 
-    const message = req.body.message;
-
-    if (!message) {
-      return res.json({
-        type: "error",
-        text: "لا يوجد رسالة"
-      });
-    }
-
-    // ================= AI DECISION =================
-    const decision = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `
-حدد هل المستخدم يريد تصميم مجوهرات أم محادثة عادية.
-
-إذا تصميم → اكتب DESIGN
-غير ذلك → CHAT
-          `
-        },
-        {
-          role: "user",
-          content: message
-        }
-      ]
-    });
-
-    const mode = decision.choices[0].message.content;
-
-    console.log("🧠 MODE:", mode);
-
-    // ================= DESIGN MODE =================
-    if (mode.includes("DESIGN")) {
-
-      const image = await client.images.generate({
-        model: "gpt-image-1",
-        prompt: `
-Luxury jewelry design:
-
-${message}
-
-- ultra realistic jewelry
-- gold 18k
-- diamonds
-- studio lighting
-- white background
-        `,
-        size: "1024x1024"
-      });
-
-      console.log("🎨 IMAGE GENERATED");
-
-      return res.json({
-        type: "design",
-        text: "💎 تم إنشاء تصميم مجوهرات لك",
-        image: image.data[0].url
-      });
-    }
-
-    // ================= CHAT MODE =================
-    const chat = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `
-أنت مساعد مجوهرات فاخر.
-ردك قصير وراقي.
-          `
-        },
-        {
-          role: "user",
-          content: message
-        }
-      ]
-    });
-
-    const reply = chat.choices[0].message.content;
-
-    console.log("🤖 CHAT:", reply);
-
-    res.json({
-      type: "chat",
-      text: reply
-    });
-
-  } catch (err) {
-
-    console.log("🔥 ERROR:", err);
-
-    res.status(500).json({
-      type: "error",
-      text: "حصل خطأ في السيرفر"
-    });
-  }
-
+// ================= API =================
+app.get("/products", async (req, res) => {
+  const data = await getCollectionProducts();
+  res.json(data);
 });
 
 // ================= START =================
-app.listen(3000, () => {
-  console.log("🚀 AI Jewelry System Running on port 3000");
-});
+app.listen(3000, () => console.log("Server running"));
