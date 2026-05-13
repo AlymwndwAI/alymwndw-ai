@@ -11,6 +11,7 @@ const app = express();
 app.use(express.json());
 app.use(express.static(__dirname));
 
+// ================= OPENAI =================
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
@@ -65,16 +66,10 @@ async function getProducts() {
 
     const node = p.node;
 
-    const image =
-      node.images?.edges?.[0]?.node?.url || "";
-
-    const price =
-      node.variants?.edges?.[0]?.node?.price || 0;
-
     return {
       title: node.title,
-      price,
-      image
+      price: node.variants?.edges?.[0]?.node?.price || 0,
+      image: node.images?.edges?.[0]?.node?.url || ""
     };
   });
 }
@@ -86,15 +81,15 @@ app.post("/chat", async (req, res) => {
 
     const userMessage = req.body.message;
 
-    // ================= PRODUCTS =================
+    // ================= LOAD PRODUCTS =================
     const products = await getProducts();
 
-    // ================= AI RESPONSE =================
-    const productText = products.slice(0, 10).map(p =>
+    const productText = products.slice(0, 20).map(p =>
       `- ${p.title} | ${p.price}`
     ).join("\n");
 
-    const response = await client.chat.completions.create({
+    // ================= AI =================
+    const ai = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
@@ -102,9 +97,11 @@ app.post("/chat", async (req, res) => {
           content: `
 أنت مساعد مبيعات لمتجر مجوهرات فاخر.
 
-- اختر أفضل المنتجات
-- كن مقنع
-- ساعد العميل يشتري
+مهمتك:
+- فهم طلب العميل
+- اختيار المنتجات المناسبة فقط
+- لو مفيش تطابق قول مفيش منتجات
+- بيع بطريقة احترافية
 
 المنتجات:
 ${productText}
@@ -117,17 +114,28 @@ ${productText}
       ]
     });
 
-    // ================= FORMAT RESPONSE =================
-    const finalProducts = products.slice(0, 5);
+    const reply = ai.choices[0].message.content;
 
+    // ================= SMART FILTER =================
+    const matchedProducts = products.filter(p => {
+
+      const text = userMessage.toLowerCase();
+      const title = (p.title || "").toLowerCase();
+
+      return title.includes(text.split(" ")[0]);
+    });
+
+    // ================= RESPONSE =================
     res.json({
-      reply: response.choices[0].message.content,
-      products: finalProducts
+      reply,
+      products: matchedProducts.length
+        ? matchedProducts.slice(0, 5)
+        : products.slice(0, 5)
     });
 
   } catch (err) {
 
-    console.log(err.message);
+    console.log("ERROR:", err.message);
 
     res.json({
       reply: "💎 حصل خطأ لكن السيرفر شغال",
@@ -135,12 +143,11 @@ ${productText}
     });
 
   }
-
 });
 
 // ================= START =================
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log("🚀 GraphQL Server running on port", PORT);
+  console.log("🚀 Server running on port", PORT);
 });
