@@ -1,6 +1,5 @@
 const express = require("express");
 const axios = require("axios");
-const path = require("path");
 
 const app = express();
 
@@ -13,12 +12,12 @@ app.use(express.static(__dirname));
 let cache = [];
 
 /* =========================
-   SLEEP (safe requests)
+   UTIL
 ========================= */
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 /* =========================
-   FETCH ALL PRODUCTS (STABLE)
+   FETCH ALL PRODUCTS (STABLE + SAFE)
 ========================= */
 async function fetchAllProducts() {
 
@@ -33,7 +32,7 @@ async function fetchAllProducts() {
 
       let res;
 
-      // retry system (429 / 503)
+      // retry system
       for (let i = 0; i < 5; i++) {
         try {
           res = await axios.get(url, { timeout: 15000 });
@@ -61,7 +60,7 @@ async function fetchAllProducts() {
 
       page++;
 
-      await sleep(800);
+      await sleep(900);
     }
 
     console.log("✅ FINAL PRODUCTS:", all.length);
@@ -87,7 +86,7 @@ async function syncProducts() {
 }
 
 /* =========================
-   SMART DETECTION ENGINE
+   SMART VARIANT DETECTOR
 ========================= */
 
 function detectFromOptions(options, keywords) {
@@ -113,7 +112,7 @@ function guessSize(text) {
 }
 
 /* =========================
-   PRODUCTS API (SMART AI STRUCTURE)
+   PRODUCTS API (SMART AI OUTPUT)
 ========================= */
 app.get("/products", (req, res) => {
 
@@ -136,27 +135,27 @@ app.get("/products", (req, res) => {
       // 💎 base price
       price: `${price.toFixed(2)} AED`,
 
-      // 🧠 SMART ATTRIBUTES (AI STRUCTURE)
+      // 🧠 SMART ATTRIBUTES
       attributes: {
         metals: detectFromOptions(options, ["metal", "material", "gold", "silver", "platinum"]),
         stones: detectFromOptions(options, ["stone", "diamond", "moissanite", "gem"]),
         sizes: detectFromOptions(options, ["size", "ring"])
       },
 
-      // 💎 SMART VARIANTS
-      variants: (p.variants || []).map(v => {
+      // 💎 FULL VARIANTS
+      variants: (p.variants || []).map(variant => {
 
-        const title = (v.title || "").toLowerCase();
+        const title = (variant.title || "").toLowerCase();
 
         return {
-          id: v.id,
-          title: v.title,
-          price: `${parseFloat(v.price || 0).toFixed(2)} AED`,
+          id: variant.id,
+          title: variant.title,
+          price: `${parseFloat(variant.price || 0).toFixed(2)} AED`,
 
-          // 🧠 intelligent guess (not fixed mapping)
+          // 🧠 intelligent guess
           metal: guessFromTitle(title, ["gold", "silver", "platinum"]),
           stone: guessFromTitle(title, ["diamond", "moissanite", "ruby", "emerald"]),
-          size: guessSize(v.title)
+          size: guessSize(variant.title)
         };
       })
     };
@@ -182,7 +181,7 @@ app.get("/sync", async (req, res) => {
    HEALTH
 ========================= */
 app.get("/", (req, res) => {
-  res.send("🚀 Smart AI Jewelry Store Running");
+  res.send("🚀 AI Jewelry Store Running");
 });
 
 /* =========================
@@ -194,7 +193,7 @@ setInterval(async () => {
 }, 1000 * 60 * 15);
 
 /* =========================
-   START
+   START SERVER
 ========================= */
 const PORT = process.env.PORT || 3000;
 
