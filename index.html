@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Alymwndw AI Store</title>
+<title>Alymwndw AI 💎</title>
 
 <style>
 body{
@@ -36,11 +36,6 @@ img{
   border-radius:12px;
 }
 
-.price{
-  color:#00d2a0;
-  font-weight:bold;
-}
-
 input, button{
   width:100%;
   padding:12px;
@@ -63,12 +58,10 @@ button{
 
 <div class="brand">💎 Alymwndw AI Luxury Store</div>
 
-<!-- CHAT -->
 <input id="msg" placeholder="Ask about jewelry..." />
 <button onclick="send()">Ask AI</button>
 
-<!-- IMAGE GENERATOR -->
-<input id="imgPrompt" placeholder="Describe jewelry to generate image..." />
+<input id="imgPrompt" placeholder="Generate jewelry image..." />
 <button onclick="generateImage()">Generate Image</button>
 
 <div id="chat"></div>
@@ -97,7 +90,7 @@ async function send(){
   `;
 }
 
-// ================= IMAGE GENERATION =================
+// ================= IMAGE =================
 async function generateImage(){
 
   const prompt = document.getElementById("imgPrompt").value;
@@ -127,23 +120,16 @@ async function load(){
 
   data.forEach(p => {
 
-    let prices = (p.variants || [])
-      .map(v => parseFloat(v.price))
-      .filter(Boolean);
-
-    let min = Math.min(...prices);
-    let max = Math.max(...prices);
-
-    let priceText =
-      min === max
-        ? `💰 ${min} AED`
-        : `💰 ${min} - ${max} AED`;
+    let price =
+      p.price_min === p.price_max
+        ? `${p.price_min} AED`
+        : `${p.price_min} - ${p.price_max} AED`;
 
     html += `
       <div class="card">
         <img src="${p.image}" />
         <h3>${p.title}</h3>
-        <div class="price">${priceText}</div>
+        <div>${price}</div>
       </div>
     `;
   });
