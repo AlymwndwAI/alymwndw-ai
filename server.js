@@ -14,7 +14,7 @@ const SHOPIFY_STORE = process.env.SHOPIFY_STORE || "";
 let cache = [];
 
 /* =========================
-   SAFETY (prevent crash)
+   SAFETY
 ========================= */
 process.on("uncaughtException", (err) => {
   console.log("CRASH:", err.message);
@@ -25,7 +25,7 @@ process.on("unhandledRejection", (err) => {
 });
 
 /* =========================
-   SHOPIFY SYNC (FIXED)
+   SMART SHOPIFY SYNC (FIXED 429)
 ========================= */
 async function syncProducts() {
   try {
@@ -38,8 +38,11 @@ async function syncProducts() {
 
     let all = [];
     let since_id = 0;
+    let loopCount = 0;
 
     while (true) {
+
+      loopCount++;
 
       const url = `https://${SHOPIFY_STORE}/products.json?limit=250&since_id=${since_id}`;
 
@@ -53,12 +56,17 @@ async function syncProducts() {
 
       since_id = products[products.length - 1].id;
 
-      console.log(`📦 Got: ${products.length} | Total: ${all.length}`);
+      console.log(`📦 Batch ${loopCount}: ${products.length} | Total: ${all.length}`);
+
+      /* =========================
+         FIX 429 RATE LIMIT
+      ========================= */
+      await new Promise(r => setTimeout(r, 900));
     }
 
     cache = all;
 
-    console.log("✅ FINAL PRODUCTS:", cache.length);
+    console.log("✅ FINAL PRODUCTS LOADED:", cache.length);
 
   } catch (err) {
     console.log("SYNC ERROR:", err.message);
@@ -66,7 +74,7 @@ async function syncProducts() {
 }
 
 /* =========================
-   PRODUCTS API (FIXED)
+   PRODUCTS API (CLEAN FIX)
 ========================= */
 app.get("/products", (req, res) => {
 
@@ -84,7 +92,7 @@ app.get("/products", (req, res) => {
 
         title: v.title || "variant",
 
-        price: Number(v.price || 0),   // FIXED
+        price: Number(v.price || 0),
 
         metal: v.option1 || "Unknown Metal",
         stone: v.option2 || "Unknown Stone",
@@ -107,14 +115,17 @@ app.get("/products", (req, res) => {
 ========================= */
 app.get("/sync", async (req, res) => {
   await syncProducts();
-  res.json({ ok: true, total: cache.length });
+  res.json({
+    ok: true,
+    total: cache.length
+  });
 });
 
 /* =========================
    HEALTH CHECK
 ========================= */
 app.get("/", (req, res) => {
-  res.send("🚀 Alymwndw AI Store Running");
+  res.send("🚀 Alymwndw AI Running Successfully");
 });
 
 /* =========================
@@ -123,5 +134,6 @@ app.get("/", (req, res) => {
 app.listen(PORT, "0.0.0.0", () => {
   console.log("🚀 Server running on", PORT);
 
+  // auto sync on start
   syncProducts();
 });
