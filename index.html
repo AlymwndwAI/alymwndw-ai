@@ -50,12 +50,12 @@ button{
 
 <div class="container">
 
-<h3>💎 Alymwndw AI Store</h3>
+<h3>💎 Alymwndw AI Running</h3>
 
-<input id="msg" placeholder="Ask about jewelry..." />
+<input id="msg" placeholder="Ask AI..." />
 <button onclick="send()">Ask AI</button>
 
-<input id="imgPrompt" placeholder="Generate jewelry image..." />
+<input id="imgPrompt" placeholder="Generate image..." />
 <button onclick="generateImage()">Generate Image</button>
 
 <div id="chat"></div>
@@ -66,74 +66,95 @@ button{
 
 <script>
 
-// ================= CHAT =================
+// 🔥 FIXED CHAT
 async function send(){
 
-  const msg = document.getElementById("msg").value;
+  try {
 
-  const res = await fetch("/chat", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ message: msg })
-  });
+    const msg = document.getElementById("msg").value;
 
-  const data = await res.json();
+    const res = await fetch("/chat", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ message: msg })
+    });
 
-  document.getElementById("chat").innerHTML = `
-    <div class="card">${data.reply || data.error}</div>
-  `;
+    const data = await res.json();
+
+    document.getElementById("chat").innerHTML =
+      `<div class="card">${data.reply || data.error}</div>`;
+
+  } catch(e){
+    alert("Chat error ❌");
+  }
 }
 
-// ================= IMAGE =================
+// 🔥 FIXED IMAGE
 async function generateImage(){
 
-  const prompt = document.getElementById("imgPrompt").value;
+  try {
 
-  const res = await fetch("/generate-image", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ prompt })
-  });
+    const prompt = document.getElementById("imgPrompt").value;
 
-  const data = await res.json();
+    const res = await fetch("/generate-image", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ prompt })
+    });
 
-  if(!data.image){
-    alert("Image failed ❌");
-    return;
+    const data = await res.json();
+
+    if(!data.image){
+      alert(data.error || "Image failed");
+      return;
+    }
+
+    document.getElementById("imageBox").innerHTML =
+      `<div class="card"><img src="${data.image}"/></div>`;
+
+  } catch(e){
+    alert("Image error ❌");
   }
-
-  document.getElementById("imageBox").innerHTML = `
-    <div class="card">
-      <img src="${data.image}" />
-    </div>
-  `;
 }
 
-// ================= PRODUCTS =================
+// 🔥 FIXED PRODUCTS
 async function load(){
 
-  const res = await fetch("/products");
-  const data = await res.json();
+  try {
 
-  let html = "";
+    const res = await fetch("/products");
+    const data = await res.json();
 
-  data.forEach(p => {
+    if(!Array.isArray(data) || data.length === 0){
+      document.getElementById("products").innerHTML =
+        `<div class="card">No products found</div>`;
+      return;
+    }
 
-    let price =
-      p.price_min === p.price_max
-        ? `${p.price_min} AED`
-        : `${p.price_min} - ${p.price_max} AED`;
+    let html = "";
 
-    html += `
-      <div class="card">
-        <img src="${p.image}" />
-        <h3>${p.title}</h3>
-        <div>${price}</div>
-      </div>
-    `;
-  });
+    data.forEach(p => {
 
-  document.getElementById("products").innerHTML = html;
+      let price =
+        p.price_min === p.price_max
+          ? `${p.price_min} AED`
+          : `${p.price_min} - ${p.price_max} AED`;
+
+      html += `
+        <div class="card">
+          <img src="${p.image}" />
+          <h3>${p.title}</h3>
+          <div>${price}</div>
+        </div>
+      `;
+    });
+
+    document.getElementById("products").innerHTML = html;
+
+  } catch(e){
+    document.getElementById("products").innerHTML =
+      `<div class="card">Error loading products ❌</div>`;
+  }
 }
 
 load();
