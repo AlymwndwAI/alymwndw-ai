@@ -35,10 +35,13 @@ img{
   margin:8px 0;
 }
 
-.variant{
-  font-size:12px;
-  color:#aaa;
-  margin-top:5px;
+.badge{
+  display:inline-block;
+  background:#222;
+  padding:4px 8px;
+  border-radius:6px;
+  margin:3px;
+  font-size:11px;
 }
 
 .price{
@@ -47,13 +50,10 @@ img{
   margin-top:5px;
 }
 
-.badge{
-  display:inline-block;
-  background:#222;
-  padding:4px 8px;
-  border-radius:6px;
-  margin-right:5px;
-  font-size:11px;
+.variant{
+  margin-top:8px;
+  font-size:12px;
+  color:#aaa;
 }
 </style>
 
@@ -72,12 +72,12 @@ try {
 const res = await fetch("/products");
 const data = await res.json();
 
-let html = "";
-
 if(!data.length){
   document.getElementById("app").innerHTML = "❌ No products";
   return;
 }
+
+let html = "";
 
 data.forEach(p => {
 
@@ -87,9 +87,9 @@ p.variants.forEach(v => {
 
 variantsHTML += `
 <div class="variant">
-<span class="badge">💎 ${v.metal || "-"}</span>
-<span class="badge">💠 ${v.stone || "-"}</span>
-<span class="badge">📏 ${v.size || "-"}</span>
+<span class="badge">💎 ${v.metal}</span>
+<span class="badge">💠 ${v.stone}</span>
+<span class="badge">📏 ${v.size}</span>
 <br>
 <span class="price">💰 ${v.price}</span>
 </div>
