@@ -30,15 +30,30 @@ img{
   border-radius:10px;
 }
 
-.price{
-  color:#00d2a0;
-  font-weight:bold;
+.title{
+  font-size:18px;
+  margin:8px 0;
 }
 
 .variant{
   font-size:12px;
   color:#aaa;
   margin-top:5px;
+}
+
+.price{
+  color:#00d2a0;
+  font-weight:bold;
+  margin-top:5px;
+}
+
+.badge{
+  display:inline-block;
+  background:#222;
+  padding:4px 8px;
+  border-radius:6px;
+  margin-right:5px;
+  font-size:11px;
 }
 </style>
 
@@ -69,18 +84,23 @@ data.forEach(p => {
 let variantsHTML = "";
 
 p.variants.forEach(v => {
+
 variantsHTML += `
 <div class="variant">
-💎 Metal: ${v.metal || "-"} | Stone: ${v.stone || "-"} | Size: ${v.size || "-"}
-<br>💰 ${v.price}
+<span class="badge">💎 ${v.metal || "-"}</span>
+<span class="badge">💠 ${v.stone || "-"}</span>
+<span class="badge">📏 ${v.size || "-"}</span>
+<br>
+<span class="price">💰 ${v.price}</span>
 </div>
 `;
+
 });
 
 html += `
 <div class="card">
 <img src="${p.image}" />
-<h3>${p.title}</h3>
+<div class="title">${p.title}</div>
 ${variantsHTML}
 </div>
 `;
