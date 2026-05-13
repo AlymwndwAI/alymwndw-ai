@@ -50,7 +50,7 @@ button{
 
 <div class="container">
 
-<h3>💎 Alymwndw AI Running</h3>
+<h3>💎 Alymwndw AI Store</h3>
 
 <input id="msg" placeholder="Ask AI..." />
 <button onclick="send()">Ask AI</button>
@@ -66,70 +66,52 @@ button{
 
 <script>
 
-// 🔥 FIXED CHAT
+// ================= CHAT =================
 async function send(){
 
-  try {
+  const msg = document.getElementById("msg").value;
 
-    const msg = document.getElementById("msg").value;
+  const res = await fetch("/chat", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ message: msg })
+  });
 
-    const res = await fetch("/chat", {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ message: msg })
-    });
+  const data = await res.json();
 
-    const data = await res.json();
-
-    document.getElementById("chat").innerHTML =
-      `<div class="card">${data.reply || data.error}</div>`;
-
-  } catch(e){
-    alert("Chat error ❌");
-  }
+  document.getElementById("chat").innerHTML =
+    `<div class="card">${data.reply || data.error}</div>`;
 }
 
-// 🔥 FIXED IMAGE
+// ================= IMAGE =================
 async function generateImage(){
 
-  try {
+  const prompt = document.getElementById("imgPrompt").value;
 
-    const prompt = document.getElementById("imgPrompt").value;
+  const res = await fetch("/generate-image", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ prompt })
+  });
 
-    const res = await fetch("/generate-image", {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ prompt })
-    });
+  const data = await res.json();
 
-    const data = await res.json();
-
-    if(!data.image){
-      alert(data.error || "Image failed");
-      return;
-    }
-
-    document.getElementById("imageBox").innerHTML =
-      `<div class="card"><img src="${data.image}"/></div>`;
-
-  } catch(e){
-    alert("Image error ❌");
+  if(!data.image){
+    alert(data.error || "Image failed");
+    return;
   }
+
+  document.getElementById("imageBox").innerHTML =
+    `<div class="card"><img src="${data.image}"/></div>`;
 }
 
-// 🔥 FIXED PRODUCTS
+// ================= PRODUCTS =================
 async function load(){
 
   try {
 
     const res = await fetch("/products");
     const data = await res.json();
-
-    if(!Array.isArray(data) || data.length === 0){
-      document.getElementById("products").innerHTML =
-        `<div class="card">No products found</div>`;
-      return;
-    }
 
     let html = "";
 
@@ -153,7 +135,7 @@ async function load(){
 
   } catch(e){
     document.getElementById("products").innerHTML =
-      `<div class="card">Error loading products ❌</div>`;
+      `<div class="card">Loading failed</div>`;
   }
 }
 
