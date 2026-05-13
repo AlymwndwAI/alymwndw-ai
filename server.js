@@ -1,36 +1,47 @@
 const express = require("express");
 const axios = require("axios");
+const path = require("path");
 require("dotenv").config();
 
 const app = express();
+
 app.use(express.json());
 app.use(express.static(__dirname));
 
-const COLLECTION = process.env.COLLECTION_HANDLE;
+// ================= GET PRODUCTS =================
+async function getProducts() {
+  try {
+    const url = `https://${process.env.SHOPIFY_STORE}/products.json?limit=50`;
 
-// ================= GET COLLECTION PRODUCTS =================
-async function getCollectionProducts() {
-  const url = `https://${process.env.SHOPIFY_STORE}/products.json?limit=250`;
+    const res = await axios.get(url);
 
-  const res = await axios.get(url);
-
-  const products = res.data.products || [];
-
-  return products
-    .filter(p => p.handle.includes(COLLECTION.split("-")[0])) // filter simple
-    .map(p => ({
+    return (res.data.products || []).map(p => ({
       title: p.title,
       price: p.variants?.[0]?.price,
       image: p.images?.[0]?.src,
-      link: `https://${process.env.SHOPIFY_STORE}/products/${p.handle}`
+      handle: p.handle
     }));
+
+  } catch (err) {
+    console.log("ERROR:", err.message);
+    return [];
+  }
 }
 
 // ================= API =================
 app.get("/products", async (req, res) => {
-  const data = await getCollectionProducts();
-  res.json(data);
+  const products = await getProducts();
+  res.json(products);
+});
+
+// ================= HOME =================
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
 // ================= START =================
-app.listen(3000, () => console.log("Server running"));
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log("🚀 Server running on", PORT);
+});
