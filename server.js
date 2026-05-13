@@ -14,20 +14,17 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 let cache = [];
 
-// ================= FETCH PRODUCTS =================
+// ================= PRODUCTS SYNC =================
 async function syncProducts() {
   try {
-    if (!SHOPIFY_STORE) throw new Error("SHOPIFY_STORE missing");
-
     let all = [];
     let page = 1;
 
     while (true) {
       const url = `https://${SHOPIFY_STORE}/products.json?limit=250&page=${page}`;
-
       const res = await axios.get(url);
-      const products = res.data.products;
 
+      const products = res.data.products;
       if (!products || products.length === 0) break;
 
       all.push(...products);
@@ -35,14 +32,14 @@ async function syncProducts() {
     }
 
     cache = all;
-    console.log("✅ PRODUCTS LOADED:", cache.length);
+    console.log("💎 Alymwndw Loaded:", cache.length);
 
   } catch (err) {
-    console.log("❌ SHOPIFY ERROR:", err.message);
+    console.log("ERROR:", err.message);
   }
 }
 
-// ================= PRODUCTS API =================
+// ================= PRODUCTS =================
 app.get("/products", (req, res) => {
   res.json(
     cache.map(p => ({
@@ -56,29 +53,30 @@ app.get("/products", (req, res) => {
   );
 });
 
-// ================= CHAT AI =================
+// ================= AI CHAT =================
 app.post("/chat", async (req, res) => {
+
   try {
 
     const userMessage = req.body.message;
 
-    const productContext = cache.slice(0, 60).map(p => ({
+    const context = cache.slice(0, 50).map(p => ({
       title: p.title,
-      variants: p.variants?.map(v =>
-        `${v.title} - ${v.price} AED`
-      )
+      variants: p.variants?.map(v => `${v.title} - ${v.price} AED`)
     }));
 
     const prompt = `
-You are a luxury jewelry sales assistant.
+You are "Alymwndw AI", luxury jewelry sales expert.
 
 Rules:
-- Reply in AED only
-- Recommend real products
-- Be short, premium, sales-focused
+- Recommend ONE product only
+- Luxury tone (Cartier style)
+- Max 5 lines
+- Always AED
+- Persuasive sales tone
 
 Products:
-${JSON.stringify(productContext)}
+${JSON.stringify(context)}
 
 User:
 ${userMessage}
@@ -99,8 +97,45 @@ ${userMessage}
     );
 
     res.json({
-      reply: response.data.choices[0].message.content
+      reply: response.data.choices[0].message.content,
+      brand: "Alymwndw 💎"
     });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ================= 🖼️ IMAGE GENERATION =================
+app.post("/generate-image", async (req, res) => {
+
+  try {
+
+    const prompt = req.body.prompt;
+
+    const response = await axios.post(
+      "https://api.openai.com/v1/images/generations",
+      {
+        model: "gpt-image-1",
+        prompt: `
+Luxury jewelry product photo for Alymwndw brand.
+Ultra realistic studio lighting, 8k, high detail.
+
+${prompt}
+        `,
+        size: "1024x1024"
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    const image = response.data.data[0].url;
+
+    res.json({ image });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -115,6 +150,6 @@ app.get("/sync", async (req, res) => {
 
 // ================= START =================
 app.listen(PORT, () => {
-  console.log("🚀 Running on", PORT);
+  console.log("💎 Alymwndw AI FULL STORE RUNNING");
   syncProducts();
 });
