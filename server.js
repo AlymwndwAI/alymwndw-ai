@@ -17,7 +17,7 @@ let cache = [];
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 /* =========================
-   FETCH PRODUCTS (FULL VARIANTS SAFE)
+   FETCH ALL PRODUCTS (FULL VARIANTS FIX)
 ========================= */
 async function fetchAllProducts() {
 
@@ -28,28 +28,41 @@ async function fetchAllProducts() {
 
     while (true) {
 
-      const url = `https://${process.env.SHOPIFY_STORE}/products.json?limit=250&page=${page}`;
+      const listUrl = `https://${process.env.SHOPIFY_STORE}/products.json?limit=250&page=${page}`;
 
-      const res = await axios.get(url, { timeout: 15000 });
+      const listRes = await axios.get(listUrl, { timeout: 15000 });
 
-      const products = res?.data?.products || [];
+      const products = listRes?.data?.products || [];
 
       if (!products.length) break;
 
+      // 🔥 أهم جزء: نجيب كل منتج كامل عشان variants
       for (let p of products) {
 
-        // نضمن إن variants موجودة
-        if (p && p.variants && p.variants.length > 0) {
-          all.push(p);
-        }
+        try {
 
+          const fullUrl = `https://${process.env.SHOPIFY_STORE}/products/${p.handle}.json`;
+
+          const fullRes = await axios.get(fullUrl, { timeout: 15000 });
+
+          const fullProduct = fullRes?.data?.product;
+
+          if (fullProduct?.variants?.length) {
+            all.push(fullProduct);
+          }
+
+          await sleep(300); // ضد 429
+
+        } catch (err) {
+          console.log("skip:", p.handle);
+        }
       }
 
-      console.log(`📦 Page ${page} | Got: ${products.length} | Total: ${all.length}`);
+      console.log(`📦 Page ${page} | Total: ${all.length}`);
 
       page++;
 
-      await sleep(800);
+      await sleep(1000);
     }
 
     console.log("✅ FINAL PRODUCTS:", all.length);
@@ -57,7 +70,7 @@ async function fetchAllProducts() {
     return all;
 
   } catch (err) {
-    console.log("❌ Error:", err.message);
+    console.log("❌ Fatal error:", err.message);
     return [];
   }
 }
@@ -67,6 +80,8 @@ async function fetchAllProducts() {
 ========================= */
 async function syncProducts() {
 
+  console.log("🔄 Sync started...");
+
   const products = await fetchAllProducts();
 
   cache = products || [];
@@ -75,30 +90,7 @@ async function syncProducts() {
 }
 
 /* =========================
-   SMART VARIANTS EXTRACTOR
-========================= */
-function extractVariants(product) {
-
-  return (product.variants || []).map(v => {
-
-    return {
-      id: v.id,
-      title: v.title,
-
-      price: `${parseFloat(v.price || 0).toFixed(2)} AED`,
-
-      // 💎 REAL SHOPIFY DATA (NO GUESS)
-      metal: v.option1 || "Gold",
-      stone: v.option2 || "White",
-      size: v.option3 || "N/A",
-
-      sku: v.sku || ""
-    };
-  });
-}
-
-/* =========================
-   PRODUCTS API
+   PRODUCTS API (FULL VARIANTS)
 ========================= */
 app.get("/products", (req, res) => {
 
@@ -108,7 +100,8 @@ app.get("/products", (req, res) => {
 
   const formatted = cache.map(p => {
 
-    const price = parseFloat(p.variants?.[0]?.price || 0);
+    const v = p.variants?.[0];
+    const price = parseFloat(v?.price || 0);
 
     return {
       title: p.title,
@@ -117,11 +110,17 @@ app.get("/products", (req, res) => {
 
       price: `${price.toFixed(2)} AED`,
 
-      // 💎 VARIANTS FULLY SHOWN
-      variants: extractVariants(p),
+      // 💎 FULL VARIANTS (REAL SHOPIFY DATA)
+      variants: (p.variants || []).map(v => ({
+        id: v.id,
+        title: v.title,
+        price: `${parseFloat(v.price || 0).toFixed(2)} AED`,
 
-      // 💎 OPTIONS RAW FROM SHOPIFY
-      options: p.options || []
+        // 🪙 REAL DATA FROM SHOPIFY
+        option1: v.option1,
+        option2: v.option2,
+        option3: v.option3
+      }))
     };
   });
 
@@ -144,10 +143,10 @@ app.get("/sync", async (req, res) => {
 });
 
 /* =========================
-   HOME
+   HEALTH
 ========================= */
 app.get("/", (req, res) => {
-  res.send("🚀 Shopify AI Store Running");
+  res.send("🚀 AI Jewelry Store RUNNING");
 });
 
 /* =========================
