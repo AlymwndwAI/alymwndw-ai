@@ -16,13 +16,26 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
+// ================= CLEAN TEXT =================
+function cleanText(text) {
+  if (!text) return "";
+
+  const lines = text
+    .split("\n")
+    .map(l => l.trim())
+    .filter(l => l.length > 0);
+
+  return [...new Set(lines)].join("\n");
+}
+
 // ================= HOME =================
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// ================= GRAPHQL SHOPIFY =================
+// ================= SHOPIFY PRODUCTS =================
 async function getProducts() {
+
   try {
 
     const query = `
@@ -30,11 +43,13 @@ async function getProducts() {
       products(first: 100) {
         edges {
           node {
+            id
             title
-            images(first: 1) {
+            handle
+            images(first: 3) {
               edges {
                 node {
-                  url
+                  originalSrc
                 }
               }
             }
@@ -51,11 +66,11 @@ async function getProducts() {
     }`;
 
     const response = await axios.post(
-      `https://${process.env.SHOPIFY_STORE}/admin/api/2024-04/graphql.json`,
+      `https://${process.env.SHOPIFY_STORE}/admin/api/${process.env.SHOPIFY_API_VERSION}/graphql.json`,
       { query },
       {
         headers: {
-          "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
+          "X-Shopify-Access-Token": process.env.SHOPIFY_TOKEN,
           "Content-Type": "application/json"
         }
       }
@@ -65,19 +80,45 @@ async function getProducts() {
       response?.data?.data?.products?.edges || [];
 
     return products.map(p => {
-      const node = p.node;
+      const n = p.node;
 
       return {
-        title: node.title || "",
-        price: node.variants?.edges?.[0]?.node?.price || 0,
-        image: node.images?.edges?.[0]?.node?.url || ""
+        id: n.id,
+        title: n.title,
+        handle: n.handle,
+        price: n.variants?.edges?.[0]?.node?.price || 0,
+        image: n.images?.edges?.[0]?.node?.originalSrc || ""
       };
     });
 
   } catch (err) {
-    console.log("SHOPIFY ERROR:", err.response?.data || err.message);
+    console.log("SHOPIFY ERROR:", err.message);
     return [];
   }
+}
+
+// ================= SMART FILTER =================
+function smartSearch(products, msg) {
+
+  const q = msg.toLowerCase();
+
+  return products
+    .map(p => {
+
+      const t = (p.title || "").toLowerCase();
+
+      let score = 0;
+
+      if (t.includes(q)) score += 50;
+
+      q.split(" ").forEach(w => {
+        if (t.includes(w)) score += 10;
+      });
+
+      return { ...p, score };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
 }
 
 // ================= CHAT =================
@@ -85,29 +126,29 @@ app.post("/chat", async (req, res) => {
 
   try {
 
-    const userMessage = req.body.message;
+    const message = req.body.message;
 
-    // ================= PRODUCTS =================
     const products = await getProducts();
 
-    const productText = products.slice(0, 20).map(p =>
-      `- ${p.title} | ${p.price}`
-    ).join("\n");
+    const productText = products
+      .slice(0, 30)
+      .map(p => `- ${p.title} | ${p.price}`)
+      .join("\n");
 
-    // ================= AI =================
     const ai = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
           content: `
-أنت مساعد مبيعات لمتجر مجوهرات فاخر.
+أنت مساعد مبيعات فاخر لمتجر مجوهرات.
 
-مهمتك:
-- تفهم طلب العميل
-- تختار المنتجات المناسبة فقط
-- لو مفيش منتجات مناسبة قول ذلك
-- تتكلم كبائع محترف
+قواعد:
+- لا تكرر الجمل
+- رد مرة واحدة فقط
+- كن مختصر واحترافي
+- لا spam
+- اقترح منتج واحد أو اثنين فقط
 
 المنتجات:
 ${productText}
@@ -115,36 +156,26 @@ ${productText}
         },
         {
           role: "user",
-          content: userMessage
+          content: message
         }
       ]
     });
 
-    const reply = ai.choices[0].message.content;
+    let reply = cleanText(ai.choices[0].message.content);
 
-    // ================= SMART FILTER =================
-    const matchedProducts = products.filter(p => {
+    const smart = smartSearch(products, message);
 
-      const text = userMessage.toLowerCase();
-      const title = (p.title || "").toLowerCase();
-
-      return title.includes(text.split(" ")[0]);
-    });
-
-    // ================= RESPONSE =================
     res.json({
       reply,
-      products: matchedProducts.length
-        ? matchedProducts.slice(0, 5)
-        : products.slice(0, 5)
+      products: smart.length ? smart : products.slice(0, 5)
     });
 
   } catch (err) {
 
-    console.log("FULL ERROR:", err.response?.data || err.message);
+    console.log(err.message);
 
     res.json({
-      reply: "💎 حدث خطأ - راجع السيرفر",
+      reply: "حدث خطأ في السيرفر",
       products: []
     });
 
