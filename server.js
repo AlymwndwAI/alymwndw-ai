@@ -1,43 +1,26 @@
 const express = require("express");
 const axios = require("axios");
-const fs = require("fs");
-const path = require("path");
 
 const app = express();
 
 app.use(express.json());
 app.use(express.static(__dirname));
 
-const CACHE_FILE = path.join(__dirname, "products-cache.json");
+/* =======================
+   MEMORY CACHE (بدون ملفات)
+======================= */
+let cache = [];
 
-// ================= FETCH ALL PRODUCTS =================
+/* =======================
+   FETCH ALL PRODUCTS
+======================= */
 async function fetchAllProducts() {
-
-  let allProducts = [];
-  let page = 1;
-
   try {
+    const url = `https://${process.env.SHOPIFY_STORE}/products.json?limit=250`;
 
-    while (true) {
+    const res = await axios.get(url);
 
-      const res = await axios.get(
-        `https://${process.env.SHOPIFY_STORE}/products.json?limit=250&page=${page}`
-      );
-
-      const products = res.data.products;
-
-      if (!products || products.length === 0) break;
-
-      allProducts = allProducts.concat(products);
-
-      console.log(`📦 Page ${page}: ${products.length}`);
-
-      page++;
-    }
-
-    console.log(`✅ Total products: ${allProducts.length}`);
-
-    return allProducts;
+    return res.data.products || [];
 
   } catch (err) {
     console.log("❌ Shopify error:", err.message);
@@ -45,42 +28,26 @@ async function fetchAllProducts() {
   }
 }
 
-// ================= SAVE CACHE =================
-function saveCache(products) {
-  try {
-    fs.writeFileSync(CACHE_FILE, JSON.stringify(products, null, 2));
-    console.log("💾 Cache saved");
-  } catch (e) {
-    console.log("Cache write error:", e.message);
-  }
-}
-
-// ================= LOAD CACHE =================
-function loadCache() {
-  try {
-    if (!fs.existsSync(CACHE_FILE)) return [];
-    return JSON.parse(fs.readFileSync(CACHE_FILE, "utf-8"));
-  } catch (e) {
-    console.log("Cache read error:", e.message);
-    return [];
-  }
-}
-
-// ================= SYNC PRODUCTS =================
+/* =======================
+   SYNC PRODUCTS
+======================= */
 async function syncProducts() {
   const products = await fetchAllProducts();
 
   if (products.length > 0) {
-    saveCache(products);
+    cache = products;
+    console.log("💾 Cached products:", cache.length);
+  } else {
+    console.log("⚠️ No products fetched");
   }
 }
 
-// ================= API =================
+/* =======================
+   API - PRODUCTS
+======================= */
 app.get("/products", (req, res) => {
 
-  const products = loadCache();
-
-  const formatted = products.map(p => ({
+  const formatted = cache.map(p => ({
     title: p.title,
     price: p.variants?.[0]?.price,
     image: p.images?.[0]?.src,
@@ -90,32 +57,34 @@ app.get("/products", (req, res) => {
   res.json(formatted);
 });
 
-// ================= MANUAL SYNC =================
+/* =======================
+   MANUAL SYNC
+======================= */
 app.get("/sync", async (req, res) => {
   await syncProducts();
-  res.send("Sync done");
+  res.send({
+    success: true,
+    count: cache.length
+  });
 });
 
-// ================= HOME =================
+/* =======================
+   HOME PAGE
+======================= */
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
+  res.sendFile(__dirname + "/index.html");
 });
 
-// ================= START SERVER =================
+/* =======================
+   START SERVER
+======================= */
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-
+app.listen(PORT, async () => {
   console.log("🚀 Server running on", PORT);
 
-  // safe startup (prevents Render crash)
+  // auto sync بعد التشغيل
   setTimeout(async () => {
-    try {
-      await syncProducts();
-      console.log("💾 Initial sync done");
-    } catch (err) {
-      console.log("❌ Sync error:", err.message);
-    }
+    await syncProducts();
   }, 5000);
-
 });
