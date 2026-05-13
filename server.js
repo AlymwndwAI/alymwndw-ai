@@ -21,57 +21,63 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// ================= GET PRODUCTS (GRAPHQL) =================
+// ================= GRAPHQL SHOPIFY =================
 async function getProducts() {
+  try {
 
-  const query = `
-  {
-    products(first: 100) {
-      edges {
-        node {
-          title
-          images(first: 1) {
-            edges {
-              node {
-                url
+    const query = `
+    {
+      products(first: 100) {
+        edges {
+          node {
+            title
+            images(first: 1) {
+              edges {
+                node {
+                  url
+                }
               }
             }
-          }
-          variants(first: 1) {
-            edges {
-              node {
-                price
+            variants(first: 1) {
+              edges {
+                node {
+                  price
+                }
               }
             }
           }
         }
       }
-    }
-  }`;
+    }`;
 
-  const response = await axios.post(
-    `https://${process.env.SHOPIFY_STORE}/admin/api/2024-04/graphql.json`,
-    { query },
-    {
-      headers: {
-        "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
-        "Content-Type": "application/json"
+    const response = await axios.post(
+      `https://${process.env.SHOPIFY_STORE}/admin/api/2024-04/graphql.json`,
+      { query },
+      {
+        headers: {
+          "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
+          "Content-Type": "application/json"
+        }
       }
-    }
-  );
+    );
 
-  const products = response?.data?.data?.products?.edges || [];
+    const products =
+      response?.data?.data?.products?.edges || [];
 
-  return products.map(p => {
+    return products.map(p => {
+      const node = p.node;
 
-    const node = p.node;
+      return {
+        title: node.title || "",
+        price: node.variants?.edges?.[0]?.node?.price || 0,
+        image: node.images?.edges?.[0]?.node?.url || ""
+      };
+    });
 
-    return {
-      title: node.title,
-      price: node.variants?.edges?.[0]?.node?.price || 0,
-      image: node.images?.edges?.[0]?.node?.url || ""
-    };
-  });
+  } catch (err) {
+    console.log("SHOPIFY ERROR:", err.response?.data || err.message);
+    return [];
+  }
 }
 
 // ================= CHAT =================
@@ -81,7 +87,7 @@ app.post("/chat", async (req, res) => {
 
     const userMessage = req.body.message;
 
-    // ================= LOAD PRODUCTS =================
+    // ================= PRODUCTS =================
     const products = await getProducts();
 
     const productText = products.slice(0, 20).map(p =>
@@ -98,10 +104,10 @@ app.post("/chat", async (req, res) => {
 أنت مساعد مبيعات لمتجر مجوهرات فاخر.
 
 مهمتك:
-- فهم طلب العميل
-- اختيار المنتجات المناسبة فقط
-- لو مفيش تطابق قول مفيش منتجات
-- بيع بطريقة احترافية
+- تفهم طلب العميل
+- تختار المنتجات المناسبة فقط
+- لو مفيش منتجات مناسبة قول ذلك
+- تتكلم كبائع محترف
 
 المنتجات:
 ${productText}
@@ -135,10 +141,10 @@ ${productText}
 
   } catch (err) {
 
-    console.log("ERROR:", err.message);
+    console.log("FULL ERROR:", err.response?.data || err.message);
 
     res.json({
-      reply: "💎 حصل خطأ لكن السيرفر شغال",
+      reply: "💎 حدث خطأ - راجع السيرفر",
       products: []
     });
 
