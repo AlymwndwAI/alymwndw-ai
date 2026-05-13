@@ -1,105 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html>
 <head>
 <meta charset="UTF-8">
 <title>AI Jewelry Store</title>
 
 <style>
-body {
-  margin: 0;
-  background: #0b141a;
-  color: white;
-  font-family: Arial;
-}
+body{margin:0;background:#0b141a;color:white;font-family:Arial}
+.container{max-width:500px;margin:auto;padding:10px}
+.card{background:#111b21;margin:10px 0;padding:10px;border-radius:15px}
+img{width:100%;border-radius:10px}
 
-.container {
-  max-width: 600px;
-  margin: auto;
-  padding: 10px;
-}
-
-.card {
-  background: #111b21;
-  margin: 12px 0;
-  padding: 12px;
-  border-radius: 15px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.3);
-}
-
-img {
-  width: 100%;
-  border-radius: 10px;
-}
-
-.title {
-  font-size: 16px;
-  margin: 10px 0;
-}
-
-.price {
-  color: #00d2a0;
-  font-weight: bold;
-  font-size: 18px;
-}
-
-.loading {
-  text-align: center;
-  padding: 20px;
-  color: #aaa;
-}
-
-.error {
-  text-align: center;
-  color: red;
-}
+.price{color:#00d2a0;font-weight:bold;margin-top:5px}
+.variant{font-size:12px;color:#aaa;margin-top:5px}
+.btn{background:#00d2a0;border:none;padding:8px;color:#000;margin-top:5px;border-radius:8px}
 </style>
 
 </head>
 
 <body>
 
-<div class="container" id="app">
-  <div class="loading">Loading products...</div>
-</div>
+<div class="container" id="app"></div>
 
 <script>
 
-async function loadProducts() {
+async function loadProducts(){
 
-  try {
+try {
 
-    const res = await fetch("/products");
-    const data = await res.json();
+const res = await fetch("/products");
+const data = await res.json();
 
-    const app = document.getElementById("app");
+let html = "";
 
-    if (!data || data.length === 0) {
-      app.innerHTML = `<div class="error">❌ No products found</div>`;
-      return;
-    }
+if(!data.length){
+html = "<h3>❌ No products</h3>";
+document.getElementById("app").innerHTML = html;
+return;
+}
 
-    let html = "";
+data.forEach(p=>{
 
-    data.forEach(p => {
+let variantsHTML = "";
 
-      html += `
-        <div class="card">
-          <img src="${p.image || ''}" />
-          <div class="title">${p.title}</div>
+p.variants.forEach(v=>{
+variantsHTML += `
+<div class="variant">
+💎 ${v.option1 || ""} | ${v.option2 || ""} | ${v.option3 || ""}
+<br>💰 ${v.price}
+</div>
+`;
+});
 
-          <!-- 💎 AED PRICE (no $ sign) -->
-          <div class="price">${p.price}</div>
-        </div>
-      `;
-    });
+html += `
+<div class="card">
+<img src="${p.image}" />
+<h3>${p.title}</h3>
 
-    app.innerHTML = html;
+${variantsHTML}
 
-  } catch (err) {
-    document.getElementById("app").innerHTML =
-      `<div class="error">❌ Failed to load products</div>`;
-  }
+<button class="btn">Buy Now</button>
+</div>
+`;
+
+});
+
+document.getElementById("app").innerHTML = html;
+
+} catch(err){
+document.getElementById("app").innerHTML =
+"<h3>❌ Failed to load products</h3>";
+}
+
 }
 
 loadProducts();
