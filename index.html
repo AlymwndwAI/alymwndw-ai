@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AI Jewelry Store</title>
+  <title>AI Jewelry Chat Designer</title>
 
   <style>
     body {
@@ -11,10 +11,12 @@
       color:white;
     }
 
-    #app {
-      max-width:450px;
+    #chat {
+      max-width:420px;
       margin:auto;
-      padding-bottom:120px;
+      padding:10px;
+      height:90vh;
+      overflow-y:auto;
     }
 
     .msg-user {
@@ -23,6 +25,8 @@
       margin:8px;
       border-radius:10px;
       text-align:right;
+      max-width:80%;
+      margin-left:auto;
     }
 
     .msg-ai {
@@ -30,53 +34,28 @@
       padding:10px;
       margin:8px;
       border-radius:10px;
+      max-width:80%;
     }
 
-    .grid {
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      margin:10px;
-    }
-
-    .card {
+    .design {
       background:#111b21;
-      border-radius:15px;
-      overflow:hidden;
       padding:10px;
-    }
-
-    .card img {
-      width:100%;
-      height:220px;
-      object-fit:cover;
+      margin:8px;
       border-radius:10px;
     }
 
-    .price {
-      color:#d4af37;
-      margin-top:5px;
-      font-weight:bold;
-    }
-
-    .btn {
-      background:#00a884;
-      border:none;
-      color:white;
-      padding:10px;
+    .design img {
       width:100%;
       border-radius:10px;
       margin-top:10px;
-      cursor:pointer;
     }
 
     #inputBox {
       position:fixed;
       bottom:0;
-      left:0;
-      right:0;
-      background:#0b141a;
+      width:100%;
       display:flex;
+      background:#202c33;
       padding:10px;
     }
 
@@ -101,42 +80,35 @@
 
 <body>
 
-<div id="app">
-  <div id="chat"></div>
-</div>
+<div id="chat"></div>
 
 <div id="inputBox">
-  <input id="msg" placeholder="اكتب رسالة..." />
+  <input id="msg" placeholder="اكتب اسم / تصميم / فكرة مجوهرات..." />
   <button onclick="send()">Send</button>
 </div>
 
 <script>
 
 function addUser(text){
-  document.getElementById("chat").innerHTML +=
-    `<div class="msg-user">${text}</div>`;
+  document.getElementById("chat").innerHTML += `
+    <div class="msg-user">${text}</div>
+  `;
 }
 
 function addAI(text){
-  document.getElementById("chat").innerHTML +=
-    `<div class="msg-ai">🤖 ${text}</div>`;
+  document.getElementById("chat").innerHTML += `
+    <div class="msg-ai">🤖 ${text}</div>
+  `;
 }
 
-function addProducts(products){
+function addDesign(text, image){
 
-  if(!Array.isArray(products)) return;
-
-  const html = products.map(p => `
-    <div class="card">
-      <img src="${p.image || ''}" />
-      <div><b>${p.title || ''}</b></div>
-      <div class="price">💰 ${p.price || ''}</div>
-      <button class="btn">Buy Now</button>
+  document.getElementById("chat").innerHTML += `
+    <div class="design">
+      🤖 ${text}
+      <img src="${image}" />
     </div>
-  `).join("");
-
-  document.getElementById("chat").innerHTML +=
-    `<div class="grid">${html}</div>`;
+  `;
 }
 
 async function send(){
@@ -154,8 +126,11 @@ async function send(){
 
   const data = await res.json();
 
-  addAI(data.text || "");
-  addProducts(data.products);
+  if(data.type === "design"){
+    addDesign(data.text, data.image);
+  } else {
+    addAI(data.text);
+  }
 
   document.getElementById("msg").value = "";
 
