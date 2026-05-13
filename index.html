@@ -2,26 +2,86 @@
 <html>
 <head>
   <title>AI Jewelry Store</title>
+
   <style>
-    body { background:#111; color:white; font-family:Arial; }
-    #box { width:400px; margin:50px auto; }
-    input { width:75%; padding:10px; }
-    button { padding:10px; }
-    .msg { margin:10px 0; }
+    body {
+      background:#0f0f0f;
+      color:white;
+      font-family:Arial;
+    }
+
+    #chat {
+      width:400px;
+      margin:40px auto;
+    }
+
+    input {
+      width:75%;
+      padding:10px;
+      border-radius:8px;
+      border:none;
+    }
+
+    button {
+      padding:10px;
+      border-radius:8px;
+      border:none;
+      background:#d4af37;
+      cursor:pointer;
+    }
+
+    .msg {
+      background:#222;
+      padding:10px;
+      margin:10px 0;
+      border-radius:10px;
+      white-space:pre-wrap;
+    }
+
+    img {
+      width:100px;
+      border-radius:10px;
+      margin-top:5px;
+    }
   </style>
 </head>
+
 <body>
 
-<div id="box">
+<div id="chat"></div>
 
-  <div id="chat"></div>
-
-  <input id="msg" />
+<div style="text-align:center">
+  <input id="msg" placeholder="اكتب رسالتك..." />
   <button onclick="send()">Send</button>
-
 </div>
 
 <script>
+
+function addMsg(text) {
+  const chat = document.getElementById("chat");
+
+  chat.innerHTML += `
+    <div class="msg">🤖 ${text}</div>
+  `;
+}
+
+function addProducts(products) {
+
+  const chat = document.getElementById("chat");
+
+  products.forEach(p => {
+
+    chat.innerHTML += `
+      <div class="msg">
+        <b>${p.title}</b><br>
+        💰 ${p.price}<br>
+        <img src="${p.image}" />
+      </div>
+    `;
+
+  });
+
+}
 
 async function send() {
 
@@ -29,14 +89,17 @@ async function send() {
 
   const res = await fetch("/chat", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json"
+    },
     body: JSON.stringify({ message: msg })
   });
 
   const data = await res.json();
 
-  document.getElementById("chat").innerHTML +=
-    `<div>🤖 ${data.reply}</div>`;
+  addMsg(data.reply);
+
+  addProducts(data.products);
 
 }
 
