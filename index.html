@@ -1,51 +1,108 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
 <meta charset="UTF-8">
-<title>AI Store</title>
+<title>AI Jewelry Store</title>
 
 <style>
-body{margin:0;background:#0b141a;color:white;font-family:Arial}
-.container{max-width:500px;margin:auto;padding:10px}
-.card{background:#111b21;margin:10px 0;padding:10px;border-radius:15px}
-img{width:100%;border-radius:10px}
-.price{color:#00d2a0;font-weight:bold}
+body {
+  margin: 0;
+  background: #0b141a;
+  color: white;
+  font-family: Arial;
+}
+
+.container {
+  max-width: 600px;
+  margin: auto;
+  padding: 10px;
+}
+
+.card {
+  background: #111b21;
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 15px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.3);
+}
+
+img {
+  width: 100%;
+  border-radius: 10px;
+}
+
+.title {
+  font-size: 16px;
+  margin: 10px 0;
+}
+
+.price {
+  color: #00d2a0;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #aaa;
+}
+
+.error {
+  text-align: center;
+  color: red;
+}
 </style>
 
 </head>
 
 <body>
 
-<div class="container" id="app"></div>
+<div class="container" id="app">
+  <div class="loading">Loading products...</div>
+</div>
 
 <script>
 
-async function load(){
+async function loadProducts() {
 
-const res = await fetch("/products");
-const data = await res.json();
+  try {
 
-let html = "";
+    const res = await fetch("/products");
+    const data = await res.json();
 
-if(!data.length){
-html = "<h3>❌ No products</h3>";
+    const app = document.getElementById("app");
+
+    if (!data || data.length === 0) {
+      app.innerHTML = `<div class="error">❌ No products found</div>`;
+      return;
+    }
+
+    let html = "";
+
+    data.forEach(p => {
+
+      html += `
+        <div class="card">
+          <img src="${p.image || ''}" />
+          <div class="title">${p.title}</div>
+
+          <!-- 💎 AED PRICE (no $ sign) -->
+          <div class="price">${p.price}</div>
+        </div>
+      `;
+    });
+
+    app.innerHTML = html;
+
+  } catch (err) {
+    document.getElementById("app").innerHTML =
+      `<div class="error">❌ Failed to load products</div>`;
+  }
 }
 
-data.forEach(p=>{
-html += `
-<div class="card">
-<img src="${p.image}" />
-<h3>${p.title}</h3>
-<div class="price">$${p.price}</div>
-</div>
-`;
-});
-
-document.getElementById("app").innerHTML = html;
-
-}
-
-load();
+loadProducts();
 
 </script>
 
