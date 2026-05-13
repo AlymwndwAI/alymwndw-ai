@@ -1,6 +1,5 @@
 const express = require("express");
 const axios = require("axios");
-const path = require("path");
 
 const app = express();
 
@@ -8,32 +7,28 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 /* =========================
-   MEMORY CACHE
+   CACHE
 ========================= */
 let cache = [];
 
 /* =========================
-   UTIL: sleep
+   SLEEP
 ========================= */
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 /* =========================
-   FETCH ALL PRODUCTS (SAFE + NO CRASH)
+   FETCH ALL PRODUCTS (FIXED PAGINATION)
 ========================= */
 async function fetchAllProducts() {
 
   let all = [];
-  let since_id = 0;
+  let page = 1;
 
   try {
 
     while (true) {
 
-      let url = `https://${process.env.SHOPIFY_STORE}/products.json?limit=100`;
-
-      if (since_id) {
-        url += `&since_id=${since_id}`;
-      }
+      const url = `https://${process.env.SHOPIFY_STORE}/products.json?limit=250&page=${page}`;
 
       let res;
 
@@ -57,22 +52,19 @@ async function fetchAllProducts() {
 
       const products = res?.data?.products || [];
 
-      if (!products.length) break;
+      if (!products.length) {
+        console.log(`🛑 Page ${page} empty → stop`);
+        break;
+      }
 
-      // remove duplicates
-      const existing = new Set(all.map(p => p.id));
-      const filtered = products.filter(p => !existing.has(p.id));
+      all = all.concat(products);
 
-      all = all.concat(filtered);
+      console.log(`📦 Page ${page} | Got: ${products.length} | Total: ${all.length}`);
 
-      since_id = products[products.length - 1].id;
+      page++;
 
-      console.log(`📦 Got: ${filtered.length} | Total: ${all.length}`);
-
-      // IMPORTANT: slow down requests
+      // slow down requests (VERY IMPORTANT)
       await sleep(1200);
-
-      if (products.length < 100) break;
     }
 
     console.log("✅ FINAL TOTAL PRODUCTS:", all.length);
@@ -86,7 +78,7 @@ async function fetchAllProducts() {
 }
 
 /* =========================
-   SYNC CACHE
+   SYNC
 ========================= */
 async function syncProducts() {
 
@@ -100,13 +92,13 @@ async function syncProducts() {
 }
 
 /* =========================
-   PRODUCTS API (AED + CLEAN)
+   PRODUCTS API
 ========================= */
 app.get("/products", (req, res) => {
 
   if (!cache || cache.length === 0) {
     return res.json({
-      error: "No products found - run /sync"
+      error: "No products - run /sync"
     });
   }
 
@@ -121,7 +113,7 @@ app.get("/products", (req, res) => {
       handle: p.handle,
       image: p.images?.[0]?.src || "",
 
-      // 💎 AED PRICE
+      // 💎 AED ONLY
       price: `${price.toFixed(2)} AED`,
 
       variants: (p.variants || []).map(v => ({
@@ -130,8 +122,7 @@ app.get("/products", (req, res) => {
         price: `${parseFloat(v.price || 0).toFixed(2)} AED`,
         option1: v.option1,
         option2: v.option2,
-        option3: v.option3,
-        sku: v.sku
+        option3: v.option3
       }))
     };
   });
@@ -140,9 +131,11 @@ app.get("/products", (req, res) => {
 });
 
 /* =========================
-   MANUAL SYNC
+   SYNC ENDPOINT
 ========================= */
 app.get("/sync", async (req, res) => {
+
+  cache = []; // clear old data
 
   await syncProducts();
 
@@ -153,22 +146,22 @@ app.get("/sync", async (req, res) => {
 });
 
 /* =========================
-   HEALTH CHECK
+   HEALTH
 ========================= */
 app.get("/", (req, res) => {
-  res.send("🚀 AI Store is running");
+  res.send("🚀 AI Store Running");
 });
 
 /* =========================
    AUTO SYNC (SAFE)
 ========================= */
 setInterval(async () => {
-  console.log("🔄 Auto sync running...");
+  console.log("🔄 Auto sync...");
   await syncProducts();
 }, 1000 * 60 * 15); // كل 15 دقيقة
 
 /* =========================
-   START SERVER
+   START
 ========================= */
 const PORT = process.env.PORT || 3000;
 
@@ -176,7 +169,6 @@ app.listen(PORT, async () => {
 
   console.log("🚀 Server running on", PORT);
 
-  // initial sync only once
   setTimeout(async () => {
     await syncProducts();
   }, 5000);
