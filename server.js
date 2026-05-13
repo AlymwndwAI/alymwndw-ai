@@ -4,14 +4,14 @@ const cors = require("cors");
 
 const app = express();
 app.use(cors());
+app.use(express.static(__dirname));
 
 const PORT = process.env.PORT || 10000;
-
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 
 let cache = [];
 
-// 🧠 حماية من الكراش
+// 🛡️ حماية من الكراش
 process.on("uncaughtException", (err) => {
   console.log("CRASH:", err.message);
 });
@@ -20,11 +20,12 @@ process.on("unhandledRejection", (err) => {
   console.log("PROMISE ERROR:", err.message);
 });
 
-// 🔥 تحميل المنتجات (Lazy Safe)
+// 🔥 جلب المنتجات بطريقة آمنة
 async function syncProducts() {
   try {
+    console.log("🔄 Sync started...");
+
     let all = [];
-    let seen = new Set();
     let since_id = 0;
 
     while (true) {
@@ -35,20 +36,15 @@ async function syncProducts() {
 
       if (!products.length) break;
 
-      for (let p of products) {
-        if (!seen.has(p.id)) {
-          seen.add(p.id);
-
-          all.push(p);
-        }
-      }
+      all.push(...products);
 
       since_id = products[products.length - 1].id;
 
-      console.log(`Got: ${products.length} | Total: ${all.length}`);
+      console.log(`📦 Got: ${products.length} | Total: ${all.length}`);
     }
 
     cache = all;
+
     console.log("✅ FINAL PRODUCTS:", cache.length);
 
   } catch (err) {
@@ -56,10 +52,10 @@ async function syncProducts() {
   }
 }
 
-// 🚀 API Products (FIXED)
+// 🚀 API المنتجات
 app.get("/products", (req, res) => {
   try {
-    const result = cache.map(p => ({
+    const data = cache.map(p => ({
       id: p.id,
       title: p.title,
       image: p.images?.[0]?.src || "",
@@ -68,32 +64,33 @@ app.get("/products", (req, res) => {
         id: v.id,
         title: v.title,
 
-        // 💎 السعر AED ثابت
+        // 💎 AED price
         price: `${parseFloat(v.price || 0).toFixed(2)} AED`,
 
-        option1: v.option1, // Metal
-        option2: v.option2, // Stone
-        option3: v.option3  // Size
+        // 🪙 Options (Metal / Stone / Size)
+        metal: v.option1,
+        stone: v.option2,
+        size: v.option3
       }))
     }));
 
-    res.json(result);
+    res.json(data);
 
   } catch (err) {
     res.status(500).json({
-      error: "failed_products",
+      error: "products_error",
       message: err.message
     });
   }
 });
 
-// 🔥 manual sync (بدل التشغيل التلقائي)
+// 🔄 manual sync
 app.get("/sync", async (req, res) => {
   await syncProducts();
   res.json({ ok: true, total: cache.length });
 });
 
-// 🟢 health check
+// 🟢 health
 app.get("/", (req, res) => {
   res.send("🚀 AI Jewelry Store Running");
 });
