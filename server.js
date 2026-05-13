@@ -13,7 +13,7 @@ app.use(express.static(__dirname));
 let cache = [];
 
 /* =========================
-   FETCH ALL PRODUCTS (NO TOKEN)
+   FETCH PRODUCTS (NO TOKEN)
 ========================= */
 async function fetchAllProducts() {
 
@@ -36,7 +36,6 @@ async function fetchAllProducts() {
 
       console.log(`📦 Page ${page}: ${products.length}`);
 
-      // لو أقل من 250 → آخر صفحة
       if (products.length < 250) break;
 
       page++;
@@ -68,15 +67,26 @@ async function syncProducts() {
 }
 
 /* =========================
-   API - PRODUCTS
+   API - PRODUCTS (WITH VARIANTS FIX)
 ========================= */
 app.get("/products", (req, res) => {
 
   const formatted = cache.map(p => ({
     title: p.title,
-    price: p.variants?.[0]?.price,
+    handle: p.handle,
+
     image: p.images?.[0]?.src,
-    handle: p.handle
+
+    // all variants (IMPORTANT FIX)
+    variants: (p.variants || []).map(v => ({
+      id: v.id,
+      title: v.title,
+      price: v.price,
+      option1: v.option1, // color / metal
+      option2: v.option2, // size
+      option3: v.option3,
+      sku: v.sku
+    }))
   }));
 
   res.json(formatted);
@@ -101,7 +111,7 @@ app.get("/", (req, res) => {
 });
 
 /* =========================
-   START SERVER (SAFE)
+   START SERVER
 ========================= */
 const PORT = process.env.PORT || 3000;
 
@@ -109,7 +119,6 @@ app.listen(PORT, async () => {
 
   console.log("🚀 Server running on", PORT);
 
-  // safe startup (Render friendly)
   setTimeout(async () => {
     try {
       await syncProducts();
