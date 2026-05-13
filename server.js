@@ -13,7 +13,12 @@ app.use(express.static(__dirname));
 let cache = [];
 
 /* =========================
-   GET ALL PRODUCTS (SHOPIFY SAFE PAGINATION)
+   SLEEP (ANTI 429)
+========================= */
+const sleep = (ms) => new Promise(res => setTimeout(res, ms));
+
+/* =========================
+   GET ALL PRODUCTS (SAFE + RATE LIMIT FIX)
 ========================= */
 async function fetchAllProducts() {
 
@@ -30,9 +35,25 @@ async function fetchAllProducts() {
         url += `&since_id=${since_id}`;
       }
 
-      const res = await axios.get(url);
+      let res;
 
-      const products = res.data.products || [];
+      // 🔥 retry logic for 429
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          res = await axios.get(url);
+          break;
+        } catch (err) {
+
+          if (err.response?.status === 429) {
+            console.log("⛔ 429 Rate limit... waiting 2s");
+            await sleep(2000);
+          } else {
+            throw err;
+          }
+        }
+      }
+
+      const products = res?.data?.products || [];
 
       if (products.length === 0) break;
 
@@ -42,10 +63,13 @@ async function fetchAllProducts() {
 
       console.log(`📦 Got: ${products.length} | Total: ${all.length}`);
 
+      // 🔥 مهم: تهدئة Shopify
+      await sleep(500);
+
       if (products.length < 250) break;
     }
 
-    console.log("✅ FINAL TOTAL:", all.length);
+    console.log("✅ FINAL TOTAL PRODUCTS:", all.length);
 
     return all;
 
@@ -69,7 +93,7 @@ async function syncProducts() {
 }
 
 /* =========================
-   API - PRODUCTS (AED + VARIANTS)
+   PRODUCTS API (AED + VARIANTS)
 ========================= */
 app.get("/products", (req, res) => {
 
@@ -87,7 +111,7 @@ app.get("/products", (req, res) => {
       // 💎 AED PRICE
       price: `${price.toFixed(2)} AED`,
 
-      // 💎 FULL VARIANTS
+      // 💎 VARIANTS FULL (colors/metals/sizes)
       variants: (p.variants || []).map(v => ({
         id: v.id,
         title: v.title,
@@ -133,7 +157,11 @@ app.listen(PORT, async () => {
   console.log("🚀 Server running on", PORT);
 
   setTimeout(async () => {
-    await syncProducts();
+    try {
+      await syncProducts();
+    } catch (err) {
+      console.log("❌ sync error:", err.message);
+    }
   }, 5000);
 
 });
