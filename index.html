@@ -13,50 +13,43 @@ body{
 }
 
 .container{
-  max-width:600px;
+  max-width:520px;
   margin:auto;
   padding:10px;
 }
 
 .card{
   background:#111b21;
-  margin:10px 0;
-  padding:10px;
+  margin:12px 0;
+  padding:12px;
   border-radius:15px;
 }
 
 img{
   width:100%;
-  border-radius:10px;
+  border-radius:12px;
 }
 
 .title{
-  font-size:18px;
-  margin:8px 0;
-}
-
-.badge{
-  display:inline-block;
-  background:#222;
-  padding:4px 8px;
-  border-radius:6px;
-  margin:3px;
-  font-size:11px;
+  font-size:16px;
+  margin-top:10px;
 }
 
 .price{
   color:#00d2a0;
   font-weight:bold;
-  margin-top:5px;
+  margin-top:8px;
 }
 
-.variant{
-  margin-top:8px;
+.badge{
+  display:inline-block;
+  background:#1f2a33;
+  padding:5px 8px;
+  border-radius:8px;
+  margin:4px 4px 0 0;
   font-size:12px;
-  color:#aaa;
 }
 </style>
-
 </head>
 
 <body>
@@ -67,53 +60,80 @@ img{
 
 async function load(){
 
-try {
+  try {
 
-const res = await fetch("/products");
-const data = await res.json();
+    const res = await fetch("/products");
+    const data = await res.json();
 
-if(!data.length){
-  document.getElementById("app").innerHTML = "❌ No products";
-  return;
-}
+    let html = "";
 
-let html = "";
+    if(!data || data.length === 0){
+      document.getElementById("app").innerHTML =
+        "<h3>❌ No products</h3>";
+      return;
+    }
 
-data.forEach(p => {
+    data.forEach(p => {
 
-let variantsHTML = "";
+      // ====== PRICE FIX ======
+      let prices = (p.variants || [])
+        .map(v => parseFloat(v.price))
+        .filter(Boolean);
 
-p.variants.forEach(v => {
+      let priceHTML = "";
 
-variantsHTML += `
-<div class="variant">
-<span class="badge">💎 ${v.metal}</span>
-<span class="badge">💠 ${v.stone}</span>
-<span class="badge">📏 ${v.size}</span>
-<br>
-<span class="price">💰 ${v.price}</span>
-</div>
-`;
+      if(prices.length > 0){
+        let min = Math.min(...prices);
+        let max = Math.max(...prices);
 
-});
+        priceHTML = (min === max)
+          ? `💰 ${min} AED`
+          : `💰 ${min} - ${max} AED`;
+      } else {
+        priceHTML = "💰 N/A";
+      }
 
-html += `
-<div class="card">
-<img src="${p.image}" />
-<div class="title">${p.title}</div>
-${variantsHTML}
-</div>
-`;
+      // ====== VARIANTS (NO DUPLICATION) ======
+      let variantsHTML = "<div style='margin-top:10px'>";
 
-});
+      if(p.variants && p.variants.length){
 
-document.getElementById("app").innerHTML = html;
+        p.variants.forEach(v => {
 
-} catch(e){
-document.getElementById("app").innerHTML =
-"❌ Failed to load products";
-}
+          variantsHTML += `
+            <span class="badge">
+              ${v.title ? v.title : "Variant"} - ${v.price} AED
+            </span>
+          `;
+        });
 
+      }
+
+      variantsHTML += "</div>";
+
+      // ====== PRODUCT CARD ======
+      html += `
+        <div class="card">
+
+          <img src="${p.image || ''}" />
+
+          <div class="title">${p.title}</div>
+
+          <div class="price">${priceHTML}</div>
+
+          ${variantsHTML}
+
+        </div>
+      `;
+    });
+
+    document.getElementById("app").innerHTML = html;
+
+  } catch (err) {
+    document.getElementById("app").innerHTML =
+      "<h3>❌ Failed to load products</h3>";
+    console.log(err);
+  }
 }
 
 load();
