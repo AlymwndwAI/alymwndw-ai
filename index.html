@@ -8,56 +8,24 @@
 body{
 margin:0;
 font-family:Arial;
-background:linear-gradient(180deg,#050b10,#0b141a);
+background:#0b141a;
 color:white;
 }
 
-/* CHAT */
-.chat{
-height:90vh;
-overflow:auto;
-padding:15px;
-}
-
-.msg{
-padding:12px 14px;
-margin:10px;
-border-radius:14px;
-max-width:75%;
-animation:fade .3s ease;
-}
-
-.me{
-background:#0aa37f;
-margin-left:auto;
-}
-
-.ai{
-background:#1b2730;
-border:1px solid #2b3b45;
-}
-
-/* PRODUCTS */
-.products{
-display:grid;
-grid-template-columns:repeat(2,1fr);
-gap:10px;
-margin-top:10px;
+.container{
+max-width:500px;
+margin:auto;
+padding:10px;
 }
 
 .card{
 background:#111b21;
-border-radius:14px;
+margin:10px 0;
 padding:10px;
-box-shadow:0 0 10px rgba(0,0,0,0.4);
-transition:.2s;
+border-radius:12px;
 }
 
-.card:hover{
-transform:scale(1.03);
-}
-
-.card img{
+img{
 width:100%;
 border-radius:10px;
 }
@@ -66,91 +34,43 @@ border-radius:10px;
 color:#00d2a0;
 font-weight:bold;
 }
-
-/* INPUT */
-.input{
-position:fixed;
-bottom:0;
-width:100%;
-display:flex;
-background:#0b141a;
-padding:10px;
-}
-
-input{
-flex:1;
-padding:14px;
-border:none;
-border-radius:10px;
-outline:none;
-}
-
-button{
-padding:14px;
-margin-left:10px;
-border:none;
-border-radius:10px;
-background:#00a884;
-color:white;
-font-weight:bold;
-}
-
-@keyframes fade{
-from{opacity:0;transform:translateY(10px)}
-to{opacity:1;transform:translateY(0)}
-}
 </style>
+
 </head>
 
 <body>
 
-<div class="chat" id="chat"></div>
-
-<div class="input">
-<input id="text" placeholder="اكتب عن الخاتم اللي عايزه..." />
-<button onclick="send()">Send</button>
-</div>
+<div class="container" id="app"></div>
 
 <script>
-async function send(){
 
-let t=document.getElementById("text").value;
-let chat=document.getElementById("chat");
+async function load(){
 
-if(!t) return;
+const res = await fetch("/products");
+const data = await res.json();
 
-chat.innerHTML+=`
-<div class="msg me">${t}</div>
-`;
+let html = "";
 
-document.getElementById("text").value="";
+if(!data.length){
+html = "<h3>❌ مفيش منتجات ظاهرة</h3>";
+}
 
-/* AI reply fake intro */
-chat.innerHTML+=`
-<div class="msg ai">💎 تمام… بدور لك على أفضل قطع مناسبة</div>
-`;
-
-/* products */
-let res=await fetch("/products");
-let data=await res.json();
-
-let html=`<div class="msg ai">💍 هذه أفضل القطع لك:</div><div class="products">`;
-
-data.slice(0,6).forEach(p=>{
-html+=`
+data.forEach(p=>{
+html += `
 <div class="card">
 <img src="${p.image}" />
-<div>${p.title}</div>
+<h3>${p.title}</h3>
 <div class="price">$${p.price}</div>
 </div>
 `;
 });
 
-html+=`</div>`;
+document.getElementById("app").innerHTML = html;
 
-chat.innerHTML+=html;
-chat.scrollTop=chat.scrollHeight;
 }
+
+load();
+
 </script>
 
 </body>
