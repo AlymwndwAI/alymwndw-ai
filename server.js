@@ -7,41 +7,44 @@ app.use(cors());
 app.use(express.static(__dirname));
 
 const PORT = process.env.PORT || 10000;
-const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
+
+// ⚠️ لازم يكون كده:
+const SHOPIFY_STORE = process.env.SHOPIFY_STORE; 
+// مثال: your-store.myshopify.com
 
 let cache = [];
 
-// 🛡️ حماية من الكراش
-process.on("uncaughtException", (err) => {
-  console.log("CRASH:", err.message);
-});
+function log(msg){
+  console.log("👉", msg);
+}
 
-process.on("unhandledRejection", (err) => {
-  console.log("PROMISE ERROR:", err.message);
-});
-
-// 🔥 جلب المنتجات (Safe Sync)
 async function syncProducts() {
+
   try {
 
+    if (!SHOPIFY_STORE) {
+      throw new Error("SHOPIFY_STORE is EMPTY in ENV");
+    }
+
     let all = [];
-    let since_id = 0;
+    let page = 1;
 
     while (true) {
 
-      const url = `https://${SHOPIFY_STORE}/products.json?limit=250&since_id=${since_id}`;
+      const url =
+        `https://${SHOPIFY_STORE}/products.json?limit=250&page=${page}`;
+
+      log("Fetching page " + page);
 
       const res = await axios.get(url, { timeout: 20000 });
 
-      const products = res?.data?.products || [];
+      const products = res.data.products;
 
-      if (!products.length) break;
+      if (!products || products.length === 0) break;
 
       all.push(...products);
 
-      since_id = products[products.length - 1].id;
-
-      console.log(`📦 Got: ${products.length} | Total: ${all.length}`);
+      page++;
     }
 
     cache = all;
@@ -49,56 +52,39 @@ async function syncProducts() {
     console.log("✅ FINAL PRODUCTS:", cache.length);
 
   } catch (err) {
-    console.log("SYNC ERROR:", err.message);
+    console.log("❌ SYNC ERROR:", err.response?.data || err.message);
   }
 }
 
-// 🚀 API PRODUCTS
 app.get("/products", (req, res) => {
 
-  try {
-
-    if (!cache.length) return res.json([]);
-
-    const data = cache.map(p => ({
-      id: p.id,
-      title: p.title,
-      image: p.images?.[0]?.src || "",
-
-      variants: (p.variants || []).map(v => ({
-        id: v.id,
-        title: v.title,
-
-        price: `${parseFloat(v.price || 0).toFixed(2)} AED`,
-
-        metal: v.option1 || "N/A",
-        stone: v.option2 || "N/A",
-        size: v.option3 || "N/A"
-      }))
-    }));
-
-    res.json(data);
-
-  } catch (err) {
-    res.status(500).json({
-      error: "products_error",
-      message: err.message
+  if (!cache.length) {
+    return res.json({
+      error: "No cached products",
+      hint: "Check /sync or SHOPIFY_STORE"
     });
   }
+
+  res.json(cache.map(p => ({
+    title: p.title,
+    image: p.images?.[0]?.src || "",
+    variants: p.variants?.map(v => ({
+      price: v.price,
+      title: v.title
+    }))
+  })));
 });
 
-// 🔄 manual sync
 app.get("/sync", async (req, res) => {
   await syncProducts();
   res.json({ ok: true, total: cache.length });
 });
 
-// 🟢 health check
 app.get("/", (req, res) => {
-  res.send("🚀 AI Jewelry Store Running");
+  res.send("OK");
 });
 
-// 🚀 start server
-app.listen(PORT, "0.0.0.0", () => {
-  console.log("🚀 Server running on", PORT);
+app.listen(PORT, () => {
+  console.log("Server running on", PORT);
+  syncProducts();
 });
