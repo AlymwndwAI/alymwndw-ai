@@ -14,7 +14,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 let cache = [];
 
-// ================= PRODUCTS SYNC =================
+// ================= LOAD PRODUCTS =================
 async function syncProducts() {
   try {
     let all = [];
@@ -35,45 +35,121 @@ async function syncProducts() {
     console.log("💎 Alymwndw Loaded:", cache.length);
 
   } catch (err) {
-    console.log("ERROR:", err.message);
+    console.log("Shopify error:", err.message);
   }
 }
 
-// ================= PRODUCTS =================
+// ================= SMART DETECT =================
+function detectMetal(text) {
+  text = text.toLowerCase();
+  if (text.includes("gold")) return "gold";
+  if (text.includes("silver")) return "silver";
+  if (text.includes("platinum")) return "platinum";
+  return null;
+}
+
+function detectStone(text) {
+  text = text.toLowerCase();
+  if (text.includes("diamond")) return "diamond";
+  if (text.includes("ruby")) return "ruby";
+  if (text.includes("sapphire")) return "sapphire";
+  if (text.includes("moissanite")) return "moissanite";
+  return null;
+}
+
+function matchProduct(p, f) {
+  const text = (p.title + JSON.stringify(p.variants)).toLowerCase();
+
+  if (f.metal && !text.includes(f.metal)) return false;
+  if (f.stone && !text.includes(f.stone)) return false;
+
+  if (f.maxPrice) {
+    const prices = (p.variants || []).map(v => parseFloat(v.price));
+    const min = Math.min(...prices);
+    if (min > f.maxPrice) return false;
+  }
+
+  return true;
+}
+
+// ================= PRODUCTS API =================
 app.get("/products", (req, res) => {
   res.json(
-    cache.map(p => ({
-      title: p.title,
-      image: p.images?.[0]?.src || "",
-      variants: p.variants?.map(v => ({
-        title: v.title,
-        price: v.price
-      })) || []
-    }))
+    cache.map(p => {
+      const prices = (p.variants || []).map(v => parseFloat(v.price)).filter(Boolean);
+
+      return {
+        title: p.title,
+        image: p.images?.[0]?.src || "",
+        price_min: Math.min(...prices),
+        price_max: Math.max(...prices),
+      };
+    })
   );
 });
 
-// ================= AI CHAT =================
+// ================= CHAT (AUTO SALES AI) =================
 app.post("/chat", async (req, res) => {
 
   try {
 
     const userMessage = req.body.message;
 
-    const context = cache.slice(0, 50).map(p => ({
-      title: p.title,
-      variants: p.variants?.map(v => `${v.title} - ${v.price} AED`)
+    // 🧠 extract filters
+    const filterPrompt = `
+Extract jewelry filters JSON:
+{
+  "metal": "gold/silver/platinum/null",
+  "stone": "diamond/ruby/sapphire/null",
+  "maxPrice": number or null
+}
+
+User:
+${userMessage}
+`;
+
+    const filterRes = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: filterPrompt }]
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    let filters = {};
+
+    try {
+      filters = JSON.parse(filterRes.data.choices[0].message.content);
+    } catch {}
+
+    // 🔍 filter products
+    let filtered = cache.filter(p => matchProduct(p, filters));
+
+    if (filtered.length === 0) {
+      filtered = cache.slice(0, 5);
+    }
+
+    const context = filtered.slice(0, 10).map(p => ({
+      name: p.title,
+      price: p.variants?.[0]?.price,
     }));
 
+    // 💎 sales prompt
     const prompt = `
-You are "Alymwndw AI", luxury jewelry sales expert.
+You are "Alymwndw AI" 💎 luxury jewelry sales expert.
 
 Rules:
-- Recommend ONE product only
-- Luxury tone (Cartier style)
-- Max 5 lines
+- Recommend ONLY ONE product
+- Speak like Cartier / Tiffany advisor
+- Max 6 lines
 - Always AED
-- Persuasive sales tone
+- Close the sale (urgency + luxury tone)
 
 Products:
 ${JSON.stringify(context)}
@@ -106,7 +182,7 @@ ${userMessage}
   }
 });
 
-// ================= 🖼️ IMAGE GENERATION =================
+// ================= IMAGE GENERATION =================
 app.post("/generate-image", async (req, res) => {
 
   try {
@@ -117,12 +193,7 @@ app.post("/generate-image", async (req, res) => {
       "https://api.openai.com/v1/images/generations",
       {
         model: "gpt-image-1",
-        prompt: `
-Luxury jewelry product photo for Alymwndw brand.
-Ultra realistic studio lighting, 8k, high detail.
-
-${prompt}
-        `,
+        prompt: `Luxury jewelry product, studio lighting, ultra realistic, 8k, Alymwndw style: ${prompt}`,
         size: "1024x1024"
       },
       {
@@ -133,12 +204,13 @@ ${prompt}
       }
     );
 
-    const image = response.data.data[0].url;
-
-    res.json({ image });
+    res.json({
+      image: response.data.data?.[0]?.url
+    });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.log(err.response?.data || err.message);
+    res.status(500).json({ error: "Image generation failed" });
   }
 });
 
@@ -150,6 +222,6 @@ app.get("/sync", async (req, res) => {
 
 // ================= START =================
 app.listen(PORT, () => {
-  console.log("💎 Alymwndw AI FULL STORE RUNNING");
+  console.log("💎 Alymwndw AI FULL SYSTEM RUNNING");
   syncProducts();
 });
