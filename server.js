@@ -20,67 +20,78 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// ================= CHAT (SMART AI ENGINE) =================
+// ================= GET PRODUCTS (GRAPHQL) =================
+async function getProducts() {
+
+  const query = `
+  {
+    products(first: 100) {
+      edges {
+        node {
+          title
+          images(first: 1) {
+            edges {
+              node {
+                url
+              }
+            }
+          }
+          variants(first: 1) {
+            edges {
+              node {
+                price
+              }
+            }
+          }
+        }
+      }
+    }
+  }`;
+
+  const response = await axios.post(
+    `https://${process.env.SHOPIFY_STORE}/admin/api/2024-04/graphql.json`,
+    { query },
+    {
+      headers: {
+        "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+
+  const products = response?.data?.data?.products?.edges || [];
+
+  return products.map(p => {
+
+    const node = p.node;
+
+    const image =
+      node.images?.edges?.[0]?.node?.url || "";
+
+    const price =
+      node.variants?.edges?.[0]?.node?.price || 0;
+
+    return {
+      title: node.title,
+      price,
+      image
+    };
+  });
+}
+
+// ================= CHAT =================
 app.post("/chat", async (req, res) => {
 
   try {
 
     const userMessage = req.body.message;
 
-    // ================= GET SHOPIFY PRODUCTS =================
-    const shop = await axios.get(
-      `https://${process.env.SHOPIFY_STORE}/products.json?limit=250`
-    );
+    // ================= PRODUCTS =================
+    const products = await getProducts();
 
-    const products = shop?.data?.products || [];
-
-    // ================= AI UNDERSTANDING =================
-    const intent = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `
-حلل طلب العميل إلى JSON فقط:
-
-{
-"type": "ring/necklace/bracelet/any",
-"level": "cheap/mid/luxury/any",
-"stone": "diamond/moissanite/gold/any"
-}
-          `
-        },
-        {
-          role: "user",
-          content: userMessage
-        }
-      ]
-    });
-
-    let parsed = {};
-
-    try {
-      parsed = JSON.parse(intent.choices[0].message.content);
-    } catch {
-      parsed = {};
-    }
-
-    // ================= SMART FILTER =================
-    const filtered = products.filter(p => {
-
-      const title = (p.title || "").toLowerCase();
-
-      const typeMatch = !parsed.type || parsed.type === "any" || title.includes(parsed.type);
-      const stoneMatch = !parsed.stone || parsed.stone === "any" || title.includes(parsed.stone);
-
-      return typeMatch && stoneMatch;
-    });
-
-    const finalProducts = filtered.length ? filtered : products.slice(0, 5);
-
-    // ================= AI SELLER RESPONSE =================
-    const productText = finalProducts.slice(0, 10).map(p =>
-      `- ${p.title} | ${p.variants?.[0]?.price || 0}`
+    // ================= AI RESPONSE =================
+    const productText = products.slice(0, 10).map(p =>
+      `- ${p.title} | ${p.price}`
     ).join("\n");
 
     const response = await client.chat.completions.create({
@@ -89,11 +100,11 @@ app.post("/chat", async (req, res) => {
         {
           role: "system",
           content: `
-أنت خبير مبيعات مجوهرات فاخر.
+أنت مساعد مبيعات لمتجر مجوهرات فاخر.
 
-- اختر أفضل المنتجات فقط
-- اقنع العميل
-- تحدث كبائع محترف
+- اختر أفضل المنتجات
+- كن مقنع
+- ساعد العميل يشتري
 
 المنتجات:
 ${productText}
@@ -106,24 +117,12 @@ ${productText}
       ]
     });
 
-    // ================= FIX IMAGES =================
-    const formattedProducts = finalProducts.slice(0, 5).map(p => {
-
-      let img =
-        p.images?.[0]?.src ||
-        p.image?.src ||
-        "";
-
-      return {
-        title: p.title,
-        price: p.variants?.[0]?.price || 0,
-        image: img ? (img.startsWith("//") ? `https:${img}` : img) : ""
-      };
-    });
+    // ================= FORMAT RESPONSE =================
+    const finalProducts = products.slice(0, 5);
 
     res.json({
       reply: response.choices[0].message.content,
-      products: formattedProducts
+      products: finalProducts
     });
 
   } catch (err) {
@@ -143,5 +142,5 @@ ${productText}
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log("🚀 Server running on port", PORT);
+  console.log("🚀 GraphQL Server running on port", PORT);
 });
