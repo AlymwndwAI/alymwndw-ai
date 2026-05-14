@@ -5,109 +5,237 @@
 
   <title>Alymwndw Jewellery AI</title>
 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
 
   <style>
 
+    *{
+      box-sizing:border-box;
+    }
+
     body{
       margin:0;
-      background:#0d0d0d;
+      background:#050505;
       font-family:Arial;
       color:white;
+      overflow:hidden;
     }
 
     .header{
+
       background:black;
+
       padding:25px;
-      font-size:38px;
+
+      font-size:34px;
+
       font-weight:bold;
+
       text-align:center;
+
       border-bottom:1px solid #222;
+
+      position:fixed;
+
+      width:100%;
+
+      top:0;
+
+      z-index:1000;
+
     }
 
     .chat{
+
       padding:20px;
-      height:78vh;
+
+      padding-top:140px;
+
+      padding-bottom:140px;
+
+      height:100vh;
+
       overflow:auto;
+
     }
 
     .msg{
-      max-width:85%;
-      padding:18px;
-      border-radius:25px;
+
+      max-width:88%;
+
+      padding:20px;
+
+      border-radius:28px;
+
       margin-bottom:20px;
-      line-height:1.7;
-      font-size:17px;
+
+      line-height:1.8;
+
+      font-size:18px;
+
+      word-wrap:break-word;
+
     }
 
     .user{
-      background:#00d1b2;
+
+      background:#11d9c5;
+
       color:black;
+
       margin-left:auto;
+
+      border-bottom-right-radius:8px;
+
     }
 
     .bot{
-      background:#1b1b1b;
+
+      background:#171717;
+
       color:white;
+
+      border-bottom-left-radius:8px;
+
     }
 
     .inputArea{
+
       position:fixed;
+
       bottom:0;
+
       width:100%;
-      background:#111;
-      display:flex;
+
+      background:#050505;
+
       padding:15px;
-      box-sizing:border-box;
+
+      display:flex;
+
       gap:10px;
+
+      border-top:1px solid #222;
+
     }
 
     input{
+
       flex:1;
+
       padding:18px;
+
       border:none;
+
       border-radius:40px;
+
       font-size:17px;
-      background:#222;
+
+      background:#171717;
+
       color:white;
+
       outline:none;
+
     }
 
     button{
-      background:#00d1b2;
+
+      background:#11d9c5;
+
       border:none;
+
       border-radius:40px;
-      padding:0 30px;
+
+      padding:0 28px;
+
       font-size:17px;
+
       font-weight:bold;
+
       cursor:pointer;
+
+      color:black;
+
     }
 
     .product{
+
       background:white;
+
       color:black;
-      border-radius:20px;
-      padding:15px;
+
+      border-radius:30px;
+
+      padding:20px;
+
       margin-top:20px;
+
+      box-shadow:0 10px 30px rgba(0,0,0,0.4);
+
     }
 
     .product img{
+
       width:100%;
-      border-radius:15px;
+
+      height:320px;
+
+      object-fit:cover;
+
+      border-radius:20px;
+
     }
 
     .product h3{
-      margin-top:15px;
+
+      margin-top:20px;
+
+      font-size:20px;
+
+      line-height:1.5;
+
     }
 
-    .product a{
-      display:inline-block;
+    .price{
+
+      font-size:32px;
+
+      font-weight:bold;
+
       margin-top:15px;
+
+    }
+
+    .viewBtn{
+
+      display:inline-block;
+
+      margin-top:20px;
+
       background:black;
+
       color:white;
-      padding:12px 20px;
-      border-radius:10px;
+
+      padding:14px 24px;
+
+      border-radius:15px;
+
       text-decoration:none;
+
+      font-weight:bold;
+
+    }
+
+    .typing{
+
+      opacity:0.6;
+
+      font-style:italic;
+
     }
 
   </style>
@@ -128,17 +256,20 @@
 
     <br><br>
 
-    I can help you find:
-    <br>
+    I can help you with:
+    <br><br>
+
     • Gold Jewellery
     <br>
-    • Diamonds
+    • Diamond Rings
     <br>
     • Moissanite
     <br>
-    • Luxury Rings
+    • Luxury Earrings
     <br>
-    • Silver Jewellery
+    • Platinum Jewelry
+    <br>
+    • Custom Jewelry
     <br><br>
 
     Ask me anything 💎
@@ -180,6 +311,12 @@ async function sendMessage(){
 
   input.value = "";
 
+  chat.innerHTML += `
+    <div class="msg bot typing" id="typing">
+      Alymwndw AI is typing...
+    </div>
+  `;
+
   chat.scrollTop = chat.scrollHeight;
 
   const response = await fetch("/chat",{
@@ -198,11 +335,13 @@ async function sendMessage(){
 
   const data = await response.json();
 
+  document.getElementById("typing").remove();
+
   let productsHTML = "";
 
   if(data.products){
 
-    data.products.slice(0,3).forEach(product => {
+    data.products.forEach(product => {
 
       productsHTML += `
 
@@ -214,11 +353,12 @@ async function sendMessage(){
             ${product.title}
           </h3>
 
-          <p>
+          <div class="price">
             ${product.price} AED
-          </p>
+          </div>
 
           <a
+            class="viewBtn"
             href="https://${window.location.hostname}/products/${product.handle}"
             target="_blank"
           >
@@ -235,14 +375,27 @@ async function sendMessage(){
 
   chat.innerHTML += `
     <div class="msg bot">
+
       ${data.reply}
+
       ${productsHTML}
+
     </div>
   `;
 
   chat.scrollTop = chat.scrollHeight;
 
 }
+
+document
+  .getElementById("message")
+  .addEventListener("keypress", function(e){
+
+    if(e.key === "Enter"){
+      sendMessage();
+    }
+
+});
 
 </script>
 
