@@ -16,18 +16,18 @@ const openai = new OpenAI({
 });
 
 
-// ===================================
+// =======================================
 // HOME
-// ===================================
+// =======================================
 
 app.get("/", (req, res) => {
   res.sendFile(process.cwd() + "/public/index.html");
 });
 
 
-// ===================================
+// =======================================
 // CHAT
-// ===================================
+// =======================================
 
 app.post("/chat", async (req, res) => {
 
@@ -35,33 +35,46 @@ app.post("/chat", async (req, res) => {
 
     const { message } = req.body;
 
-    // ============================
-    // GET PRODUCTS FROM SHOPIFY
-    // ============================
+    // ===================================
+    // GET SHOPIFY PRODUCTS
+    // ===================================
 
-    const shopifyResponse =
-      await fetch(
-        `https://${process.env.SHOPIFY_STORE}/admin/api/2025-01/products.json?limit=50`,
-        {
-          headers: {
-            "X-Shopify-Access-Token":
-              process.env.SHOPIFY_ADMIN_ACCESS_TOKEN,
-            "Content-Type":
-              "application/json",
-          },
-        }
-      );
+    let products = [];
 
-    const shopifyData =
-      await shopifyResponse.json();
+    try {
 
-    const products =
-      shopifyData.products || [];
+      const shopifyResponse =
+        await fetch(
+          `https://${process.env.SHOPIFY_STORE}/admin/api/2025-01/products.json?limit=100`,
+          {
+            headers: {
+              "X-Shopify-Access-Token":
+                process.env.SHOPIFY_ADMIN_ACCESS_TOKEN,
+              "Content-Type":
+                "application/json",
+            },
+          }
+        );
+
+      const shopifyData =
+        await shopifyResponse.json();
+
+      products =
+        shopifyData.products || [];
+
+      console.log(products);
+
+    } catch (err) {
+
+      console.log("SHOPIFY ERROR");
+      console.log(err);
+
+    }
 
 
-    // ============================
-    // SMART SEARCH
-    // ============================
+    // ===================================
+    // SMART PRODUCT SEARCH
+    // ===================================
 
     const foundProducts =
       products.filter(product => {
@@ -70,19 +83,21 @@ app.post("/chat", async (req, res) => {
           (
             product.title +
             " " +
-            product.body_html
+            product.body_html +
+            " " +
+            product.tags
           ).toLowerCase();
 
         return text.includes(
           message.toLowerCase()
         );
 
-      }).slice(0, 3);
+      }).slice(0, 4);
 
 
-    // ============================
-    // RETURN REAL PRODUCTS
-    // ============================
+    // ===================================
+    // RETURN PRODUCTS
+    // ===================================
 
     if(foundProducts.length > 0){
 
@@ -94,11 +109,18 @@ app.post("/chat", async (req, res) => {
             title:
               product.title,
 
+            description:
+              product.body_html
+                .replace(/<[^>]*>?/gm, '')
+                .slice(0, 120),
+
             price:
-              product.variants?.[0]?.price,
+              product.variants?.[0]?.price || "0",
 
             image:
-              product.images?.[0]?.src,
+              product.images?.[0]?.src ||
+
+"https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-image_large.png",
 
             link:
 `https://${process.env.SHOPIFY_STORE}/products/${product.handle}`
@@ -114,9 +136,9 @@ app.post("/chat", async (req, res) => {
     }
 
 
-    // ============================
-    // NORMAL AI CHAT
-    // ============================
+    // ===================================
+    // OPENAI LUXURY CHAT
+    // ===================================
 
     const completion =
       await openai.chat.completions.create({
@@ -131,11 +153,18 @@ app.post("/chat", async (req, res) => {
             content: `
 You are Alymwndw AI.
 
-- Speak Arabic if user speaks Arabic.
-- Speak English if user speaks English.
-- Sound luxurious.
-- Short elegant replies.
-            `,
+You are luxury jewelry sales AI.
+
+Rules:
+- Arabic if user speaks Arabic.
+- English if user speaks English.
+- Elegant luxury tone.
+- Short replies.
+- Help user choose products.
+- Recommend rings, necklaces, bracelets.
+- Mention moissanite, gold, silver, lab diamonds.
+- Try to upsell elegantly.
+            `
           },
 
           {
@@ -149,7 +178,7 @@ You are Alymwndw AI.
 
     res.json({
       reply:
-        completion.choices[0].message.content,
+        completion.choices[0].message.content
     });
 
   } catch(error){
@@ -157,7 +186,7 @@ You are Alymwndw AI.
     console.log(error);
 
     res.status(500).json({
-      error: "Server failed"
+      error: "Server Error"
     });
 
   }
@@ -165,9 +194,9 @@ You are Alymwndw AI.
 });
 
 
-// ===================================
+// =======================================
 // SERVER
-// ===================================
+// =======================================
 
 const PORT =
   process.env.PORT || 10000;
@@ -175,7 +204,7 @@ const PORT =
 app.listen(PORT, () => {
 
   console.log(
-    `Server running on ${PORT}`
+    `Server Running On ${PORT}`
   );
 
 });
