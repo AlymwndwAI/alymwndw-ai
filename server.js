@@ -73,31 +73,71 @@ async function loadProducts() {
 
     productsCache = (data.products || []).map((p) => {
 
+      // =========================
+      // CLEAN DESCRIPTION
+      // =========================
+
       const cleanDescription =
         cleanHtml(p.body_html);
+
+      // =========================
+      // IMAGES
+      // =========================
+
+      const images =
+        (p.images || []).map(
+          (img) => ({
+            id: img.id,
+            src: img.src,
+          })
+        );
 
       // =========================
       // VARIANTS
       // =========================
 
       const variants =
-        (p.variants || []).map((v) => ({
+        (p.variants || []).map((v) => {
 
-          id: v.id,
+          // variant image
+          let variantImage = "";
 
-          title: v.title,
+          const matchedImage =
+            images.find(
+              (img) =>
+                img.id === v.image_id
+            );
 
-          price: v.price,
+          if (matchedImage) {
+            variantImage =
+              matchedImage.src;
+          }
 
-          compareAtPrice:
-            v.compare_at_price,
+          return {
 
-          sku: v.sku,
+            id: v.id,
 
-          available:
-            v.inventory_quantity > 0,
+            title: v.title,
 
-        }));
+            price: v.price,
+
+            compareAtPrice:
+              v.compare_at_price,
+
+            sku: v.sku,
+
+            available:
+              v.inventory_quantity > 0,
+
+            image:
+              variantImage,
+
+            optionValues:
+              v.title.split(" / "),
+
+          };
+
+        });
 
       // =========================
       // OPTIONS
@@ -113,16 +153,7 @@ async function loadProducts() {
         }));
 
       // =========================
-      // IMAGES
-      // =========================
-
-      const images =
-        (p.images || []).map(
-          (img) => img.src
-        );
-
-      // =========================
-      // SEARCHABLE TEXT
+      // FULL SEARCH TEXT
       // =========================
 
       const fullText = `
@@ -130,13 +161,16 @@ ${p.title}
 ${cleanDescription}
 ${p.tags}
 ${p.product_type}
+${JSON.stringify(options)}
+${JSON.stringify(variants)}
       `.toLowerCase();
 
       // =========================
-      // METAL DETECTION
+      // METAL
       // =========================
 
-      let metal = "Luxury Metal";
+      let metal =
+        "Luxury Metal";
 
       if (
         fullText.includes("18k") ||
@@ -165,10 +199,11 @@ ${p.product_type}
       }
 
       // =========================
-      // STONE DETECTION
+      // STONE
       // =========================
 
-      let stone = "Luxury Stone";
+      let stone =
+        "Luxury Stone";
 
       if (
         fullText.includes("moissanite")
@@ -184,6 +219,72 @@ ${p.product_type}
 
         stone = "Diamond";
 
+      }
+
+      if (
+        fullText.includes("ruby")
+      ) {
+
+        stone = "Ruby";
+
+      }
+
+      if (
+        fullText.includes("emerald")
+      ) {
+
+        stone = "Emerald";
+
+      }
+
+      if (
+        fullText.includes("sapphire")
+      ) {
+
+        stone = "Sapphire";
+
+      }
+
+      // =========================
+      // COLORS
+      // =========================
+
+      let colors = [];
+
+      if (
+        fullText.includes("red")
+      ) {
+        colors.push("Red");
+      }
+
+      if (
+        fullText.includes("blue")
+      ) {
+        colors.push("Blue");
+      }
+
+      if (
+        fullText.includes("green")
+      ) {
+        colors.push("Green");
+      }
+
+      if (
+        fullText.includes("yellow")
+      ) {
+        colors.push("Yellow");
+      }
+
+      if (
+        fullText.includes("pink")
+      ) {
+        colors.push("Pink");
+      }
+
+      if (
+        fullText.includes("purple")
+      ) {
+        colors.push("Purple");
       }
 
       // =========================
@@ -223,17 +324,6 @@ ${p.product_type}
       }
 
       // =========================
-      // REVIEW SCORE
-      // =========================
-
-      const reviewCount =
-        (
-          cleanDescription.match(
-            /review/gi
-          ) || []
-        ).length;
-
-      // =========================
       // PRODUCT OBJECT
       // =========================
 
@@ -261,9 +351,9 @@ ${p.product_type}
 
         stone,
 
-        luxuryScore,
+        colors,
 
-        reviewCount,
+        luxuryScore,
 
         options,
 
@@ -272,7 +362,7 @@ ${p.product_type}
         images,
 
         image:
-          images[0] || "",
+          images[0]?.src || "",
 
         price:
           variants[0]?.price || "",
@@ -288,6 +378,9 @@ ${cleanDescription}
 ${p.tags}
 ${metal}
 ${stone}
+${colors.join(" ")}
+${JSON.stringify(options)}
+${JSON.stringify(variants)}
 ${p.product_type}
         `.toLowerCase(),
 
@@ -363,7 +456,7 @@ function searchProducts(message) {
 
     }
 
-    // earring
+    // earrings
     if (
       q.includes("earring") ||
       q.includes("حلق")
@@ -386,7 +479,7 @@ function searchProducts(message) {
       if (
         text.includes("gold")
       ) {
-        score += 50;
+        score += 60;
       }
 
     }
@@ -400,7 +493,7 @@ function searchProducts(message) {
       if (
         text.includes("silver")
       ) {
-        score += 50;
+        score += 60;
       }
 
     }
@@ -413,20 +506,6 @@ function searchProducts(message) {
 
       if (
         text.includes("platinum")
-      ) {
-        score += 50;
-      }
-
-    }
-
-    // diamond
-    if (
-      q.includes("diamond") ||
-      q.includes("الماس")
-    ) {
-
-      if (
-        text.includes("diamond")
       ) {
         score += 60;
       }
@@ -442,49 +521,77 @@ function searchProducts(message) {
       if (
         text.includes("moissanite")
       ) {
-        score += 60;
+        score += 70;
       }
 
     }
 
-    // engagement
+    // diamond
     if (
-      q.includes("engagement") ||
-      q.includes("خطوبة")
+      q.includes("diamond") ||
+      q.includes("الماس")
     ) {
 
       if (
-        text.includes("engagement")
+        text.includes("diamond")
       ) {
-        score += 60;
+        score += 70;
+      }
+
+    }
+
+    // red
+    if (
+      q.includes("red") ||
+      q.includes("احمر")
+    ) {
+
+      if (
+        text.includes("red")
+      ) {
+        score += 50;
+      }
+
+    }
+
+    // blue
+    if (
+      q.includes("blue") ||
+      q.includes("ازرق")
+    ) {
+
+      if (
+        text.includes("blue")
+      ) {
+        score += 50;
+      }
+
+    }
+
+    // green
+    if (
+      q.includes("green") ||
+      q.includes("اخضر")
+    ) {
+
+      if (
+        text.includes("green")
+      ) {
+        score += 50;
       }
 
     }
 
     // luxury
     if (
-      q.includes("luxury") ||
-      q.includes("فاخر")
+      q.includes("فاخر") ||
+      q.includes("luxury")
     ) {
 
       score +=
         p.luxuryScore || 0;
 
     }
-
-    // gift
-    if (
-      q.includes("gift") ||
-      q.includes("هدية")
-    ) {
-
-      score += 20;
-
-    }
-
-    // review boost
-    score +=
-      p.reviewCount || 0;
 
     if (score > 0) {
 
@@ -519,7 +626,7 @@ app.post("/chat", async (req, res) => {
     const message =
       req.body.message || "";
 
-    // refresh every 15 mins
+    // refresh products
     if (
       Date.now() - lastUpdate >
       1000 * 60 * 15
@@ -539,7 +646,7 @@ app.post("/chat", async (req, res) => {
     }
 
     // =========================
-    // SEARCH PRODUCTS
+    // SEARCH
     // =========================
 
     let matchedProducts =
@@ -580,11 +687,8 @@ ${p.metal}
 STONE:
 ${p.stone}
 
-COLLECTION:
-${p.collection}
-
-LUXURY SCORE:
-${p.luxuryScore}
+COLORS:
+${p.colors.join(", ")}
 
 DESCRIPTION:
 ${p.description}
@@ -592,14 +696,11 @@ ${p.description}
 OPTIONS:
 ${JSON.stringify(p.options)}
 
-VARIANTS:
+VARIANT IMAGES:
 ${JSON.stringify(p.variants)}
 
 PRODUCT URL:
 ${p.url}
-
-IMAGE:
-${p.image}
 
 `).join("\n\n");
 
@@ -611,61 +712,46 @@ ${p.image}
 
 You are Alymwndw Jewellery AI.
 
-You are an elite luxury jewellery AI sales assistant.
+You are an elite luxury jewellery AI.
 
 You speak naturally like ChatGPT.
 
-You are NOT robotic.
-
 You deeply understand:
-- Diamonds
-- Moissanite
-- Gold
-- Silver
-- Platinum
-- Engagement rings
-- Wedding jewelry
-- Luxury gifting
-- Jewelry styling
-- Jewelry trends
-
-Your personality:
-- Elegant
-- Luxury
-- Smart
-- Human-like
-- Professional
-- Friendly
-
-VERY IMPORTANT:
-
-Every product contains:
-- variants
-- pricing
+- diamonds
+- moissanite
 - metals
-- stones
 - colors
-- customizations
+- variants
+- images
+- pricing
+- customization
+
+IMPORTANT:
+
+Every variant has:
+- different image
+- different color
+- different metal
+- different stone
+- different pricing
+
+When customer asks:
+- red
+- blue
+- green
+- gold
+- silver
+- platinum
+
+You MUST choose the correct variant and image.
 
 You MUST:
-- recommend products naturally
-- explain products professionally
-- upsell elegantly
-- understand customer intent
-- never invent fake products
-- only recommend relevant products
+- recommend naturally
+- sound luxury
+- answer like human
 - answer Arabic naturally
 - answer English naturally
-
-If customer asks:
-- gift
-- engagement
-- luxury
-- trending
-- elegant
-- wedding
-
-You should recommend products smartly.
+- never invent fake products
 
 Relevant Products:
 
