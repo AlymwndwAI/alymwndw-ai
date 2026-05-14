@@ -19,18 +19,24 @@ const openai = new OpenAI({
 const SHOP = process.env.SHOPIFY_STORE;
 const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
+// =========================
 // MEMORY
+// =========================
+
 let STORE_PRODUCTS = [];
 let LAST_UPDATE = 0;
 
-// =============================
+const conversations = {};
+
+// =========================
 // LOAD PRODUCTS
-// =============================
+// =========================
+
 async function loadProducts() {
 
-  console.log("LOADING SHOPIFY PRODUCTS...");
-
   try {
+
+    console.log("Loading Shopify products...");
 
     const response = await fetch(
       `https://${SHOP}/admin/api/2025-01/products.json?limit=250`,
@@ -84,20 +90,24 @@ ${p.vendor}
 
     LAST_UPDATE = Date.now();
 
-    console.log("PRODUCTS LOADED:", STORE_PRODUCTS.length);
+    console.log(
+      `Loaded ${STORE_PRODUCTS.length} products`
+    );
 
-  } catch (err) {
+  } catch (error) {
 
-    console.log("SHOPIFY LOAD ERROR");
+    console.log("SHOPIFY ERROR");
 
-    console.log(err);
+    console.log(error);
 
   }
+
 }
 
-// =============================
+// =========================
 // SMART SEARCH
-// =============================
+// =========================
+
 function searchProducts(userMessage) {
 
   const q = userMessage.toLowerCase();
@@ -108,75 +118,137 @@ function searchProducts(userMessage) {
 
     let score = 0;
 
-    // direct matching
-    if (p.searchable.includes(q)) score += 100;
+    // direct match
+    if (
+      p.searchable.includes(q)
+    ) {
+      score += 100;
+    }
 
-    // Arabic matching
+    // silver
     if (
       q.includes("فضه") ||
       q.includes("فضة") ||
       q.includes("silver")
     ) {
+
       if (
         p.searchable.includes("silver") ||
         p.searchable.includes("925")
-      ) score += 50;
+      ) {
+        score += 50;
+      }
+
     }
 
+    // gold
     if (
       q.includes("ذهب") ||
       q.includes("gold")
     ) {
+
       if (
         p.searchable.includes("gold") ||
         p.searchable.includes("18k")
-      ) score += 50;
+      ) {
+        score += 50;
+      }
+
     }
 
+    // moissanite
     if (
       q.includes("موزنايت") ||
       q.includes("moissanite")
     ) {
+
       if (
         p.searchable.includes("moissanite")
-      ) score += 50;
+      ) {
+        score += 50;
+      }
+
     }
 
+    // ring
     if (
       q.includes("خاتم") ||
       q.includes("ring")
     ) {
+
       if (
         p.searchable.includes("ring")
-      ) score += 30;
+      ) {
+        score += 30;
+      }
+
     }
 
+    // earrings
     if (
       q.includes("قرط") ||
       q.includes("earring")
     ) {
+
       if (
         p.searchable.includes("earring")
-      ) score += 30;
+      ) {
+        score += 30;
+      }
+
     }
 
+    // necklace
     if (
       q.includes("عقد") ||
       q.includes("necklace")
     ) {
+
       if (
         p.searchable.includes("necklace")
-      ) score += 30;
+      ) {
+        score += 30;
+      }
+
     }
 
+    // bracelet
     if (
       q.includes("اسوره") ||
       q.includes("سوار") ||
       q.includes("bracelet")
     ) {
+
       if (
         p.searchable.includes("bracelet")
-      ) score += 30;
+      ) {
+        score += 30;
+      }
+
+    }
+
+    // luxury
+    if (
+      q.includes("luxury") ||
+      q.includes("فاخر")
+    ) {
+      score += 10;
+    }
+
+    // recommendation
+    if (
+      q.includes("اقتراح") ||
+      q.includes("recommend")
+    ) {
+      score += 10;
+    }
+
+    // new
+    if (
+      q.includes("جديد") ||
+      q.includes("new")
+    ) {
+      score += 10;
     }
 
     if (score > 0) {
@@ -187,23 +259,35 @@ function searchProducts(userMessage) {
       });
 
     }
+
   }
 
   scored.sort((a, b) => b.score - a.score);
 
   return scored.slice(0, 5);
+
 }
 
-// =============================
+// =========================
 // CHAT
-// =============================
+// =========================
+
 app.post("/chat", async (req, res) => {
 
   try {
 
-    const message = req.body.message || "";
+    const message =
+      req.body.message || "";
 
-    // auto refresh products every 15 mins
+    const sessionId =
+      req.body.sessionId || "default";
+
+    // load products
+    if (STORE_PRODUCTS.length === 0) {
+      await loadProducts();
+    }
+
+    // refresh every 15 mins
     if (
       Date.now() - LAST_UPDATE >
       1000 * 60 * 15
@@ -211,71 +295,120 @@ app.post("/chat", async (req, res) => {
       await loadProducts();
     }
 
-    const matchedProducts =
+    // create memory
+    if (!conversations[sessionId]) {
+      conversations[sessionId] = [];
+    }
+
+    // save user msg
+    conversations[sessionId].push({
+      role: "user",
+      content: message,
+    });
+
+    // search products
+    let matchedProducts =
       searchProducts(message);
 
-    const prompt = `
-You are Alymwndw Jewellery AI.
+    // fallback
+    if (matchedProducts.length === 0) {
+
+      matchedProducts =
+        STORE_PRODUCTS.slice(0, 5);
+
+    }
+
+    // limit memory
+    conversations[sessionId] =
+      conversations[sessionId].slice(-8);
+
+    // system prompt
+    const systemPrompt = `
+You are Alymwndw AI.
 
 You are an elite luxury jewellery sales assistant.
 
-You understand:
+You are NOT robotic.
+
+You speak naturally and intelligently.
+
+You deeply understand:
 - Gold jewellery
-- 18K gold
+- 18k gold
 - Silver jewellery
 - 925 silver
 - Diamonds
 - Moissanite
 - Platinum
-- Luxury jewelry
 - Engagement rings
+- Luxury jewelry
 - Fashion jewelry
+- Gifts
 
-VERY IMPORTANT RULES:
+Your personality:
+- Elegant
+- Smart
+- Luxury
+- Friendly
+- Human-like
+- Professional
 
-- NEVER invent products.
-- ONLY recommend products from the provided list.
-- Speak naturally and professionally.
-- If user speaks Arabic answer Arabic.
-- If user speaks English answer English.
-- Be short and smart.
-- Sell elegantly like a luxury jewelry expert.
-- Upsell carefully.
-- Mention price naturally.
+IMPORTANT RULES:
+
+- Never invent fake products.
+- Always recommend real products only.
+- Always use relevant products list.
+- Never say store is empty.
+- Recommend products naturally.
+- Upsell elegantly.
 - Understand customer intent.
+- Keep answers smart and clean.
+- Arabic => Arabic reply.
+- English => English reply.
+- Do not repeat yourself.
+- Sound premium.
 
 Relevant products:
 ${JSON.stringify(matchedProducts)}
-
-Customer:
-${message}
 `;
 
+    // OPENAI
     const completion =
       await openai.chat.completions.create({
 
         model: "gpt-4.1-mini",
 
-        temperature: 0.7,
+        temperature: 0.4,
 
         messages: [
+
           {
             role: "system",
-            content: prompt,
+            content: systemPrompt,
           },
-          {
-            role: "user",
-            content: message,
-          },
+
+          ...conversations[sessionId],
+
         ],
 
       });
 
+    const aiReply =
+      completion.choices[0]
+      .message.content;
+
+    // save ai msg
+    conversations[sessionId].push({
+
+      role: "assistant",
+
+      content: aiReply,
+
+    });
+
     res.json({
 
-      reply:
-        completion.choices[0]
-          .message.content,
+      reply: aiReply,
 
       products: matchedProducts,
 
@@ -286,23 +419,26 @@ ${message}
     console.log(error);
 
     res.json({
+
       reply:
-        "Sorry, Alymwndw AI is temporarily unavailable.",
+        "Alymwndw AI temporarily unavailable.",
+
     });
 
   }
 
 });
 
-// =============================
+// =========================
 // START SERVER
-// =============================
+// =========================
+
 loadProducts();
 
 app.listen(PORT, () => {
 
   console.log(
-    "ALYMWNDW AI RUNNING"
+    `ALYMWNDW AI RUNNING ON ${PORT}`
   );
 
 });
