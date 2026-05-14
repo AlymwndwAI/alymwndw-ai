@@ -7,57 +7,32 @@ dotenv.config();
 
 const app = express();
 
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json());
 app.use(express.static("public"));
 
 const PORT = process.env.PORT || 10000;
-
-// =========================
-// OPENAI
-// =========================
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// =========================
-// SHOPIFY
-// =========================
-
 const SHOP = process.env.SHOPIFY_STORE;
 const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
-// =========================
-// MEMORY
-// =========================
+// ======================
+// CACHE
+// ======================
 
 let productsCache = [];
 let lastUpdate = 0;
 
-// =========================
-// CLEAN HTML
-// =========================
-
-function cleanHtml(html) {
-
-  if (!html) return "";
-
-  return html
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-}
-
-// =========================
+// ======================
 // LOAD PRODUCTS
-// =========================
+// ======================
 
 async function loadProducts() {
 
   try {
-
-    console.log("Loading Shopify products...");
 
     const response = await fetch(
       `https://${SHOP}/admin/api/2025-01/products.json?limit=250`,
@@ -71,261 +46,155 @@ async function loadProducts() {
 
     const data = await response.json();
 
-    productsCache = (data.products || []).map((p) => {
+    const products = data.products || [];
 
-      // =========================
-      // CLEAN DESCRIPTION
-      // =========================
+    productsCache = products.map((p) => {
 
-      const cleanDescription =
-        cleanHtml(p.body_html);
-
-      // =========================
-      // IMAGES
-      // =========================
-
-      const images =
-        (p.images || []).map(
-          (img) => ({
-            id: img.id,
-            src: img.src,
-          })
-        );
-
-      // =========================
-      // VARIANTS
-      // =========================
-
-      const variants =
-        (p.variants || []).map((v) => {
-
-          // variant image
-          let variantImage = "";
-
-          const matchedImage =
-            images.find(
-              (img) =>
-                img.id === v.image_id
-            );
-
-          if (matchedImage) {
-            variantImage =
-              matchedImage.src;
-          }
-
-          return {
-
-            id: v.id,
-
-            title: v.title,
-
-            price: v.price,
-
-            compareAtPrice:
-              v.compare_at_price,
-
-            sku: v.sku,
-
-            available:
-              v.inventory_quantity > 0,
-
-            image:
-              variantImage,
-
-            optionValues:
-              v.title.split(" / "),
-
-          };
-
-        });
-
-      // =========================
-      // OPTIONS
-      // =========================
-
-      const options =
-        (p.options || []).map((o) => ({
-
-          name: o.name,
-
-          values: o.values,
-
-        }));
-
-      // =========================
-      // FULL SEARCH TEXT
-      // =========================
-
-      const fullText = `
-${p.title}
-${cleanDescription}
-${p.tags}
-${p.product_type}
-${JSON.stringify(options)}
-${JSON.stringify(variants)}
+      const text = `
+        ${p.title}
+        ${p.body_html}
+        ${p.tags}
       `.toLowerCase();
 
-      // =========================
-      // METAL
-      // =========================
+      // ======================
+      // METAL DETECTION
+      // ======================
 
-      let metal =
-        "Luxury Metal";
+      let metal = "Unknown";
 
       if (
-        fullText.includes("18k") ||
-        fullText.includes("gold")
+        text.includes("18k") ||
+        text.includes("gold")
       ) {
-
-        metal = "18K Gold";
-
+        metal = "Gold";
       }
 
       if (
-        fullText.includes("silver") ||
-        fullText.includes("925")
+        text.includes("925") ||
+        text.includes("silver")
       ) {
-
-        metal = "925 Silver";
-
+        metal = "Silver";
       }
 
       if (
-        fullText.includes("platinum")
+        text.includes("platinum")
       ) {
-
         metal = "Platinum";
-
       }
 
-      // =========================
-      // STONE
-      // =========================
+      // ======================
+      // STONE DETECTION
+      // ======================
 
-      let stone =
-        "Luxury Stone";
+      let stone = "None";
 
       if (
-        fullText.includes("moissanite")
+        text.includes("moissanite")
       ) {
-
         stone = "Moissanite";
-
       }
 
       if (
-        fullText.includes("diamond")
+        text.includes("diamond")
       ) {
-
         stone = "Diamond";
-
       }
 
       if (
-        fullText.includes("ruby")
+        text.includes("ruby")
       ) {
-
         stone = "Ruby";
-
       }
 
       if (
-        fullText.includes("emerald")
+        text.includes("sapphire")
       ) {
-
-        stone = "Emerald";
-
-      }
-
-      if (
-        fullText.includes("sapphire")
-      ) {
-
         stone = "Sapphire";
-
       }
 
-      // =========================
+      // ======================
       // COLORS
-      // =========================
+      // ======================
 
       let colors = [];
 
       if (
-        fullText.includes("red")
+        /\bred\b/.test(text)
       ) {
         colors.push("Red");
       }
 
       if (
-        fullText.includes("blue")
+        /\bblue\b/.test(text)
       ) {
         colors.push("Blue");
       }
 
       if (
-        fullText.includes("green")
+        /\bgreen\b/.test(text)
       ) {
         colors.push("Green");
       }
 
       if (
-        fullText.includes("yellow")
-      ) {
-        colors.push("Yellow");
-      }
-
-      if (
-        fullText.includes("pink")
+        /\bpink\b/.test(text)
       ) {
         colors.push("Pink");
       }
 
       if (
-        fullText.includes("purple")
+        /\bpurple\b/.test(text)
       ) {
         colors.push("Purple");
       }
 
-      // =========================
-      // LUXURY SCORE
-      // =========================
+      // ======================
+      // IMAGES
+      // ======================
 
-      let luxuryScore = 0;
+      const mainImage =
+        p.images?.[0]?.src || "";
 
-      if (
-        fullText.includes("gra")
-      ) {
-        luxuryScore += 30;
-      }
+      // ======================
+      // VARIANTS
+      // ======================
 
-      if (
-        fullText.includes("vvs1")
-      ) {
-        luxuryScore += 20;
-      }
+      const variants =
+        (p.variants || []).map((v) => {
 
-      if (
-        fullText.includes("18k")
-      ) {
-        luxuryScore += 20;
-      }
+          let variantImage = mainImage;
 
-      if (
-        fullText.includes("platinum")
-      ) {
-        luxuryScore += 25;
-      }
+          if (
+            v.image_id &&
+            p.images
+          ) {
 
-      if (
-        fullText.includes("diamond")
-      ) {
-        luxuryScore += 30;
-      }
+            const img = p.images.find(
+              (i) =>
+                i.id === v.image_id
+            );
 
-      // =========================
-      // PRODUCT OBJECT
-      // =========================
+            if (img) {
+              variantImage = img.src;
+            }
+
+          }
+
+          return {
+
+            title: v.title,
+
+            price: v.price,
+
+            available:
+              v.available,
+
+            image:
+              variantImage,
+
+          };
+
+        });
 
       return {
 
@@ -334,18 +203,12 @@ ${JSON.stringify(variants)}
         title: p.title,
 
         description:
-          cleanDescription,
+          p.body_html
+            ?.replace(/<[^>]+>/g, "")
+            || "",
 
-        collection:
-          p.product_type ||
-          "Luxury Jewelry",
-
-        tags: p.tags,
-
-        type:
-          p.product_type,
-
-        vendor: p.vendor,
+        price:
+          p.variants?.[0]?.price || "",
 
         metal,
 
@@ -353,36 +216,12 @@ ${JSON.stringify(variants)}
 
         colors,
 
-        luxuryScore,
-
-        options,
-
-        variants,
-
-        images,
-
-        image:
-          images[0]?.src || "",
-
-        price:
-          variants[0]?.price || "",
-
-        handle: p.handle,
+        image: mainImage,
 
         url:
-`https://${SHOP}/products/${p.handle}`,
+          `https://${SHOP}/products/${p.handle}`,
 
-        searchable: `
-${p.title}
-${cleanDescription}
-${p.tags}
-${metal}
-${stone}
-${colors.join(" ")}
-${JSON.stringify(options)}
-${JSON.stringify(variants)}
-${p.product_type}
-        `.toLowerCase(),
+        variants,
 
       };
 
@@ -397,227 +236,56 @@ ${p.product_type}
 
   } catch (error) {
 
-    console.log(error);
+    console.log(
+      "LOAD PRODUCTS ERROR",
+      error
+    );
 
   }
 
 }
 
-// =========================
-// SMART SEARCH
-// =========================
+// ======================
+// SEARCH
+// ======================
 
 function searchProducts(message) {
 
-  const q =
+  const msg =
     message.toLowerCase();
 
-  const scored = [];
+  let filtered =
+    productsCache.filter((p) => {
 
-  for (const p of productsCache) {
+      const text = `
+        ${p.title}
+        ${p.description}
+        ${p.metal}
+        ${p.stone}
+        ${p.colors.join(" ")}
+      `.toLowerCase();
 
-    let score = 0;
+      return msg
+        .split(" ")
+        .some((word) =>
+          text.includes(word)
+        );
 
-    const text =
-      p.searchable;
+    });
 
-    // exact
-    if (
-      text.includes(q)
-    ) {
-      score += 100;
-    }
-
-    // ring
-    if (
-      q.includes("ring") ||
-      q.includes("خاتم")
-    ) {
-
-      if (
-        text.includes("ring")
-      ) {
-        score += 40;
-      }
-
-    }
-
-    // necklace
-    if (
-      q.includes("necklace") ||
-      q.includes("عقد")
-    ) {
-
-      if (
-        text.includes("necklace")
-      ) {
-        score += 40;
-      }
-
-    }
-
-    // earrings
-    if (
-      q.includes("earring") ||
-      q.includes("حلق")
-    ) {
-
-      if (
-        text.includes("earring")
-      ) {
-        score += 40;
-      }
-
-    }
-
-    // gold
-    if (
-      q.includes("gold") ||
-      q.includes("ذهب")
-    ) {
-
-      if (
-        text.includes("gold")
-      ) {
-        score += 60;
-      }
-
-    }
-
-    // silver
-    if (
-      q.includes("silver") ||
-      q.includes("فضة")
-    ) {
-
-      if (
-        text.includes("silver")
-      ) {
-        score += 60;
-      }
-
-    }
-
-    // platinum
-    if (
-      q.includes("platinum") ||
-      q.includes("بلاتين")
-    ) {
-
-      if (
-        text.includes("platinum")
-      ) {
-        score += 60;
-      }
-
-    }
-
-    // moissanite
-    if (
-      q.includes("moissanite") ||
-      q.includes("مويسانيت")
-    ) {
-
-      if (
-        text.includes("moissanite")
-      ) {
-        score += 70;
-      }
-
-    }
-
-    // diamond
-    if (
-      q.includes("diamond") ||
-      q.includes("الماس")
-    ) {
-
-      if (
-        text.includes("diamond")
-      ) {
-        score += 70;
-      }
-
-    }
-
-    // red
-    if (
-      q.includes("red") ||
-      q.includes("احمر")
-    ) {
-
-      if (
-        text.includes("red")
-      ) {
-        score += 50;
-      }
-
-    }
-
-    // blue
-    if (
-      q.includes("blue") ||
-      q.includes("ازرق")
-    ) {
-
-      if (
-        text.includes("blue")
-      ) {
-        score += 50;
-      }
-
-    }
-
-    // green
-    if (
-      q.includes("green") ||
-      q.includes("اخضر")
-    ) {
-
-      if (
-        text.includes("green")
-      ) {
-        score += 50;
-      }
-
-    }
-
-    // luxury
-    if (
-      q.includes("فاخر") ||
-      q.includes("luxury")
-    ) {
-
-      score +=
-        p.luxuryScore || 0;
-
-    }
-
-    if (score > 0) {
-
-      scored.push({
-
-        ...p,
-
-        score,
-
-      });
-
-    }
-
+  // fallback
+  if (filtered.length === 0) {
+    filtered =
+      productsCache.slice(0, 4);
   }
 
-  scored.sort(
-    (a, b) => b.score - a.score
-  );
-
-  return scored.slice(0, 5);
+  return filtered.slice(0, 4);
 
 }
 
-// =========================
+// ======================
 // CHAT
-// =========================
+// ======================
 
 app.post("/chat", async (req, res) => {
 
@@ -626,7 +294,7 @@ app.post("/chat", async (req, res) => {
     const message =
       req.body.message || "";
 
-    // refresh products
+    // refresh cache every 15 min
     if (
       Date.now() - lastUpdate >
       1000 * 60 * 15
@@ -636,7 +304,6 @@ app.post("/chat", async (req, res) => {
 
     }
 
-    // first load
     if (
       productsCache.length === 0
     ) {
@@ -645,130 +312,81 @@ app.post("/chat", async (req, res) => {
 
     }
 
-    // =========================
-    // SEARCH
-    // =========================
-
-    let matchedProducts =
+    const matchedProducts =
       searchProducts(message);
 
-    // fallback
-    if (
-      matchedProducts.length === 0
-    ) {
+    // ======================
+    // CLEAN PRODUCTS
+    // ======================
 
-      matchedProducts =
-        productsCache
-          .sort(
-            (a, b) =>
-              b.luxuryScore -
-              a.luxuryScore
-          )
-          .slice(0, 5);
+    const cleanProducts =
+      matchedProducts.map((p) => ({
 
-    }
+        title: p.title,
 
-    // =========================
-    // PRODUCTS CONTEXT
-    // =========================
+        description:
+          p.description,
 
-    const productsText =
-      matchedProducts.map((p) => `
+        price: p.price,
 
-TITLE:
-${p.title}
+        metal: p.metal,
 
-PRICE:
-${p.price} AED
+        stone: p.stone,
 
-METAL:
-${p.metal}
+        colors: p.colors,
 
-STONE:
-${p.stone}
+        image: p.image,
 
-COLORS:
-${p.colors.join(", ")}
+        url: p.url,
 
-DESCRIPTION:
-${p.description}
+        variants: p.variants,
 
-OPTIONS:
-${JSON.stringify(p.options)}
+      }));
 
-VARIANT IMAGES:
-${JSON.stringify(p.variants)}
-
-PRODUCT URL:
-${p.url}
-
-`).join("\n\n");
-
-    // =========================
-    // SYSTEM PROMPT
-    // =========================
+    // ======================
+    // AI PROMPT
+    // ======================
 
     const systemPrompt = `
 
 You are Alymwndw Jewellery AI.
 
-You are an elite luxury jewellery AI.
+You are a luxury jewellery expert.
 
-You speak naturally like ChatGPT.
+STRICT RULES:
 
-You deeply understand:
-- diamonds
-- moissanite
-- metals
-- colors
-- variants
-- images
-- pricing
-- customization
+1- NEVER invent colors.
+2- NEVER invent gemstones.
+3- NEVER invent metals.
+4- NEVER invent variants.
+5- NEVER say product exists unless it exists.
+6- NEVER create fake product info.
+7- ONLY use provided products.
+8- NEVER output markdown image syntax.
+9- NEVER output raw image URLs.
+10- Speak naturally like ChatGPT.
+11- Recommend products smartly.
+12- Upsell naturally.
+13- Keep answers elegant.
+14- Answer Arabic if user speaks Arabic.
+15- If user asks unavailable color say unavailable politely.
 
-IMPORTANT:
+AVAILABLE PRODUCTS:
 
-Every variant has:
-- different image
-- different color
-- different metal
-- different stone
-- different pricing
-
-When customer asks:
-- red
-- blue
-- green
-- gold
-- silver
-- platinum
-
-You MUST choose the correct variant and image.
-
-You MUST:
-- recommend naturally
-- sound luxury
-- answer like human
-- answer Arabic naturally
-- answer English naturally
-- never invent fake products
-
-Relevant Products:
-
-${productsText}
+${JSON.stringify(cleanProducts)}
 
 `;
 
-    // =========================
+    // ======================
     // OPENAI
-    // =========================
+    // ======================
 
     const completion =
       await openai.chat.completions.create({
 
         model: "gpt-4.1-mini",
 
-        temperature: 0.5,
+        temperature: 0.2,
 
         messages: [
 
@@ -786,9 +404,9 @@ ${productsText}
 
       });
 
-    // =========================
+    // ======================
     // RESPONSE
-    // =========================
+    // ======================
 
     res.json({
 
@@ -797,7 +415,7 @@ ${productsText}
           .message.content,
 
       products:
-        matchedProducts,
+        cleanProducts,
 
     });
 
@@ -808,7 +426,7 @@ ${productsText}
     res.json({
 
       reply:
-        "Alymwndw AI temporarily unavailable.",
+        "AI Error",
 
       products: [],
 
@@ -818,16 +436,16 @@ ${productsText}
 
 });
 
-// =========================
+// ======================
 // START SERVER
-// =========================
+// ======================
 
-loadProducts();
-
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
 
   console.log(
     "ALYMWNDW AI RUNNING"
   );
+
+  await loadProducts();
 
 });
