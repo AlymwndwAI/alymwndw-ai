@@ -32,27 +32,7 @@ async function getProducts() {
       }
     );
 
-    const products = response.data.products;
-
-    for (const product of products) {
-      try {
-        const metafields = await axios.get(
-          `https://${SHOP}/admin/api/2024-04/products/${product.id}/metafields.json`,
-          {
-            headers: {
-              "X-Shopify-Access-Token": TOKEN,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-
-        product.metafields = metafields.data.metafields || [];
-      } catch (err) {
-        product.metafields = [];
-      }
-    }
-
-    return products;
+    return response.data.products || [];
   } catch (error) {
     console.log("Shopify Error:", error.message);
     return [];
@@ -66,10 +46,9 @@ app.post("/chat", async (req, res) => {
     const products = await getProducts();
 
     const productsText = products
-      .map(
-        (p) => `
-Title:
-${p.title}
+      .map((p) => {
+        return `
+Title: ${p.title}
 
 Description:
 ${p.body_html}
@@ -80,74 +59,40 @@ ${p.variants?.[0]?.price || "N/A"} AED
 Tags:
 ${p.tags}
 
-Product Type:
+Type:
 ${p.product_type}
-
-Vendor:
-${p.vendor}
 
 Handle:
 ${p.handle}
-
-Images:
-${p.images?.map((img) => img.src).join(", ")}
-
-Reviews:
-${p.metafields
-  ?.map((m) => `${m.namespace} - ${m.key}: ${m.value}`)
-  .join("\n")}
-
-`
-      )
-      .join("\n====================\n");
+`;
+      })
+      .join("\n-----------------\n");
 
     const prompt = `
 You are Alymwndw AI.
 
-You are NOT a basic chatbot.
-
-You are a luxury jewellery AI sales expert working for Alymwndw Jewellery.
+You are a luxury jewellery AI sales assistant.
 
 Your personality:
 - Elegant
-- Luxury
-- Smart seller
+- Smart
+- Luxury sales expert
 - Friendly
-- Speaks naturally like ChatGPT
-- Understands Arabic and English perfectly
-- Upselling expert
+- Speak Arabic and English naturally
 
 Your job:
-- Understand customer intent deeply
 - Recommend ONLY relevant products
+- Understand jewellery deeply
+- Understand gemstones and materials
+- Read full descriptions carefully
 - Never show random products
 - Recommend maximum 3 products
-- Read full product descriptions
-- Understand gemstones, gold, silver, platinum, diamonds, moissanite
-- Understand colors and styles
-- Read reviews and metadata
-- Help customer buy
-- Speak naturally and shortly
-- Focus on conversion and sales
+- Behave like ChatGPT
 
-VERY IMPORTANT:
-- If customer asks for red gemstone:
-search carefully in descriptions and tags
-
-- If product doesn't exist:
-recommend closest luxury alternative
-
-- Never say:
-"I don't know"
-
-- Never dump all products
-
-- Always behave like premium ChatGPT assistant
-
-STORE PRODUCTS:
+Products:
 ${productsText}
 
-CUSTOMER MESSAGE:
+Customer:
 ${userMessage}
 `;
 
@@ -160,36 +105,32 @@ ${userMessage}
         },
       ],
       temperature: 0.8,
-      max_tokens: 700,
+      max_tokens: 500,
     });
 
     const aiReply = completion.choices[0].message.content;
 
     let matchedProducts = [];
 
-    for (const product of products) {
+    for (const p of products) {
       const text = `
-${product.title}
-${product.body_html}
-${product.tags}
-${product.product_type}
-`
-        .toLowerCase();
+${p.title}
+${p.body_html}
+${p.tags}
+${p.product_type}
+      `.toLowerCase();
 
       const user = userMessage.toLowerCase();
 
       if (
         text.includes(user) ||
-        user.includes(product.title.toLowerCase()) ||
-        text.includes("moissanite") && user.includes("moissanite") ||
-        text.includes("gold") && user.includes("gold") ||
-        text.includes("silver") && user.includes("silver") ||
-        text.includes("diamond") && user.includes("diamond") ||
-        text.includes("ring") && user.includes("ring") ||
-        text.includes("necklace") && user.includes("necklace") ||
-        text.includes("earring") && user.includes("earring")
+        (user.includes("gold") && text.includes("gold")) ||
+        (user.includes("silver") && text.includes("silver")) ||
+        (user.includes("ring") && text.includes("ring")) ||
+        (user.includes("moissanite") && text.includes("moissanite")) ||
+        (user.includes("diamond") && text.includes("diamond"))
       ) {
-        matchedProducts.push(product);
+        matchedProducts.push(p);
       }
     }
 
@@ -197,12 +138,11 @@ ${product.product_type}
 
     res.json({
       reply: aiReply,
+
       products: matchedProducts.map((p) => ({
         title: p.title,
-        description: p.body_html,
         price: p.variants?.[0]?.price || "N/A",
         image: p.images?.[0]?.src || "",
-        handle: p.handle,
         url: `https://${SHOP}/products/${p.handle}`,
       })),
     });
@@ -210,7 +150,7 @@ ${product.product_type}
     console.log(error);
 
     res.status(500).json({
-      reply: "Server error",
+      reply: "Server Error",
     });
   }
 });
