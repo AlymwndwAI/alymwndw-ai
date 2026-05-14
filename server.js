@@ -34,203 +34,285 @@ async function loadProducts() {
 
   try {
 
-    const response = await fetch(
-      `https://${SHOP}/admin/api/2025-01/products.json?limit=250`,
-      {
-        headers: {
-          "X-Shopify-Access-Token": TOKEN,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    let allProducts = [];
+    let since_id = 0;
+    let keepLoading = true;
 
-    const data = await response.json();
+    while (keepLoading) {
 
-    const products = data.products || [];
+      console.log(
+        "Loading products after ID:",
+        since_id
+      );
 
-    productsCache = products.map((p) => {
+      const response = await fetch(
+        `https://${SHOP}/admin/api/2025-01/products.json?limit=250&since_id=${since_id}`,
+        {
+          headers: {
+            "X-Shopify-Access-Token": TOKEN,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-      const text = `
-        ${p.title}
-        ${p.body_html}
-        ${p.tags}
-      `.toLowerCase();
+      const data = await response.json();
 
-      // ======================
-      // METAL DETECTION
-      // ======================
+      const products =
+        data.products || [];
 
-      let metal = "Unknown";
+      console.log(
+        "Loaded:",
+        products.length
+      );
 
-      if (
-        text.includes("18k") ||
-        text.includes("gold")
-      ) {
-        metal = "Gold";
-      }
+      if (products.length === 0) {
 
-      if (
-        text.includes("925") ||
-        text.includes("silver")
-      ) {
-        metal = "Silver";
+        keepLoading = false;
+        break;
+
       }
 
-      if (
-        text.includes("platinum")
-      ) {
-        metal = "Platinum";
+      allProducts.push(...products);
+
+      since_id =
+        products[
+          products.length - 1
+        ].id;
+
+      if (products.length < 250) {
+
+        keepLoading = false;
+
       }
 
-      // ======================
-      // STONE DETECTION
-      // ======================
+    }
 
-      let stone = "None";
+    productsCache =
+      allProducts.map((p) => {
 
-      if (
-        text.includes("moissanite")
-      ) {
-        stone = "Moissanite";
-      }
+        const text = `
+          ${p.title}
+          ${p.body_html}
+          ${p.tags}
+          ${(p.options || [])
+            .map((o) => o.values?.join(" "))
+            .join(" ")}
+        `.toLowerCase();
 
-      if (
-        text.includes("diamond")
-      ) {
-        stone = "Diamond";
-      }
+        // ======================
+        // METAL DETECTION
+        // ======================
 
-      if (
-        text.includes("ruby")
-      ) {
-        stone = "Ruby";
-      }
+        let metal = "Unknown";
 
-      if (
-        text.includes("sapphire")
-      ) {
-        stone = "Sapphire";
-      }
+        if (
+          text.includes("18k") ||
+          text.includes("gold")
+        ) {
+          metal = "Gold";
+        }
 
-      // ======================
-      // COLORS
-      // ======================
+        if (
+          text.includes("925") ||
+          text.includes("silver")
+        ) {
+          metal = "Silver";
+        }
 
-      let colors = [];
+        if (
+          text.includes("platinum")
+        ) {
+          metal = "Platinum";
+        }
 
-      if (
-        /\bred\b/.test(text)
-      ) {
-        colors.push("Red");
-      }
+        // ======================
+        // STONE DETECTION
+        // ======================
 
-      if (
-        /\bblue\b/.test(text)
-      ) {
-        colors.push("Blue");
-      }
+        let stone = "None";
 
-      if (
-        /\bgreen\b/.test(text)
-      ) {
-        colors.push("Green");
-      }
+        if (
+          text.includes("moissanite")
+        ) {
+          stone = "Moissanite";
+        }
 
-      if (
-        /\bpink\b/.test(text)
-      ) {
-        colors.push("Pink");
-      }
+        if (
+          text.includes("diamond")
+        ) {
+          stone = "Diamond";
+        }
 
-      if (
-        /\bpurple\b/.test(text)
-      ) {
-        colors.push("Purple");
-      }
+        if (
+          text.includes("ruby")
+        ) {
+          stone = "Ruby";
+        }
 
-      // ======================
-      // IMAGES
-      // ======================
+        if (
+          text.includes("sapphire")
+        ) {
+          stone = "Sapphire";
+        }
 
-      const mainImage =
-        p.images?.[0]?.src || "";
+        // ======================
+        // COLORS
+        // ======================
 
-      // ======================
-      // VARIANTS
-      // ======================
+        let colors = [];
 
-      const variants =
-        (p.variants || []).map((v) => {
+        const colorList = [
+          "red",
+          "blue",
+          "green",
+          "pink",
+          "purple",
+          "yellow",
+          "black",
+          "white",
+          "rose gold",
+          "gold",
+        ];
 
-          let variantImage = mainImage;
+        colorList.forEach((c) => {
 
           if (
-            v.image_id &&
-            p.images
+            text.includes(c)
           ) {
-
-            const img = p.images.find(
-              (i) =>
-                i.id === v.image_id
-            );
-
-            if (img) {
-              variantImage = img.src;
-            }
-
+            colors.push(c);
           }
-
-          return {
-
-            title: v.title,
-
-            price: v.price,
-
-            available:
-              v.available,
-
-            image:
-              variantImage,
-
-          };
 
         });
 
-      return {
+        // ======================
+        // IMAGES
+        // ======================
 
-        id: p.id,
+        const mainImage =
+          p.images?.[0]?.src || "";
 
-        title: p.title,
+        // ======================
+        // VARIANTS
+        // ======================
 
-        description:
-          p.body_html
-            ?.replace(/<[^>]+>/g, "")
-            || "",
+        const variants =
+          (p.variants || []).map((v) => {
 
-        price:
-          p.variants?.[0]?.price || "",
+            let variantText = `
+              ${v.title}
+              ${v.option1}
+              ${v.option2}
+              ${v.option3}
+            `.toLowerCase();
 
-        metal,
+            let variantColor = "";
 
-        stone,
+            colorList.forEach((c) => {
 
-        colors,
+              if (
+                variantText.includes(c)
+              ) {
+                variantColor = c;
+              }
 
-        image: mainImage,
+            });
 
-        url:
-          `https://${SHOP}/products/${p.handle}`,
+            let variantImage =
+              mainImage;
 
-        variants,
+            if (
+              v.image_id
+            ) {
 
-      };
+              const img =
+                p.images.find(
+                  (i) =>
+                    i.id ===
+                    v.image_id
+                );
 
-    });
+              if (img) {
 
-    lastUpdate = Date.now();
+                variantImage =
+                  img.src;
+
+              }
+
+            }
+
+            return {
+
+              id: v.id,
+
+              title: v.title,
+
+              price: v.price,
+
+              available:
+                v.inventory_quantity > 0,
+
+              image:
+                variantImage,
+
+              color:
+                variantColor,
+
+              option1:
+                v.option1,
+
+              option2:
+                v.option2,
+
+              option3:
+                v.option3,
+
+            };
+
+          });
+
+        return {
+
+          id: p.id,
+
+          title: p.title,
+
+          description:
+            p.body_html
+              ?.replace(/<[^>]+>/g, "")
+              || "",
+
+          tags:
+            p.tags,
+
+          handle:
+            p.handle,
+
+          price:
+            p.variants?.[0]?.price || "",
+
+          metal,
+
+          stone,
+
+          colors,
+
+          image:
+            mainImage,
+
+          url:
+            `https://${SHOP}/products/${p.handle}`,
+
+          variants,
+
+        };
+
+      });
+
+    lastUpdate =
+      Date.now();
 
     console.log(
-      "Products Loaded:",
+      "FINAL PRODUCTS:",
       productsCache.length
     );
 
@@ -263,6 +345,12 @@ function searchProducts(message) {
         ${p.metal}
         ${p.stone}
         ${p.colors.join(" ")}
+        ${p.tags}
+        ${(p.variants || [])
+          .map((v) =>
+            `${v.title} ${v.color}`
+          )
+          .join(" ")}
       `.toLowerCase();
 
       return msg
@@ -274,9 +362,12 @@ function searchProducts(message) {
     });
 
   // fallback
+
   if (filtered.length === 0) {
+
     filtered =
       productsCache.slice(0, 4);
+
   }
 
   return filtered.slice(0, 4);
@@ -295,6 +386,7 @@ app.post("/chat", async (req, res) => {
       req.body.message || "";
 
     // refresh cache every 15 min
+
     if (
       Date.now() - lastUpdate >
       1000 * 60 * 15
@@ -322,24 +414,32 @@ app.post("/chat", async (req, res) => {
     const cleanProducts =
       matchedProducts.map((p) => ({
 
-        title: p.title,
+        title:
+          p.title,
 
         description:
           p.description,
 
-        price: p.price,
+        price:
+          p.price,
 
-        metal: p.metal,
+        metal:
+          p.metal,
 
-        stone: p.stone,
+        stone:
+          p.stone,
 
-        colors: p.colors,
+        colors:
+          p.colors,
 
-        image: p.image,
+        image:
+          p.image,
 
-        url: p.url,
+        url:
+          p.url,
 
-        variants: p.variants,
+        variants:
+          p.variants,
 
       }));
 
@@ -351,25 +451,27 @@ app.post("/chat", async (req, res) => {
 
 You are Alymwndw Jewellery AI.
 
-You are a luxury jewellery expert.
+You are an elite luxury jewellery sales expert.
 
 STRICT RULES:
 
-1- NEVER invent colors.
-2- NEVER invent gemstones.
+1- NEVER invent products.
+2- NEVER invent colors.
 3- NEVER invent metals.
-4- NEVER invent variants.
-5- NEVER say product exists unless it exists.
-6- NEVER create fake product info.
-7- ONLY use provided products.
-8- NEVER output markdown image syntax.
-9- NEVER output raw image URLs.
-10- Speak naturally like ChatGPT.
-11- Recommend products smartly.
-12- Upsell naturally.
-13- Keep answers elegant.
-14- Answer Arabic if user speaks Arabic.
-15- If user asks unavailable color say unavailable politely.
+4- NEVER invent gemstones.
+5- NEVER invent prices.
+6- NEVER invent variants.
+7- ONLY recommend existing products.
+8- Use ONLY provided products.
+9- Speak naturally and elegantly.
+10- Upsell smartly.
+11- If user speaks Arabic answer Arabic.
+12- Mention price when useful.
+13- Mention metal and stone accurately.
+14- If unavailable politely say unavailable.
+15- Recommend closest alternatives if needed.
+16- NEVER output markdown image syntax.
+17- NEVER output raw image URLs.
 
 AVAILABLE PRODUCTS:
 
@@ -392,12 +494,14 @@ ${JSON.stringify(cleanProducts)}
 
           {
             role: "system",
-            content: systemPrompt,
+            content:
+              systemPrompt,
           },
 
           {
             role: "user",
-            content: message,
+            content:
+              message,
           },
 
         ],
