@@ -32,7 +32,7 @@ background:#111;
 padding:20px;
 border-radius:30px;
 box-shadow:
-0 0 30px rgba(0,255,200,.12);
+0 0 35px rgba(0,255,200,.15);
 }
 
 .logo{
@@ -43,7 +43,7 @@ margin-bottom:20px;
 }
 
 .chat-box{
-height:500px;
+height:520px;
 overflow-y:auto;
 background:#1b1b1b;
 padding:15px;
@@ -98,22 +98,41 @@ cursor:pointer;
 
 .product-card{
 background:#222;
-padding:12px;
-border-radius:18px;
-margin-bottom:15px;
+padding:15px;
+border-radius:20px;
+margin-bottom:20px;
 }
 
 .product-card img{
 width:100%;
-border-radius:15px;
-margin-bottom:10px;
+border-radius:18px;
+margin-bottom:12px;
 }
 
-.product-card a{
-display:block;
-margin-top:10px;
+.product-card h3{
+margin:0 0 10px;
+}
+
+.product-card p{
+line-height:1.7;
+}
+
+.price{
+font-size:22px;
+font-weight:bold;
 color:#19e0bc;
+margin-top:10px;
+}
+
+.buy-btn{
+display:block;
+margin-top:15px;
+background:#19e0bc;
+padding:14px;
+text-align:center;
+border-radius:14px;
 text-decoration:none;
+color:black;
 font-weight:bold;
 }
 
@@ -156,6 +175,10 @@ const chatBox =
 document.getElementById("chat-box");
 
 
+// =====================================
+// ADD TEXT MESSAGE
+// =====================================
+
 function addMessage(text,type){
 
 const div =
@@ -175,6 +198,10 @@ chatBox.scrollHeight;
 }
 
 
+// =====================================
+// ADD PRODUCT CARD
+// =====================================
+
 function addProduct(product){
 
 const div =
@@ -184,6 +211,7 @@ div.className =
 "product-card";
 
 div.innerHTML = `
+
 <img src="${product.image}" />
 
 <h3>
@@ -191,15 +219,21 @@ ${product.title}
 </h3>
 
 <p>
-💰 ${product.price} AED
+${product.description}
 </p>
 
+<div class="price">
+${product.price} AED
+</div>
+
 <a
+class="buy-btn"
 href="${product.link}"
 target="_blank"
 >
 View Product
 </a>
+
 `;
 
 chatBox.appendChild(div);
@@ -210,6 +244,10 @@ chatBox.scrollHeight;
 }
 
 
+// =====================================
+// ENTER BUTTON
+// =====================================
+
 function handleKey(event){
 
 if(event.key === "Enter"){
@@ -218,6 +256,10 @@ sendMessage();
 
 }
 
+
+// =====================================
+// SEND MESSAGE
+// =====================================
 
 async function sendMessage(){
 
@@ -253,13 +295,13 @@ const data =
 await response.json();
 
 
-// =======================
+// =====================================
 // PRODUCTS
-// =======================
+// =====================================
 
 if(data.products){
 
-data.products.forEach(product=>{
+data.products.forEach(product => {
 
 addProduct(product);
 
@@ -270,9 +312,9 @@ return;
 }
 
 
-// =======================
-// NORMAL AI
-// =======================
+// =====================================
+// AI REPLY
+// =====================================
 
 addMessage(
 data.reply,
