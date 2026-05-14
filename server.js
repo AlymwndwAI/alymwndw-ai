@@ -1,120 +1,68 @@
 import express from "express";
 import fetch from "node-fetch";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 const app = express();
 
-const PORT = process.env.PORT || 10000;
+const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID;
+const SHOPIFY_CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET;
+const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 
-const SHOP = process.env.SHOPIFY_STORE;
-const CLIENT_ID = process.env.SHOPIFY_CLIENT_ID;
-const CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET;
-const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
-
-// HOME
-app.get("/", async (req, res) => {
-
-  try {
-
-    // لو فيه access token يسحب المنتجات
-    if (ACCESS_TOKEN) {
-
-      const response = await fetch(
-        `https://${SHOP}/admin/api/2025-04/products.json`,
-        {
-          headers: {
-            "X-Shopify-Access-Token": ACCESS_TOKEN,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      const data = await response.json();
-
-      return res.json(data);
-    }
-
-    // لو مفيش token
-    res.send(`
-      <h1>ALYMWNDW AI RUNNING</h1>
-      <a href="/auth">INSTALL APP</a>
-    `);
-
-  } catch (error) {
-
-    res.send(error.toString());
-
-  }
-
+app.get("/", (req, res) => {
+  res.send(`
+    <h1>ALYMWNDW AI RUNNING</h1>
+    <a href="/auth">INSTALL APP</a>
+  `);
 });
 
-// INSTALL
 app.get("/auth", (req, res) => {
-
-  const scopes =
-    "read_products,read_product_listings,read_inventory,read_orders";
-
   const redirectUri =
     "https://alymwndw-ai.onrender.com/auth/callback";
 
   const installUrl =
-    `https://${SHOP}/admin/oauth/authorize` +
-    `?client_id=${CLIENT_ID}` +
-    `&scope=${scopes}` +
-    `&redirect_uri=${redirectUri}`;
+    `https://${SHOPIFY_STORE}/admin/oauth/authorize` +
+    `?client_id=${SHOPIFY_CLIENT_ID}` +
+    `&scope=read_products,write_products,read_orders` +
+    `&redirect_uri=${encodeURIComponent(redirectUri)}`;
 
   res.redirect(installUrl);
-
 });
 
-// CALLBACK
 app.get("/auth/callback", async (req, res) => {
-
   const code = req.query.code;
 
-  if (!code) {
-    return res.send("NO CODE");
-  }
-
   try {
-
     const response = await fetch(
-      `https://${SHOP}/admin/oauth/access_token`,
+      `https://${SHOPIFY_STORE}/admin/oauth/access_token`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          client_id: CLIENT_ID,
-          client_secret: CLIENT_SECRET,
-          code: code,
+          client_id: SHOPIFY_CLIENT_ID,
+          client_secret: SHOPIFY_CLIENT_SECRET,
+          code,
         }),
       }
     );
 
     const data = await response.json();
 
-    console.log("SHOPIFY TOKEN:");
+    console.log("SHOPIFY ACCESS TOKEN:");
     console.log(data.access_token);
 
     res.send(`
-      <h1>APP INSTALLED SUCCESSFULLY</h1>
-      <p>Copy token from Render logs</p>
+      <h1>TOKEN GENERATED SUCCESSFULLY</h1>
+      <p>Check Render Logs</p>
     `);
-
-  } catch (error) {
-
-    console.log(error);
-
-    res.send(error.toString());
-
+  } catch (err) {
+    console.log(err);
+    res.send("ERROR");
   }
-
 });
 
+const PORT = process.env.PORT || 10000;
+
 app.listen(PORT, () => {
-  console.log("SERVER RUNNING ON PORT " + PORT);
+  console.log("SERVER RUNNING ON PORT", PORT);
 });
