@@ -25,9 +25,14 @@ app.get("/get-token", async (req, res) => {
       }
     );
 
-    const data = await response.json();
+    const text = await response.text();
 
-    res.json(data);
+    try {
+      const data = JSON.parse(text);
+      res.json(data);
+    } catch {
+      res.send(text);
+    }
   } catch (err) {
     res.send(err.toString());
   }
