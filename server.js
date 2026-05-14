@@ -1,17 +1,24 @@
-import express from "express";
+app.get("/get-token", async (req, res) => {
+  try {
+    const response = await fetch(
+      "https://alymwndw.myshopify.com/admin/oauth/access_token",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: process.env.SHOPIFY_API_KEY,
+          client_secret: process.env.SHOPIFY_API_SECRET,
+          grant_type: "client_credentials",
+        }),
+      }
+    );
 
-const app = express();
+    const data = await response.json();
 
-app.get("/", (req, res) => {
-  res.send("HOME WORKING");
-});
-
-app.get("/get-token", (req, res) => {
-  res.send("TOKEN ROUTE WORKING");
-});
-
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log("Server Running");
+    res.json(data);
+  } catch (err) {
+    res.send(err.toString());
+  }
 });
