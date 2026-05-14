@@ -26,7 +26,7 @@ app.get("/", (req, res) => {
 
 
 // ===============================
-// SHOPIFY PRODUCTS
+// GET SHOPIFY PRODUCTS
 // ===============================
 
 app.get("/products", async (req, res) => {
@@ -34,7 +34,7 @@ app.get("/products", async (req, res) => {
   try {
 
     const response = await fetch(
-      `https://${process.env.SHOPIFY_STORE}/admin/api/2025-01/products.json`,
+      `https://${process.env.SHOPIFY_STORE}/admin/api/2025-01/products.json?limit=20`,
       {
         headers: {
           "X-Shopify-Access-Token":
@@ -62,7 +62,7 @@ app.get("/products", async (req, res) => {
 
 
 // ===============================
-// AI CHAT
+// CHAT AI
 // ===============================
 
 app.post("/chat", async (req, res) => {
@@ -86,12 +86,12 @@ You are Alymwndw AI.
 You are a luxury jewelry sales assistant.
 
 You help customers:
-- recommend jewelry
+- recommend products
 - explain moissanite
 - explain diamonds
 - upsell elegantly
 - speak Arabic and English
-- sound luxurious and premium
+- sound luxurious
             `,
           },
 
@@ -137,7 +137,7 @@ app.post("/generate-image", async (req, res) => {
         model: "gpt-image-1",
 
         prompt:
-          `Luxury jewelry photography, ${prompt}, ultra realistic, black background, luxury lighting, premium jewelry style`,
+          `Luxury jewelry photography, ${prompt}, ultra realistic, black background, luxury lighting`,
 
         size: "1024x1024",
 
