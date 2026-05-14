@@ -3,11 +3,11 @@
 
 <head>
 
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 
 <meta
-  name="viewport"
-  content="width=device-width, initial-scale=1.0"
+name="viewport"
+content="width=device-width, initial-scale=1.0"
 />
 
 <title>Alymwndw AI</title>
@@ -15,55 +15,56 @@
 <style>
 
 body{
+background:#070707;
+font-family:Arial;
 margin:0;
 padding:0;
-background:#0d0d0d;
-font-family:Arial;
-color:white;
 display:flex;
 justify-content:center;
 align-items:center;
-height:100vh;
+min-height:100vh;
+color:white;
 }
 
 .container{
-width:400px;
+width:420px;
 background:#111;
 padding:20px;
-border-radius:20px;
+border-radius:25px;
 box-shadow:0 0 30px rgba(0,255,200,.15);
 }
 
 h1{
 text-align:center;
-font-size:24px;
 margin-bottom:20px;
+font-size:42px;
 }
 
 .chat-box{
-height:350px;
+height:400px;
 overflow-y:auto;
 background:#1a1a1a;
 padding:15px;
-border-radius:15px;
+border-radius:18px;
 margin-bottom:15px;
 }
 
 .message{
-padding:12px;
+padding:14px;
+border-radius:15px;
 margin-bottom:10px;
-border-radius:12px;
 max-width:80%;
+line-height:1.7;
 }
 
 .user{
-background:#00d4aa;
+background:#16e0bc;
 color:black;
 margin-left:auto;
 }
 
 .ai{
-background:#2a2a2a;
+background:#2d2d2d;
 }
 
 .input-area{
@@ -73,33 +74,44 @@ gap:10px;
 
 input{
 flex:1;
-padding:14px;
+padding:16px;
 border:none;
-border-radius:12px;
-outline:none;
+border-radius:15px;
 background:#222;
 color:white;
+font-size:16px;
 }
 
 button{
-padding:14px 20px;
+padding:16px;
 border:none;
-border-radius:12px;
-background:#00d4aa;
-color:black;
+border-radius:15px;
+background:#16e0bc;
 font-weight:bold;
 cursor:pointer;
+font-size:16px;
 }
 
-button:hover{
-opacity:.9;
+.products{
+margin-top:20px;
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:10px;
 }
 
-#generated-image{
-width:100%;
-margin-top:15px;
+.product{
+background:#1c1c1c;
+padding:10px;
 border-radius:15px;
-display:none;
+}
+
+.product img{
+width:100%;
+border-radius:10px;
+}
+
+.product h3{
+font-size:14px;
 }
 
 </style>
@@ -115,16 +127,16 @@ display:none;
 </h1>
 
 <div
-  class="chat-box"
-  id="chat-box"
+class="chat-box"
+id="chat-box"
 ></div>
 
 <div class="input-area">
 
 <input
-  id="message"
-  placeholder="Ask about jewelry..."
-/>
+id="message"
+placeholder="Ask about jewelry..."
+>
 
 <button onclick="sendMessage()">
 Send
@@ -132,22 +144,10 @@ Send
 
 </div>
 
-<br>
-
-<div class="input-area">
-
-<input
-  id="imagePrompt"
-  placeholder="Generate jewelry image..."
-/>
-
-<button onclick="generateImage()">
-Generate
-</button>
-
-</div>
-
-<img id="generated-image"/>
+<div
+class="products"
+id="products"
+></div>
 
 </div>
 
@@ -156,8 +156,7 @@ Generate
 const chatBox =
 document.getElementById("chat-box");
 
-
-function addMessage(text, type){
+function addMessage(text,type){
 
 const div =
 document.createElement("div");
@@ -165,7 +164,8 @@ document.createElement("div");
 div.className =
 `message ${type}`;
 
-div.innerText = text;
+div.innerText =
+text;
 
 chatBox.appendChild(div);
 
@@ -212,41 +212,39 @@ addMessage(data.reply,"ai");
 }
 
 
-async function generateImage(){
-
-const prompt =
-document.getElementById("imagePrompt").value;
-
-if(!prompt) return;
+async function loadProducts(){
 
 const response =
-await fetch("/generate-image",{
+await fetch("/products");
 
-method:"POST",
+const products =
+await response.json();
 
-headers:{
-"Content-Type":"application/json"
-},
+const container =
+document.getElementById("products");
 
-body:JSON.stringify({
-prompt
-})
+products.forEach(product=>{
+
+const image =
+product.images?.[0]?.src || "";
+
+container.innerHTML += `
+<div class="product">
+
+<img src="${image}" />
+
+<h3>
+${product.title}
+</h3>
+
+</div>
+`;
 
 });
 
-const data =
-await response.json();
-
-const image =
-document.getElementById("generated-image");
-
-image.src =
-data.image;
-
-image.style.display =
-"block";
-
 }
+
+loadProducts();
 
 </script>
 
