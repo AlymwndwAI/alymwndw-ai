@@ -20,6 +20,7 @@ const SHOP = process.env.SHOPIFY_STORE;
 const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
 async function getProducts() {
+
   const response = await fetch(
     `https://${SHOP}/admin/api/2025-01/products.json?limit=20`,
     {
@@ -36,7 +37,9 @@ async function getProducts() {
 }
 
 app.post("/chat", async (req, res) => {
+
   try {
+
     const { message } = req.body;
 
     const products = await getProducts();
@@ -45,32 +48,38 @@ app.post("/chat", async (req, res) => {
       title: p.title,
       description: p.body_html,
       price: p.variants?.[0]?.price,
+      image: p.images?.[0]?.src || "",
+      handle: p.handle,
     }));
 
     const prompt = `
-You are Alymwndw Jewellery AI sales expert.
+You are Alymwndw Jewellery AI.
 
-You are an expert in:
+You are a luxury jewellery sales expert.
+
+You understand:
 - Gold
 - Silver
 - Platinum
 - Diamonds
 - Moissanite
-- Luxury Jewelry
+- Luxury jewelry
 
 Your job:
 - Recommend products smartly
 - Upsell products
-- Explain jewelry professionally
 - Understand customer budget
-- Explain stones and metals
-- Sell like a luxury jewelry expert
+- Explain jewelry professionally
+- Explain gemstones professionally
+- Sell like an expert luxury jewelry seller
 
 Store products:
 ${JSON.stringify(formattedProducts)}
 
 Customer message:
 ${message}
+
+Always answer professionally.
 `;
 
     const completion = await openai.chat.completions.create({
@@ -85,14 +94,19 @@ ${message}
 
     res.json({
       reply: completion.choices[0].message.content,
+      products: formattedProducts,
     });
+
   } catch (error) {
+
     console.log(error);
 
     res.json({
       reply: "AI Error",
     });
+
   }
+
 });
 
 app.listen(PORT, () => {
