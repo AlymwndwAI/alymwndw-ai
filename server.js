@@ -1,131 +1,177 @@
-const express = require("express");
-const axios = require("axios");
-const cors = require("cors");
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import OpenAI from "openai";
+
+dotenv.config();
 
 const app = express();
+
 app.use(cors());
-app.use(express.static(__dirname));
+app.use(express.json());
+app.use(express.static("public"));
 
-const PORT = process.env.PORT || 10000;
-const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
-
-let cache = [];
-
-/* =========================
-   SAFETY
-========================= */
-process.on("uncaughtException", (err) => {
-  console.log("CRASH:", err.message);
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-process.on("unhandledRejection", (err) => {
-  console.log("PROMISE ERROR:", err.message);
+
+// ===============================
+// HOME
+// ===============================
+
+app.get("/", (req, res) => {
+  res.sendFile(process.cwd() + "/public/index.html");
 });
 
-/* =========================
-   SHOPIFY SYNC
-========================= */
-async function syncProducts() {
+
+// ===============================
+// SHOPIFY PRODUCTS
+// ===============================
+
+app.get("/products", async (req, res) => {
+
   try {
-    console.log("🔄 Starting sync...");
 
-    let all = [];
-    let since_id = 0;
-
-    while (true) {
-      const url = `https://${SHOPIFY_STORE}/products.json?limit=250&since_id=${since_id}`;
-
-      const res = await axios.get(url, {
-        timeout: 20000,
+    const response = await fetch(
+      `https://${process.env.SHOPIFY_STORE}/admin/api/2025-01/products.json`,
+      {
         headers: {
-          "User-Agent": "Mozilla/5.0"
-        }
+          "X-Shopify-Access-Token":
+            process.env.SHOPIFY_ADMIN_ACCESS_TOKEN,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    res.json(data.products);
+
+  } catch (error) {
+
+    console.log(error);
+
+    res.status(500).json({
+      error: "Failed to fetch products",
+    });
+
+  }
+
+});
+
+
+// ===============================
+// AI CHAT
+// ===============================
+
+app.post("/chat", async (req, res) => {
+
+  try {
+
+    const { message } = req.body;
+
+    const completion =
+      await openai.chat.completions.create({
+
+        model: "gpt-4.1-mini",
+
+        messages: [
+
+          {
+            role: "system",
+            content: `
+You are Alymwndw AI.
+
+You are a luxury jewelry sales assistant.
+
+You help customers:
+- recommend jewelry
+- explain moissanite
+- explain diamonds
+- upsell elegantly
+- speak Arabic and English
+- sound luxurious and premium
+            `,
+          },
+
+          {
+            role: "user",
+            content: message,
+          },
+
+        ],
       });
 
-      const products = res?.data?.products || [];
-
-      if (!products.length) break;
-
-      all.push(...products);
-
-      since_id = products[products.length - 1].id;
-
-      console.log(`📦 Got: ${products.length} | Total: ${all.length}`);
-
-      // 🔥 small delay to avoid 429
-      await new Promise(r => setTimeout(r, 300));
-    }
-
-    cache = all;
-
-    console.log("✅ SYNC COMPLETE:", cache.length);
-
-  } catch (err) {
-    console.log("SYNC ERROR:", err.message);
-
-    if (err.response?.status === 429) {
-      console.log("⏳ Rate limit hit → retrying in 5s...");
-      await new Promise(r => setTimeout(r, 5000));
-      return syncProducts();
-    }
-  }
-}
-
-/* =========================
-   API: PRODUCTS
-========================= */
-app.get("/products", (req, res) => {
-  try {
-    if (!cache.length) {
-      return res.json([]);
-    }
-
-    const data = cache.map(p => ({
-      id: p.id,
-      title: p.title,
-      image: p.images?.[0]?.src || "",
-
-      variants: (p.variants || []).map(v => ({
-        id: v.id,
-        title: v.title,
-        price: `${parseFloat(v.price || 0).toFixed(2)} AED`,
-        metal: v.option1 || null,
-        stone: v.option2 || null,
-        size: v.option3 || null
-      }))
-    }));
-
-    res.json(data);
-
-  } catch (err) {
-    res.status(500).json({
-      error: "products_error",
-      message: err.message
+    res.json({
+      reply:
+        completion.choices[0].message.content,
     });
+
+  } catch (error) {
+
+    console.log(error);
+
+    res.status(500).json({
+      error: "Chat failed",
+    });
+
   }
+
 });
 
-/* =========================
-   MANUAL SYNC
-========================= */
-app.get("/sync", async (req, res) => {
-  await syncProducts();
-  res.json({ ok: true, total: cache.length });
+
+// ===============================
+// IMAGE GENERATION
+// ===============================
+
+app.post("/generate-image", async (req, res) => {
+
+  try {
+
+    const { prompt } = req.body;
+
+    const image =
+      await openai.images.generate({
+
+        model: "gpt-image-1",
+
+        prompt:
+          `Luxury jewelry photography, ${prompt}, ultra realistic, black background, luxury lighting, premium jewelry style`,
+
+        size: "1024x1024",
+
+      });
+
+    res.json({
+      image:
+        image.data[0].url,
+    });
+
+  } catch (error) {
+
+    console.log(error);
+
+    res.status(500).json({
+      error: "Image generation failed",
+    });
+
+  }
+
 });
 
-/* =========================
-   HEALTH
-========================= */
-app.get("/", (req, res) => {
-  res.send("🚀 AI Jewelry Store Running");
-});
 
-/* =========================
-   START SERVER (IMPORTANT FIX)
-========================= */
-app.listen(PORT, "0.0.0.0", async () => {
-  console.log("🚀 Server running on", PORT);
+// ===============================
+// SERVER
+// ===============================
 
-  // 🔥 AUTO SYNC ON START
-  await syncProducts();
+const PORT =
+  process.env.PORT || 10000;
+
+app.listen(PORT, () => {
+
+  console.log(
+    `Server running on port ${PORT}`
+  );
+
 });
