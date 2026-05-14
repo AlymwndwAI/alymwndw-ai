@@ -1,53 +1,107 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<title>Alymwndw AI 💎</title>
+
+<meta charset="UTF-8" />
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
+/>
+
+<title>Alymwndw AI</title>
 
 <style>
+
 body{
-  margin:0;
-  background:#0b141a;
-  color:white;
-  font-family:Arial;
+margin:0;
+padding:0;
+background:#0d0d0d;
+font-family:Arial;
+color:white;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
 }
 
 .container{
-  max-width:520px;
-  margin:auto;
-  padding:10px;
+width:400px;
+background:#111;
+padding:20px;
+border-radius:20px;
+box-shadow:0 0 30px rgba(0,255,200,.15);
 }
 
-.brand{
-  text-align:center;
-  font-size:22px;
-  margin:10px 0;
+h1{
+text-align:center;
+font-size:24px;
+margin-bottom:20px;
 }
 
-.card{
-  background:#111b21;
-  margin:12px 0;
-  padding:12px;
-  border-radius:15px;
+.chat-box{
+height:350px;
+overflow-y:auto;
+background:#1a1a1a;
+padding:15px;
+border-radius:15px;
+margin-bottom:15px;
 }
 
-img{
-  width:100%;
-  border-radius:12px;
+.message{
+padding:12px;
+margin-bottom:10px;
+border-radius:12px;
+max-width:80%;
 }
 
-input, button{
-  width:100%;
-  padding:12px;
-  margin-top:10px;
-  border-radius:10px;
-  border:none;
+.user{
+background:#00d4aa;
+color:black;
+margin-left:auto;
+}
+
+.ai{
+background:#2a2a2a;
+}
+
+.input-area{
+display:flex;
+gap:10px;
+}
+
+input{
+flex:1;
+padding:14px;
+border:none;
+border-radius:12px;
+outline:none;
+background:#222;
+color:white;
 }
 
 button{
-  background:#00d2a0;
-  font-weight:bold;
+padding:14px 20px;
+border:none;
+border-radius:12px;
+background:#00d4aa;
+color:black;
+font-weight:bold;
+cursor:pointer;
 }
+
+button:hover{
+opacity:.9;
+}
+
+#generated-image{
+width:100%;
+margin-top:15px;
+border-radius:15px;
+display:none;
+}
+
 </style>
 
 </head>
@@ -56,88 +110,143 @@ button{
 
 <div class="container">
 
-<div class="brand">💎 Alymwndw AI Luxury Store</div>
+<h1>
+💎 Alymwndw AI
+</h1>
 
-<input id="msg" placeholder="Ask about jewelry..." />
-<button onclick="send()">Ask AI</button>
+<div
+  class="chat-box"
+  id="chat-box"
+></div>
 
-<input id="imgPrompt" placeholder="Generate jewelry image..." />
-<button onclick="generateImage()">Generate Image</button>
+<div class="input-area">
 
-<div id="chat"></div>
-<div id="imageBox"></div>
-<div id="products"></div>
+<input
+  id="message"
+  placeholder="Ask about jewelry..."
+/>
+
+<button onclick="sendMessage()">
+Send
+</button>
+
+</div>
+
+<br>
+
+<div class="input-area">
+
+<input
+  id="imagePrompt"
+  placeholder="Generate jewelry image..."
+/>
+
+<button onclick="generateImage()">
+Generate
+</button>
+
+</div>
+
+<img id="generated-image"/>
 
 </div>
 
 <script>
 
-// ================= CHAT =================
-async function send(){
+const chatBox =
+document.getElementById("chat-box");
 
-  const msg = document.getElementById("msg").value;
 
-  const res = await fetch("/chat", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ message: msg })
-  });
+function addMessage(text, type){
 
-  const data = await res.json();
+const div =
+document.createElement("div");
 
-  document.getElementById("chat").innerHTML = `
-    <div class="card">${data.reply}</div>
-  `;
+div.className =
+`message ${type}`;
+
+div.innerText = text;
+
+chatBox.appendChild(div);
+
+chatBox.scrollTop =
+chatBox.scrollHeight;
+
 }
 
-// ================= IMAGE =================
+
+async function sendMessage(){
+
+const input =
+document.getElementById("message");
+
+const message =
+input.value;
+
+if(!message) return;
+
+addMessage(message,"user");
+
+input.value = "";
+
+const response =
+await fetch("/chat",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+message
+})
+
+});
+
+const data =
+await response.json();
+
+addMessage(data.reply,"ai");
+
+}
+
+
 async function generateImage(){
 
-  const prompt = document.getElementById("imgPrompt").value;
+const prompt =
+document.getElementById("imagePrompt").value;
 
-  const res = await fetch("/generate-image", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ prompt })
-  });
+if(!prompt) return;
 
-  const data = await res.json();
+const response =
+await fetch("/generate-image",{
 
-  document.getElementById("imageBox").innerHTML = `
-    <div class="card">
-      <img src="${data.image}" />
-    </div>
-  `;
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+prompt
+})
+
+});
+
+const data =
+await response.json();
+
+const image =
+document.getElementById("generated-image");
+
+image.src =
+data.image;
+
+image.style.display =
+"block";
+
 }
-
-// ================= PRODUCTS =================
-async function load(){
-
-  const res = await fetch("/products");
-  const data = await res.json();
-
-  let html = "";
-
-  data.forEach(p => {
-
-    let price =
-      p.price_min === p.price_max
-        ? `${p.price_min} AED`
-        : `${p.price_min} - ${p.price_max} AED`;
-
-    html += `
-      <div class="card">
-        <img src="${p.image}" />
-        <h3>${p.title}</h3>
-        <div>${price}</div>
-      </div>
-    `;
-  });
-
-  document.getElementById("products").innerHTML = html;
-}
-
-load();
 
 </script>
 
