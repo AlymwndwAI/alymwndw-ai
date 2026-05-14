@@ -1,399 +1,491 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
 
-  <title>Alymwndw Jewellery AI</title>
+<meta charset="UTF-8" />
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  />
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0"
+/>
 
-  <style>
+<title>Alymwndw AI</title>
 
-    *{
-      box-sizing:border-box;
-    }
+<style>
 
-    body{
-      margin:0;
-      background:#050505;
-      font-family:Arial;
-      color:white;
-      overflow:hidden;
-    }
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial;
+}
 
-    .header{
+body{
 
-      background:black;
+background:#000;
+color:white;
+height:100vh;
+overflow:hidden;
 
-      padding:25px;
+}
 
-      font-size:34px;
+.header{
 
-      font-weight:bold;
+position:fixed;
+top:0;
+left:0;
+right:0;
 
-      text-align:center;
+height:95px;
 
-      border-bottom:1px solid #222;
+background:#000;
 
-      position:fixed;
+display:flex;
+align-items:center;
 
-      width:100%;
+padding:20px;
 
-      top:0;
+font-size:30px;
+font-weight:bold;
 
-      z-index:1000;
+border-bottom:1px solid #1d1d1d;
 
-    }
+z-index:1000;
 
-    .chat{
+}
 
-      padding:20px;
+.header span{
 
-      padding-top:140px;
+margin-left:12px;
 
-      padding-bottom:140px;
+}
 
-      height:100vh;
+.chat{
 
-      overflow:auto;
+position:fixed;
 
-    }
+top:95px;
 
-    .msg{
+bottom:100px;
 
-      max-width:88%;
+left:0;
+right:0;
 
-      padding:20px;
+overflow-y:auto;
 
-      border-radius:28px;
+padding:20px;
 
-      margin-bottom:20px;
+scroll-behavior:smooth;
 
-      line-height:1.8;
+}
 
-      font-size:18px;
+.message{
 
-      word-wrap:break-word;
+margin-bottom:22px;
 
-    }
+display:flex;
 
-    .user{
+flex-direction:column;
 
-      background:#11d9c5;
+}
 
-      color:black;
+.user{
 
-      margin-left:auto;
+align-items:flex-end;
 
-      border-bottom-right-radius:8px;
+}
 
-    }
+.bot{
 
-    .bot{
+align-items:flex-start;
 
-      background:#171717;
+}
 
-      color:white;
+.bubble{
 
-      border-bottom-left-radius:8px;
+max-width:88%;
 
-    }
+padding:22px;
 
-    .inputArea{
+border-radius:28px;
 
-      position:fixed;
+line-height:1.8;
 
-      bottom:0;
+font-size:20px;
 
-      width:100%;
+word-wrap:break-word;
 
-      background:#050505;
+}
 
-      padding:15px;
+.user .bubble{
 
-      display:flex;
+background:#18dbc8;
 
-      gap:10px;
+color:#000;
 
-      border-top:1px solid #222;
+border-bottom-right-radius:10px;
 
-    }
+}
 
-    input{
+.bot .bubble{
 
-      flex:1;
+background:#121212;
 
-      padding:18px;
+color:#fff;
 
-      border:none;
+border-bottom-left-radius:10px;
 
-      border-radius:40px;
+}
 
-      font-size:17px;
+.inputArea{
 
-      background:#171717;
+position:fixed;
 
-      color:white;
+bottom:0;
+left:0;
+right:0;
 
-      outline:none;
+height:100px;
 
-    }
+background:#000;
 
-    button{
+display:flex;
 
-      background:#11d9c5;
+align-items:center;
 
-      border:none;
+padding:15px;
 
-      border-radius:40px;
+gap:12px;
 
-      padding:0 28px;
+border-top:1px solid #1c1c1c;
 
-      font-size:17px;
+}
 
-      font-weight:bold;
+.inputArea input{
 
-      cursor:pointer;
+flex:1;
 
-      color:black;
+height:65px;
 
-    }
+border:none;
 
-    .product{
+outline:none;
 
-      background:white;
+background:#111;
 
-      color:black;
+color:white;
 
-      border-radius:30px;
+padding:0 24px;
 
-      padding:20px;
+border-radius:40px;
 
-      margin-top:20px;
+font-size:20px;
 
-      box-shadow:0 10px 30px rgba(0,0,0,0.4);
+}
 
-    }
+.inputArea button{
 
-    .product img{
+width:120px;
 
-      width:100%;
+height:65px;
 
-      height:320px;
+border:none;
 
-      object-fit:cover;
+background:#18dbc8;
 
-      border-radius:20px;
+border-radius:40px;
 
-    }
+font-size:22px;
 
-    .product h3{
+font-weight:bold;
 
-      margin-top:20px;
+cursor:pointer;
 
-      font-size:20px;
+color:black;
 
-      line-height:1.5;
+}
 
-    }
+.product{
 
-    .price{
+background:white;
 
-      font-size:32px;
+color:black;
 
-      font-weight:bold;
+margin-top:25px;
 
-      margin-top:15px;
+border-radius:35px;
 
-    }
+overflow:hidden;
 
-    .viewBtn{
+width:100%;
 
-      display:inline-block;
+box-shadow:0 0 30px rgba(255,255,255,0.06);
 
-      margin-top:20px;
+}
 
-      background:black;
+.product img{
 
-      color:white;
+width:100%;
 
-      padding:14px 24px;
+height:420px;
 
-      border-radius:15px;
+object-fit:cover;
 
-      text-decoration:none;
+background:#f5f5f5;
 
-      font-weight:bold;
+}
 
-    }
+.productContent{
 
-    .typing{
+padding:25px;
 
-      opacity:0.6;
+}
 
-      font-style:italic;
+.product h3{
 
-    }
+font-size:22px;
 
-  </style>
+line-height:1.5;
+
+margin-bottom:20px;
+
+}
+
+.price{
+
+font-size:28px;
+
+font-weight:bold;
+
+margin-bottom:25px;
+
+}
+
+.viewBtn{
+
+display:inline-block;
+
+background:black;
+
+color:white;
+
+padding:16px 28px;
+
+border-radius:18px;
+
+text-decoration:none;
+
+font-size:18px;
+
+font-weight:bold;
+
+}
+
+.typing{
+
+opacity:0.6;
+
+font-style:italic;
+
+}
+
+.welcome{
+
+font-size:20px;
+
+line-height:2;
+
+}
+
+</style>
 
 </head>
 
 <body>
 
 <div class="header">
-💎 Alymwndw AI
+
+💎 <span>Alymwndw AI</span>
+
 </div>
 
 <div class="chat" id="chat">
 
-  <div class="msg bot">
+<div class="message bot">
 
-    Welcome to Alymwndw Jewellery ✨
+<div class="bubble welcome">
 
-    <br><br>
+Welcome to Alymwndw Jewellery ✨
 
-    I can help you with:
-    <br><br>
+<br><br>
 
-    • Gold Jewellery
-    <br>
-    • Diamond Rings
-    <br>
-    • Moissanite
-    <br>
-    • Luxury Earrings
-    <br>
-    • Platinum Jewelry
-    <br>
-    • Custom Jewelry
-    <br><br>
+I can help you with:
 
-    Ask me anything 💎
+<br><br>
 
-  </div>
+• Gold Jewellery  
+• Diamond Rings  
+• Moissanite  
+• Platinum Jewellery  
+• Silver Jewellery  
+• Luxury Earrings  
+• Custom Jewelry  
+
+<br><br>
+
+Ask me anything 💎
+
+</div>
+
+</div>
 
 </div>
 
 <div class="inputArea">
 
-  <input
-    id="message"
-    placeholder="Ask about jewellery..."
-  />
+<input
+id="message"
+placeholder="Ask about jewellery..."
+/>
 
-  <button onclick="sendMessage()">
-    Send
-  </button>
+<button onclick="sendMessage()">
+Send
+</button>
 
 </div>
 
 <script>
 
+const chat = document.getElementById("chat");
+
 async function sendMessage(){
 
-  const input = document.getElementById("message");
+const input = document.getElementById("message");
 
-  const message = input.value;
+const message = input.value.trim();
 
-  if(!message) return;
+if(!message) return;
 
-  const chat = document.getElementById("chat");
+chat.innerHTML += `
 
-  chat.innerHTML += `
-    <div class="msg user">
-      ${message}
-    </div>
-  `;
+<div class="message user">
 
-  input.value = "";
+<div class="bubble">
 
-  chat.innerHTML += `
-    <div class="msg bot typing" id="typing">
-      Alymwndw AI is typing...
-    </div>
-  `;
+${message}
 
-  chat.scrollTop = chat.scrollHeight;
+</div>
 
-  const response = await fetch("/chat",{
+</div>
 
-    method:"POST",
+`;
 
-    headers:{
-      "Content-Type":"application/json"
-    },
+input.value = "";
 
-    body:JSON.stringify({
-      message
-    })
+chat.innerHTML += `
 
-  });
+<div class="message bot" id="typingWrap">
 
-  const data = await response.json();
+<div class="bubble typing">
 
-  document.getElementById("typing").remove();
+Alymwndw AI is typing...
 
-  let productsHTML = "";
+</div>
 
-  if(data.products){
+</div>
 
-    data.products.forEach(product => {
+`;
 
-      productsHTML += `
+chat.scrollTop = chat.scrollHeight;
 
-        <div class="product">
+const response = await fetch("/chat",{
 
-          <img src="${product.image}" />
+method:"POST",
 
-          <h3>
-            ${product.title}
-          </h3>
+headers:{
+"Content-Type":"application/json"
+},
 
-          <div class="price">
-            ${product.price} AED
-          </div>
+body:JSON.stringify({
+message
+})
 
-          <a
-            class="viewBtn"
-            href="https://${window.location.hostname}/products/${product.handle}"
-            target="_blank"
-          >
-            View Product
-          </a>
+});
 
-        </div>
+const data = await response.json();
 
-      `;
+document.getElementById("typingWrap").remove();
 
-    });
+let productsHTML = "";
 
-  }
+if(data.products && data.products.length){
 
-  chat.innerHTML += `
-    <div class="msg bot">
+data.products.forEach(product => {
 
-      ${data.reply}
+productsHTML += `
 
-      ${productsHTML}
+<div class="product">
 
-    </div>
-  `;
+<img src="${product.image}" />
 
-  chat.scrollTop = chat.scrollHeight;
+<div class="productContent">
+
+<h3>
+${product.title}
+</h3>
+
+<div class="price">
+${product.price} AED
+</div>
+
+<a
+class="viewBtn"
+href="https://${window.location.hostname}/products/${product.handle}"
+target="_blank"
+>
+View Product
+</a>
+
+</div>
+
+</div>
+
+`;
+
+});
+
+}
+
+chat.innerHTML += `
+
+<div class="message bot">
+
+<div class="bubble">
+
+${data.reply}
+
+${productsHTML}
+
+</div>
+
+</div>
+
+`;
+
+chat.scrollTop = chat.scrollHeight;
 
 }
 
 document
-  .getElementById("message")
-  .addEventListener("keypress", function(e){
+.getElementById("message")
+.addEventListener("keypress", function(e){
 
-    if(e.key === "Enter"){
-      sendMessage();
-    }
+if(e.key === "Enter"){
+
+sendMessage();
+
+}
 
 });
 
