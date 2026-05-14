@@ -109,20 +109,26 @@ async function loadProducts() {
           text.includes("18k") ||
           text.includes("gold")
         ) {
+
           metal = "Gold";
+
         }
 
         if (
           text.includes("925") ||
           text.includes("silver")
         ) {
+
           metal = "Silver";
+
         }
 
         if (
           text.includes("platinum")
         ) {
+
           metal = "Platinum";
+
         }
 
         // ======================
@@ -134,25 +140,33 @@ async function loadProducts() {
         if (
           text.includes("moissanite")
         ) {
+
           stone = "Moissanite";
+
         }
 
         if (
           text.includes("diamond")
         ) {
+
           stone = "Diamond";
+
         }
 
         if (
           text.includes("ruby")
         ) {
+
           stone = "Ruby";
+
         }
 
         if (
           text.includes("sapphire")
         ) {
+
           stone = "Sapphire";
+
         }
 
         // ======================
@@ -179,7 +193,9 @@ async function loadProducts() {
           if (
             text.includes(c)
           ) {
+
             colors.push(c);
+
           }
 
         });
@@ -212,7 +228,9 @@ async function loadProducts() {
               if (
                 variantText.includes(c)
               ) {
+
                 variantColor = c;
+
               }
 
             });
@@ -328,7 +346,7 @@ async function loadProducts() {
 }
 
 // ======================
-// SEARCH
+// SMART SEARCH
 // ======================
 
 function searchProducts(message) {
@@ -336,41 +354,178 @@ function searchProducts(message) {
   const msg =
     message.toLowerCase();
 
-  let filtered =
-    productsCache.filter((p) => {
+  const keywords =
+    msg.split(" ");
 
-      const text = `
+  let scoredProducts =
+    productsCache.map((p) => {
+
+      let score = 0;
+
+      const productText = `
         ${p.title}
         ${p.description}
+        ${p.tags}
         ${p.metal}
         ${p.stone}
         ${p.colors.join(" ")}
-        ${p.tags}
-        ${(p.variants || [])
-          .map((v) =>
-            `${v.title} ${v.color}`
-          )
-          .join(" ")}
       `.toLowerCase();
 
-      return msg
-        .split(" ")
-        .some((word) =>
-          text.includes(word)
-        );
+      // ======================
+      // PRODUCT SCORE
+      // ======================
+
+      keywords.forEach((word) => {
+
+        if (
+          productText.includes(word)
+        ) {
+
+          score += 2;
+
+        }
+
+      });
+
+      // ======================
+      // VARIANT SCORE
+      // ======================
+
+      let matchedVariants = [];
+
+      (p.variants || []).forEach((v) => {
+
+        const variantText = `
+          ${v.title}
+          ${v.option1}
+          ${v.option2}
+          ${v.option3}
+          ${v.color}
+        `.toLowerCase();
+
+        let variantMatched =
+          false;
+
+        keywords.forEach((word) => {
+
+          if (
+            variantText.includes(word)
+          ) {
+
+            score += 5;
+
+            variantMatched = true;
+
+          }
+
+        });
+
+        if (variantMatched) {
+
+          matchedVariants.push(v);
+
+        }
+
+      });
+
+      // ======================
+      // EXTRA SMART MATCHING
+      // ======================
+
+      if (
+        msg.includes("gold") &&
+        p.metal === "Gold"
+      ) {
+
+        score += 10;
+
+      }
+
+      if (
+        msg.includes("silver") &&
+        p.metal === "Silver"
+      ) {
+
+        score += 10;
+
+      }
+
+      if (
+        msg.includes("platinum") &&
+        p.metal === "Platinum"
+      ) {
+
+        score += 10;
+
+      }
+
+      if (
+        msg.includes("moissanite") &&
+        p.stone === "Moissanite"
+      ) {
+
+        score += 10;
+
+      }
+
+      if (
+        msg.includes("diamond") &&
+        p.stone === "Diamond"
+      ) {
+
+        score += 10;
+
+      }
+
+      return {
+
+        ...p,
+
+        matchedVariants,
+
+        score,
+
+      };
 
     });
 
-  // fallback
+  // ======================
+  // SORT
+  // ======================
 
-  if (filtered.length === 0) {
+  scoredProducts =
+    scoredProducts
+      .filter((p) => p.score > 0)
+      .sort(
+        (a, b) =>
+          b.score - a.score
+      );
 
-    filtered =
-      productsCache.slice(0, 4);
+  // ======================
+  // FALLBACK
+  // ======================
+
+  if (
+    scoredProducts.length === 0
+  ) {
+
+    scoredProducts =
+      productsCache
+        .slice(0, 4)
+        .map((p) => ({
+
+          ...p,
+
+          matchedVariants:
+            p.variants || [],
+
+          score: 1,
+
+        }));
 
   }
 
-  return filtered.slice(0, 4);
+  return scoredProducts.slice(0, 4);
 
 }
 
@@ -439,7 +594,9 @@ app.post("/chat", async (req, res) => {
           p.url,
 
         variants:
-          p.variants,
+          p.matchedVariants?.length
+            ? p.matchedVariants
+            : p.variants,
 
       }));
 
@@ -472,6 +629,8 @@ STRICT RULES:
 15- Recommend closest alternatives if needed.
 16- NEVER output markdown image syntax.
 17- NEVER output raw image URLs.
+18- ALWAYS use variant data accurately.
+19- Recommend matching variant colors when possible.
 
 AVAILABLE PRODUCTS:
 
