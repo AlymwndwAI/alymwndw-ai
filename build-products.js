@@ -4,336 +4,185 @@ import fetch from "node-fetch";
 
 dotenv.config();
 
-const SHOP =
-  process.env.SHOPIFY_STORE;
+const SHOP = process.env.SHOPIFY_STORE;
+const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
-const TOKEN =
-  process.env.SHOPIFY_ACCESS_TOKEN;
 
-// =========================
-// CLEAN HTML
-// =========================
 
-function cleanHtml(html) {
+
+
+function cleanHTML(html) {
 
   if (!html) return "";
 
   return html
-    .replace(/<[^>]*>/g, " ")
+    .replace(/<[^>]*>?/gm, "")
     .replace(/\s+/g, " ")
     .trim();
 
 }
 
-// =========================
-// LOAD PRODUCTS
-// =========================
 
-async function buildProductsBrain() {
 
-  try {
 
-    console.log(
-      "STARTING PRODUCT BRAIN..."
-    );
+
+async function getAllProducts() {
+
+  let allProducts = [];
+
+  let since_id = 0;
+
+  while (true) {
+
+    console.log("Loading products after ID:", since_id);
 
     const response = await fetch(
-      `https://${SHOP}/admin/api/2025-01/products.json?limit=250`,
+      `https://${SHOP}/admin/api/2025-01/products.json?limit=250&since_id=${since_id}`,
       {
         headers: {
-          "X-Shopify-Access-Token":
-            TOKEN,
-          "Content-Type":
-            "application/json",
+          "X-Shopify-Access-Token": TOKEN,
+          "Content-Type": "application/json",
         },
       }
     );
 
-    const data =
-      await response.json();
+    const data = await response.json();
 
-    const products =
-      data.products || [];
+    const products = data.products || [];
 
-    console.log(
-      "PRODUCTS FOUND:",
-      products.length
-    );
+    if (products.length === 0) {
+      break;
+    }
 
-    const aiProducts =
-      products.map((p) => {
+    allProducts.push(...products);
 
-        // =====================
-        // CLEAN DESCRIPTION
-        // =====================
+    since_id = products[products.length - 1].id;
 
-        const description =
-          cleanHtml(
-            p.body_html
-          );
+    console.log("Loaded:", allProducts.length);
 
-        // =====================
-        // FULL SEARCH TEXT
-        // =====================
+  }
 
-        const fullText = `
-${p.title}
-${description}
-${p.tags}
-${JSON.stringify(p.options)}
-${JSON.stringify(p.variants)}
-        `.toLowerCase();
+  return allProducts;
 
-        // =====================
-        // METALS
-        // =====================
+}
 
-        let metals = [];
 
-        if (
-          fullText.includes("gold") ||
-          fullText.includes("18k")
-        ) {
 
-          metals.push("Gold");
 
-        }
 
-        if (
-          fullText.includes("silver") ||
-          fullText.includes("925")
-        ) {
+async function buildBrain() {
 
-          metals.push("Silver");
+  try {
 
-        }
+    const products = await getAllProducts();
 
-        if (
-          fullText.includes("platinum")
-        ) {
+    console.log("TOTAL PRODUCTS:", products.length);
 
-          metals.push(
-            "Platinum"
-          );
 
-        }
 
-        // =====================
-        // STONES
-        // =====================
 
-        let stones = [];
 
-        if (
-          fullText.includes(
-            "moissanite"
-          )
-        ) {
+    const brain = products.map((product) => {
 
-          stones.push(
-            "Moissanite"
-          );
+      const variants = product.variants || [];
 
-        }
+      const images = product.images || [];
 
-        if (
-          fullText.includes(
-            "diamond"
-          )
-        ) {
 
-          stones.push(
-            "Diamond"
-          );
 
-        }
 
-        if (
-          fullText.includes(
-            "ruby"
-          )
-        ) {
 
-          stones.push("Ruby");
+      const variantData = variants.map((v) => ({
 
-        }
+        id: v.id,
 
-        if (
-          fullText.includes(
-            "sapphire"
-          )
-        ) {
+        title: v.title,
 
-          stones.push(
-            "Sapphire"
-          );
+        price: v.price,
 
-        }
+        sku: v.sku,
 
-        // =====================
-        // COLORS
-        // =====================
+        option1: v.option1,
 
-        let colors = [];
+        option2: v.option2,
 
-        [
-          "red",
-          "blue",
-          "green",
-          "pink",
-          "purple",
-          "yellow",
-          "black",
-          "white"
-        ].forEach((color) => {
+        option3: v.option3,
 
-          if (
-            fullText.includes(
-              color
-            )
-          ) {
+      }));
 
-            colors.push(
-              color
-            );
 
-          }
 
-        });
 
-        // =====================
-        // VARIANTS
-        // =====================
 
-        const variants =
-          (p.variants || []).map(
-            (v) => {
+      const imageData = images.map((img) => ({
+        src: img.src,
+        alt: img.alt || "",
+      }));
 
-              // variant image
-              let variantImage =
-                p.images?.[0]
-                  ?.src || "";
 
-              if (
-                v.image_id &&
-                p.images
-              ) {
 
-                const foundImage =
-                  p.images.find(
-                    (img) =>
-                      img.id ===
-                      v.image_id
-                  );
 
-                if (
-                  foundImage
-                ) {
 
-                  variantImage =
-                    foundImage.src;
+      const searchableText = `
+        ${product.title}
+        ${cleanHTML(product.body_html)}
+        ${product.vendor}
+        ${product.product_type}
+        ${product.tags}
+        ${variantData.map(v => v.title).join(" ")}
+      `;
 
-                }
 
-              }
 
-              return {
 
-                id: v.id,
 
-                title:
-                  v.title,
+      return {
 
-                price:
-                  v.price,
+        id: product.id,
 
-                sku:
-                  v.sku,
+        title: product.title,
 
-                available:
-                  v.available,
+        handle: product.handle,
 
-                image:
-                  variantImage,
+        description: cleanHTML(product.body_html),
 
-              };
+        vendor: product.vendor,
 
-            }
-          );
+        productType: product.product_type,
 
-        // =====================
-        // FINAL PRODUCT
-        // =====================
+        tags: product.tags,
 
-        return {
+        url: `https://${SHOP}/products/${product.handle}`,
 
-          id: p.id,
+        featuredImage: images?.[0]?.src || "",
 
-          title: p.title,
+        images: imageData,
 
-          description,
+        variants: variantData,
 
-          productType:
-            p.product_type,
+        searchableText,
 
-          tags: p.tags,
+      };
 
-          price:
-            p.variants?.[0]
-              ?.price || "",
+    });
 
-          metals,
 
-          stones,
 
-          colors,
 
-          options:
-            p.options || [],
-
-          variants,
-
-          images:
-            p.images || [],
-
-          image:
-            p.images?.[0]
-              ?.src || "",
-
-          handle:
-            p.handle,
-
-          url:
-`https://${SHOP}/products/${p.handle}`,
-
-        };
-
-      });
-
-    // =====================
-    // SAVE FILE
-    // =====================
 
     fs.writeFileSync(
-
-      "products-brain.json",
-
-      JSON.stringify(
-        aiProducts,
-        null,
-        2
-      )
-
+      "products.json",
+      JSON.stringify(brain, null, 2)
     );
 
-    console.log(
-      "PRODUCT BRAIN CREATED"
-    );
 
-    console.log(
-      "TOTAL PRODUCTS:",
-      aiProducts.length
-    );
+
+
+
+    console.log("================================");
+    console.log("PRODUCT BRAIN BUILT SUCCESSFULLY");
+    console.log("TOTAL:", brain.length);
+    console.log("================================");
 
   } catch (error) {
 
@@ -343,8 +192,8 @@ ${JSON.stringify(p.variants)}
 
 }
 
-// =========================
-// START
-// =========================
 
-buildProductsBrain();
+
+
+
+buildBrain();
