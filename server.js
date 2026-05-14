@@ -16,18 +16,18 @@ const openai = new OpenAI({
 });
 
 
-// ====================================
+// ===================================
 // HOME
-// ====================================
+// ===================================
 
 app.get("/", (req, res) => {
   res.sendFile(process.cwd() + "/public/index.html");
 });
 
 
-// ====================================
+// ===================================
 // CHAT
-// ====================================
+// ===================================
 
 app.post("/chat", async (req, res) => {
 
@@ -35,13 +35,13 @@ app.post("/chat", async (req, res) => {
 
     const { message } = req.body;
 
-    // =========================
-    // GET SHOPIFY PRODUCTS
-    // =========================
+    // ============================
+    // GET PRODUCTS FROM SHOPIFY
+    // ============================
 
-    const productsResponse =
+    const shopifyResponse =
       await fetch(
-        `https://${process.env.SHOPIFY_STORE}/admin/api/2025-01/products.json?limit=40`,
+        `https://${process.env.SHOPIFY_STORE}/admin/api/2025-01/products.json?limit=50`,
         {
           headers: {
             "X-Shopify-Access-Token":
@@ -52,42 +52,71 @@ app.post("/chat", async (req, res) => {
         }
       );
 
-    const productsData =
-      await productsResponse.json();
+    const shopifyData =
+      await shopifyResponse.json();
 
     const products =
-      productsData.products || [];
-
-    // =========================
-    // PRODUCTS TEXT
-    // =========================
-
-    const catalog =
-      products.map(product => {
-
-        return `
-PRODUCT:
-Title: ${product.title}
-
-Price:
-${product.variants?.[0]?.price}
-
-Description:
-${product.body_html}
-
-Image:
-${product.images?.[0]?.src}
-
-Link:
-https://${process.env.SHOPIFY_STORE}/products/${product.handle}
-        `;
-
-      }).join("\n\n");
+      shopifyData.products || [];
 
 
-    // =========================
-    // OPENAI
-    // =========================
+    // ============================
+    // SMART SEARCH
+    // ============================
+
+    const foundProducts =
+      products.filter(product => {
+
+        const text =
+          (
+            product.title +
+            " " +
+            product.body_html
+          ).toLowerCase();
+
+        return text.includes(
+          message.toLowerCase()
+        );
+
+      }).slice(0, 3);
+
+
+    // ============================
+    // RETURN REAL PRODUCTS
+    // ============================
+
+    if(foundProducts.length > 0){
+
+      const result =
+        foundProducts.map(product => {
+
+          return {
+
+            title:
+              product.title,
+
+            price:
+              product.variants?.[0]?.price,
+
+            image:
+              product.images?.[0]?.src,
+
+            link:
+`https://${process.env.SHOPIFY_STORE}/products/${product.handle}`
+
+          };
+
+        });
+
+      return res.json({
+        products: result
+      });
+
+    }
+
+
+    // ============================
+    // NORMAL AI CHAT
+    // ============================
 
     const completion =
       await openai.chat.completions.create({
@@ -100,35 +129,12 @@ https://${process.env.SHOPIFY_STORE}/products/${product.handle}
             role: "system",
 
             content: `
-
 You are Alymwndw AI.
 
-You are a luxury jewelry sales assistant.
-
-RULES:
-
-- Speak Arabic if customer speaks Arabic.
-- Speak English if customer speaks English.
-
-- ONLY recommend products from the catalog below.
-- Do NOT invent products.
-- Recommend only 1-3 products maximum.
-- Sound luxurious and premium.
-- Explain jewelry elegantly.
-- If customer dislikes a product:
-  suggest alternatives.
-- If customer asks for another color/material:
-  suggest similar products.
-- Always include:
-  product name,
-  price,
-  image,
-  product link.
-
-CATALOG:
-
-${catalog}
-
+- Speak Arabic if user speaks Arabic.
+- Speak English if user speaks English.
+- Sound luxurious.
+- Short elegant replies.
             `,
           },
 
@@ -138,21 +144,20 @@ ${catalog}
           },
 
         ],
+
       });
 
-    const reply =
-      completion.choices[0].message.content;
-
     res.json({
-      reply,
+      reply:
+        completion.choices[0].message.content,
     });
 
-  } catch (error) {
+  } catch(error){
 
     console.log(error);
 
     res.status(500).json({
-      error: "AI failed",
+      error: "Server failed"
     });
 
   }
@@ -160,9 +165,9 @@ ${catalog}
 });
 
 
-// ====================================
+// ===================================
 // SERVER
-// ====================================
+// ===================================
 
 const PORT =
   process.env.PORT || 10000;
