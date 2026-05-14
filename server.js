@@ -7,7 +7,7 @@ dotenv.config();
 
 const app = express();
 
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 app.use(express.static("public"));
 
 const PORT = process.env.PORT || 10000;
@@ -19,10 +19,21 @@ const openai = new OpenAI({
 const SHOP = process.env.SHOPIFY_STORE;
 const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
-async function getProducts() {
+// MEMORY
+let STORE_PRODUCTS = [];
+let LAST_UPDATE = 0;
+
+// =============================
+// LOAD PRODUCTS
+// =============================
+async function loadProducts() {
+
+  console.log("LOADING SHOPIFY PRODUCTS...");
+
   try {
+
     const response = await fetch(
-      `https://${SHOP}/admin/api/2025-01/products.json?limit=50`,
+      `https://${SHOP}/admin/api/2025-01/products.json?limit=250`,
       {
         headers: {
           "X-Shopify-Access-Token": TOKEN,
@@ -33,152 +44,265 @@ async function getProducts() {
 
     const data = await response.json();
 
-    return data.products || [];
-  } catch (error) {
-    console.log("Shopify Error:", error);
-    return [];
-  }
-}
+    STORE_PRODUCTS = (data.products || []).map((p) => ({
 
-app.post("/chat", async (req, res) => {
-  try {
-    const { message } = req.body;
+      id: p.id,
 
-    const products = await getProducts();
+      title: p.title || "",
 
-    const productsText = products
-      .map(
-        (p) => `
-Title: ${p.title}
+      description:
+        p.body_html
+          ?.replace(/<[^>]*>/g, " ")
+          ?.replace(/\s+/g, " ")
+          ?.trim() || "",
 
-Description:
-${p.body_html}
+      tags: p.tags || "",
 
-Price:
-${p.variants?.[0]?.price || "N/A"} AED
+      type: p.product_type || "",
 
-Tags:
-${p.tags}
+      vendor: p.vendor || "",
 
-Type:
-${p.product_type}
+      price: p.variants?.[0]?.price || "",
 
-Handle:
-${p.handle}
+      image: p.images?.[0]?.src || "",
 
-Image:
-${p.images?.[0]?.src || ""}
-`
-      )
-      .join("\n----------------------\n");
+      handle: p.handle || "",
 
-    const prompt = `
-You are Alymwndw AI.
+      url: `https://${SHOP}/products/${p.handle}`,
 
-You are an elite luxury jewellery AI sales assistant.
-
-Your personality:
-- Elegant
-- Luxury
-- Friendly
-- Smart seller
-- Speak Arabic and English naturally
-- Behave like ChatGPT
-
-You understand:
-- Gold
-- Silver
-- Platinum
-- Diamonds
-- Moissanite
-- Gemstones
-- Luxury jewellery
-- Engagement rings
-- Wedding jewellery
-
-Your job:
-- Recommend ONLY relevant products
-- Never dump all products
-- Recommend maximum 3 products
-- Understand customer intent deeply
-- Explain jewellery professionally
-- Upsell professionally
-- Keep answers short and premium
-- Use product descriptions carefully
-
-Store Products:
-${productsText}
-
-Customer Message:
-${message}
-`;
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [
-        {
-          role: "system",
-          content: prompt,
-        },
-        {
-          role: "user",
-          content: message,
-        },
-      ],
-      temperature: 0.7,
-      max_tokens: 500,
-    });
-
-    const reply =
-      completion.choices[0].message.content;
-
-    let matchedProducts = [];
-
-    for (const p of products) {
-      const text = `
+      searchable: `
 ${p.title}
 ${p.body_html}
 ${p.tags}
 ${p.product_type}
-      `.toLowerCase();
+${p.vendor}
+      `
+        .toLowerCase()
+        .replace(/<[^>]*>/g, " "),
 
-      const user = message.toLowerCase();
+    }));
 
+    LAST_UPDATE = Date.now();
+
+    console.log("PRODUCTS LOADED:", STORE_PRODUCTS.length);
+
+  } catch (err) {
+
+    console.log("SHOPIFY LOAD ERROR");
+
+    console.log(err);
+
+  }
+}
+
+// =============================
+// SMART SEARCH
+// =============================
+function searchProducts(userMessage) {
+
+  const q = userMessage.toLowerCase();
+
+  const scored = [];
+
+  for (const p of STORE_PRODUCTS) {
+
+    let score = 0;
+
+    // direct matching
+    if (p.searchable.includes(q)) score += 100;
+
+    // Arabic matching
+    if (
+      q.includes("فضه") ||
+      q.includes("فضة") ||
+      q.includes("silver")
+    ) {
       if (
-        text.includes(user) ||
-        (user.includes("gold") && text.includes("gold")) ||
-        (user.includes("silver") && text.includes("silver")) ||
-        (user.includes("ring") && text.includes("ring")) ||
-        (user.includes("diamond") && text.includes("diamond")) ||
-        (user.includes("moissanite") &&
-          text.includes("moissanite"))
-      ) {
-        matchedProducts.push({
-          title: p.title,
-          description: p.body_html,
-          price: p.variants?.[0]?.price || "N/A",
-          image: p.images?.[0]?.src || "",
-          handle: p.handle,
-          url: `https://${SHOP}/products/${p.handle}`,
-        });
-      }
+        p.searchable.includes("silver") ||
+        p.searchable.includes("925")
+      ) score += 50;
     }
 
-    matchedProducts = matchedProducts.slice(0, 3);
+    if (
+      q.includes("ذهب") ||
+      q.includes("gold")
+    ) {
+      if (
+        p.searchable.includes("gold") ||
+        p.searchable.includes("18k")
+      ) score += 50;
+    }
+
+    if (
+      q.includes("موزنايت") ||
+      q.includes("moissanite")
+    ) {
+      if (
+        p.searchable.includes("moissanite")
+      ) score += 50;
+    }
+
+    if (
+      q.includes("خاتم") ||
+      q.includes("ring")
+    ) {
+      if (
+        p.searchable.includes("ring")
+      ) score += 30;
+    }
+
+    if (
+      q.includes("قرط") ||
+      q.includes("earring")
+    ) {
+      if (
+        p.searchable.includes("earring")
+      ) score += 30;
+    }
+
+    if (
+      q.includes("عقد") ||
+      q.includes("necklace")
+    ) {
+      if (
+        p.searchable.includes("necklace")
+      ) score += 30;
+    }
+
+    if (
+      q.includes("اسوره") ||
+      q.includes("سوار") ||
+      q.includes("bracelet")
+    ) {
+      if (
+        p.searchable.includes("bracelet")
+      ) score += 30;
+    }
+
+    if (score > 0) {
+
+      scored.push({
+        ...p,
+        score,
+      });
+
+    }
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+
+  return scored.slice(0, 5);
+}
+
+// =============================
+// CHAT
+// =============================
+app.post("/chat", async (req, res) => {
+
+  try {
+
+    const message = req.body.message || "";
+
+    // auto refresh products every 15 mins
+    if (
+      Date.now() - LAST_UPDATE >
+      1000 * 60 * 15
+    ) {
+      await loadProducts();
+    }
+
+    const matchedProducts =
+      searchProducts(message);
+
+    const prompt = `
+You are Alymwndw Jewellery AI.
+
+You are an elite luxury jewellery sales assistant.
+
+You understand:
+- Gold jewellery
+- 18K gold
+- Silver jewellery
+- 925 silver
+- Diamonds
+- Moissanite
+- Platinum
+- Luxury jewelry
+- Engagement rings
+- Fashion jewelry
+
+VERY IMPORTANT RULES:
+
+- NEVER invent products.
+- ONLY recommend products from the provided list.
+- Speak naturally and professionally.
+- If user speaks Arabic answer Arabic.
+- If user speaks English answer English.
+- Be short and smart.
+- Sell elegantly like a luxury jewelry expert.
+- Upsell carefully.
+- Mention price naturally.
+- Understand customer intent.
+
+Relevant products:
+${JSON.stringify(matchedProducts)}
+
+Customer:
+${message}
+`;
+
+    const completion =
+      await openai.chat.completions.create({
+
+        model: "gpt-4.1-mini",
+
+        temperature: 0.7,
+
+        messages: [
+          {
+            role: "system",
+            content: prompt,
+          },
+          {
+            role: "user",
+            content: message,
+          },
+        ],
+
+      });
 
     res.json({
-      reply,
+
+      reply:
+        completion.choices[0]
+          .message.content,
+
       products: matchedProducts,
+
     });
+
   } catch (error) {
+
     console.log(error);
 
-    res.status(500).json({
-      reply: "AI Error",
+    res.json({
+      reply:
+        "Sorry, Alymwndw AI is temporarily unavailable.",
     });
+
   }
+
 });
 
+// =============================
+// START SERVER
+// =============================
+loadProducts();
+
 app.listen(PORT, () => {
-  console.log("ALYMWNDW AI RUNNING");
+
+  console.log(
+    "ALYMWNDW AI RUNNING"
+  );
+
 });
