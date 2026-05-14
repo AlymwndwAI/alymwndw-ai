@@ -1,94 +1,163 @@
 <!DOCTYPE html>
 <html>
+
 <head>
+
   <title>Alymwndw Jewellery AI</title>
 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
   <style>
+
     body{
       margin:0;
-      background:#f5f5f5;
+      background:#0d0d0d;
       font-family:Arial;
+      color:white;
     }
 
     .header{
       background:black;
-      color:white;
-      padding:20px;
-      font-size:24px;
-      text-align:center;
+      padding:25px;
+      font-size:38px;
       font-weight:bold;
+      text-align:center;
+      border-bottom:1px solid #222;
     }
 
     .chat{
-      height:80vh;
-      overflow:auto;
       padding:20px;
+      height:78vh;
+      overflow:auto;
     }
 
     .msg{
-      padding:15px;
-      border-radius:15px;
-      margin-bottom:15px;
-      max-width:80%;
+      max-width:85%;
+      padding:18px;
+      border-radius:25px;
+      margin-bottom:20px;
+      line-height:1.7;
+      font-size:17px;
     }
 
     .user{
-      background:black;
-      color:white;
+      background:#00d1b2;
+      color:black;
       margin-left:auto;
     }
 
     .bot{
-      background:white;
-      color:black;
+      background:#1b1b1b;
+      color:white;
     }
 
     .inputArea{
       position:fixed;
       bottom:0;
       width:100%;
+      background:#111;
       display:flex;
-      background:white;
-      padding:10px;
-      box-shadow:0 -2px 10px rgba(0,0,0,0.1);
+      padding:15px;
+      box-sizing:border-box;
+      gap:10px;
     }
 
     input{
       flex:1;
-      padding:15px;
-      border-radius:30px;
-      border:1px solid #ccc;
-      font-size:16px;
+      padding:18px;
+      border:none;
+      border-radius:40px;
+      font-size:17px;
+      background:#222;
+      color:white;
+      outline:none;
     }
 
     button{
-      margin-left:10px;
-      padding:15px 25px;
+      background:#00d1b2;
       border:none;
-      border-radius:30px;
-      background:black;
-      color:white;
+      border-radius:40px;
+      padding:0 30px;
+      font-size:17px;
+      font-weight:bold;
       cursor:pointer;
     }
+
+    .product{
+      background:white;
+      color:black;
+      border-radius:20px;
+      padding:15px;
+      margin-top:20px;
+    }
+
+    .product img{
+      width:100%;
+      border-radius:15px;
+    }
+
+    .product h3{
+      margin-top:15px;
+    }
+
+    .product a{
+      display:inline-block;
+      margin-top:15px;
+      background:black;
+      color:white;
+      padding:12px 20px;
+      border-radius:10px;
+      text-decoration:none;
+    }
+
   </style>
+
 </head>
 
 <body>
 
 <div class="header">
-  Alymwndw Jewellery AI
+💎 Alymwndw AI
 </div>
 
 <div class="chat" id="chat">
+
   <div class="msg bot">
-    Welcome to Alymwndw Jewellery ✨<br><br>
-    I can help you choose luxury jewelry, diamonds, moissanite, gold and more.
+
+    Welcome to Alymwndw Jewellery ✨
+
+    <br><br>
+
+    I can help you find:
+    <br>
+    • Gold Jewellery
+    <br>
+    • Diamonds
+    <br>
+    • Moissanite
+    <br>
+    • Luxury Rings
+    <br>
+    • Silver Jewellery
+    <br><br>
+
+    Ask me anything 💎
+
   </div>
+
 </div>
 
 <div class="inputArea">
-  <input id="message" placeholder="Ask anything about jewellery..." />
-  <button onclick="sendMessage()">Send</button>
+
+  <input
+    id="message"
+    placeholder="Ask about jewellery..."
+  />
+
+  <button onclick="sendMessage()">
+    Send
+  </button>
+
 </div>
 
 <script>
@@ -104,31 +173,79 @@ async function sendMessage(){
   const chat = document.getElementById("chat");
 
   chat.innerHTML += `
-    <div class="msg user">${message}</div>
+    <div class="msg user">
+      ${message}
+    </div>
   `;
 
   input.value = "";
 
+  chat.scrollTop = chat.scrollHeight;
+
   const response = await fetch("/chat",{
+
     method:"POST",
+
     headers:{
       "Content-Type":"application/json"
     },
+
     body:JSON.stringify({
       message
     })
+
   });
 
   const data = await response.json();
 
+  let productsHTML = "";
+
+  if(data.products){
+
+    data.products.slice(0,3).forEach(product => {
+
+      productsHTML += `
+
+        <div class="product">
+
+          <img src="${product.image}" />
+
+          <h3>
+            ${product.title}
+          </h3>
+
+          <p>
+            ${product.price} AED
+          </p>
+
+          <a
+            href="https://${window.location.hostname}/products/${product.handle}"
+            target="_blank"
+          >
+            View Product
+          </a>
+
+        </div>
+
+      `;
+
+    });
+
+  }
+
   chat.innerHTML += `
-    <div class="msg bot">${data.reply}</div>
+    <div class="msg bot">
+      ${data.reply}
+      ${productsHTML}
+    </div>
   `;
 
   chat.scrollTop = chat.scrollHeight;
+
 }
 
 </script>
 
 </body>
+
 </html>
