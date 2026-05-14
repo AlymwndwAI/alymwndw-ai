@@ -3,7 +3,7 @@
 
 <head>
 
-<meta charset="UTF-8">
+<meta charset="UTF-8"/>
 
 <meta
 name="viewport"
@@ -15,10 +15,10 @@ content="width=device-width, initial-scale=1.0"
 <style>
 
 body{
-background:#070707;
-font-family:Arial;
 margin:0;
 padding:0;
+background:#050505;
+font-family:Arial;
 display:flex;
 justify-content:center;
 align-items:center;
@@ -30,41 +30,44 @@ color:white;
 width:420px;
 background:#111;
 padding:20px;
-border-radius:25px;
-box-shadow:0 0 30px rgba(0,255,200,.15);
+border-radius:30px;
+box-shadow:
+0 0 35px rgba(0,255,200,.12);
 }
 
-h1{
+.logo{
+font-size:42px;
+font-weight:bold;
 text-align:center;
 margin-bottom:20px;
-font-size:42px;
 }
 
 .chat-box{
-height:400px;
+height:500px;
 overflow-y:auto;
-background:#1a1a1a;
+background:#181818;
 padding:15px;
-border-radius:18px;
+border-radius:20px;
 margin-bottom:15px;
 }
 
 .message{
-padding:14px;
-border-radius:15px;
-margin-bottom:10px;
-max-width:80%;
-line-height:1.7;
+padding:15px;
+border-radius:18px;
+margin-bottom:12px;
+max-width:85%;
+line-height:1.8;
+white-space:pre-wrap;
 }
 
 .user{
-background:#16e0bc;
+background:#18e0bd;
 color:black;
 margin-left:auto;
 }
 
 .ai{
-background:#2d2d2d;
+background:#2a2a2a;
 }
 
 .input-area{
@@ -76,7 +79,8 @@ input{
 flex:1;
 padding:16px;
 border:none;
-border-radius:15px;
+outline:none;
+border-radius:16px;
 background:#222;
 color:white;
 font-size:16px;
@@ -85,33 +89,20 @@ font-size:16px;
 button{
 padding:16px;
 border:none;
-border-radius:15px;
-background:#16e0bc;
+border-radius:16px;
+background:#18e0bd;
+font-size:16px;
 font-weight:bold;
 cursor:pointer;
-font-size:16px;
 }
 
-.products{
-margin-top:20px;
-display:grid;
-grid-template-columns:1fr 1fr;
-gap:10px;
+button:hover{
+opacity:.9;
 }
 
-.product{
-background:#1c1c1c;
-padding:10px;
-border-radius:15px;
-}
-
-.product img{
-width:100%;
-border-radius:10px;
-}
-
-.product h3{
-font-size:14px;
+.typing{
+opacity:.7;
+font-style:italic;
 }
 
 </style>
@@ -122,9 +113,9 @@ font-size:14px;
 
 <div class="container">
 
-<h1>
+<div class="logo">
 💎 Alymwndw AI
-</h1>
+</div>
 
 <div
 class="chat-box"
@@ -136,6 +127,7 @@ id="chat-box"
 <input
 id="message"
 placeholder="Ask about jewelry..."
+onkeydown="handleKey(event)"
 >
 
 <button onclick="sendMessage()">
@@ -143,11 +135,6 @@ Send
 </button>
 
 </div>
-
-<div
-class="products"
-id="products"
-></div>
 
 </div>
 
@@ -172,6 +159,17 @@ chatBox.appendChild(div);
 chatBox.scrollTop =
 chatBox.scrollHeight;
 
+return div;
+
+}
+
+
+function handleKey(event){
+
+if(event.key === "Enter"){
+sendMessage();
+}
+
 }
 
 
@@ -189,13 +187,20 @@ addMessage(message,"user");
 
 input.value = "";
 
+const typing =
+addMessage(
+"Alymwndw AI is typing...",
+"ai typing"
+);
+
 const response =
 await fetch("/chat",{
 
 method:"POST",
 
 headers:{
-"Content-Type":"application/json"
+"Content-Type":
+"application/json"
 },
 
 body:JSON.stringify({
@@ -207,44 +212,11 @@ message
 const data =
 await response.json();
 
+typing.remove();
+
 addMessage(data.reply,"ai");
 
 }
-
-
-async function loadProducts(){
-
-const response =
-await fetch("/products");
-
-const products =
-await response.json();
-
-const container =
-document.getElementById("products");
-
-products.forEach(product=>{
-
-const image =
-product.images?.[0]?.src || "";
-
-container.innerHTML += `
-<div class="product">
-
-<img src="${image}" />
-
-<h3>
-${product.title}
-</h3>
-
-</div>
-`;
-
-});
-
-}
-
-loadProducts();
 
 </script>
 
