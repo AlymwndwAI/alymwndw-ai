@@ -18,16 +18,22 @@ body{
   padding:10px;
 }
 
+.brand{
+  text-align:center;
+  font-size:22px;
+  margin:10px 0;
+}
+
 .card{
   background:#111b21;
-  margin:10px 0;
-  padding:10px;
+  margin:12px 0;
+  padding:12px;
   border-radius:15px;
 }
 
 img{
   width:100%;
-  border-radius:10px;
+  border-radius:12px;
 }
 
 input, button{
@@ -50,7 +56,7 @@ button{
 
 <div class="container">
 
-<h3>💎 Alymwndw AI Store</h3>
+<div class="brand">💎 Alymwndw AI Luxury Store</div>
 
 <input id="msg" placeholder="Ask about jewelry..." />
 <button onclick="send()">Ask AI</button>
@@ -80,7 +86,7 @@ async function send(){
   const data = await res.json();
 
   document.getElementById("chat").innerHTML = `
-    <div class="card">${data.reply || data.error}</div>
+    <div class="card">${data.reply}</div>
   `;
 }
 
@@ -96,11 +102,6 @@ async function generateImage(){
   });
 
   const data = await res.json();
-
-  if(!data.image){
-    alert("Image failed ❌");
-    return;
-  }
 
   document.getElementById("imageBox").innerHTML = `
     <div class="card">
