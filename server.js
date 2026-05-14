@@ -11,12 +11,46 @@ const PORT = process.env.PORT || 10000;
 const SHOP = process.env.SHOPIFY_STORE;
 const CLIENT_ID = process.env.SHOPIFY_CLIENT_ID;
 const CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET;
+const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
-app.get("/", (req, res) => {
-  res.send("ALYMWNDW AI RUNNING");
+// HOME
+app.get("/", async (req, res) => {
+
+  try {
+
+    // لو فيه access token يسحب المنتجات
+    if (ACCESS_TOKEN) {
+
+      const response = await fetch(
+        `https://${SHOP}/admin/api/2025-04/products.json`,
+        {
+          headers: {
+            "X-Shopify-Access-Token": ACCESS_TOKEN,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      return res.json(data);
+    }
+
+    // لو مفيش token
+    res.send(`
+      <h1>ALYMWNDW AI RUNNING</h1>
+      <a href="/auth">INSTALL APP</a>
+    `);
+
+  } catch (error) {
+
+    res.send(error.toString());
+
+  }
+
 });
 
-// INSTALL APP
+// INSTALL
 app.get("/auth", (req, res) => {
 
   const scopes =
@@ -32,6 +66,7 @@ app.get("/auth", (req, res) => {
     `&redirect_uri=${redirectUri}`;
 
   res.redirect(installUrl);
+
 });
 
 // CALLBACK
@@ -62,19 +97,22 @@ app.get("/auth/callback", async (req, res) => {
 
     const data = await response.json();
 
-    console.log("SHOPIFY TOKEN:", data.access_token);
+    console.log("SHOPIFY TOKEN:");
+    console.log(data.access_token);
 
     res.send(`
       <h1>APP INSTALLED SUCCESSFULLY</h1>
-      <p>Token generated successfully.</p>
+      <p>Copy token from Render logs</p>
     `);
 
   } catch (error) {
 
     console.log(error);
 
-    res.send("ERROR");
+    res.send(error.toString());
+
   }
+
 });
 
 app.listen(PORT, () => {
