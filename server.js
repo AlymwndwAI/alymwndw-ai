@@ -16,60 +16,78 @@ const openai = new OpenAI({
 });
 
 
-// ===============================
+// ====================================
 // HOME
-// ===============================
+// ====================================
 
 app.get("/", (req, res) => {
   res.sendFile(process.cwd() + "/public/index.html");
 });
 
 
-// ===============================
-// GET SHOPIFY PRODUCTS
-// ===============================
-
-app.get("/products", async (req, res) => {
-
-  try {
-
-    const response = await fetch(
-      `https://${process.env.SHOPIFY_STORE}/admin/api/2025-01/products.json?limit=20`,
-      {
-        headers: {
-          "X-Shopify-Access-Token":
-            process.env.SHOPIFY_ADMIN_ACCESS_TOKEN,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    const data = await response.json();
-
-    res.json(data.products);
-
-  } catch (error) {
-
-    console.log(error);
-
-    res.status(500).json({
-      error: "Failed to fetch products",
-    });
-
-  }
-
-});
-
-
-// ===============================
-// CHAT AI
-// ===============================
+// ====================================
+// CHAT
+// ====================================
 
 app.post("/chat", async (req, res) => {
 
   try {
 
     const { message } = req.body;
+
+    // =========================
+    // GET SHOPIFY PRODUCTS
+    // =========================
+
+    const productsResponse =
+      await fetch(
+        `https://${process.env.SHOPIFY_STORE}/admin/api/2025-01/products.json?limit=40`,
+        {
+          headers: {
+            "X-Shopify-Access-Token":
+              process.env.SHOPIFY_ADMIN_ACCESS_TOKEN,
+            "Content-Type":
+              "application/json",
+          },
+        }
+      );
+
+    const productsData =
+      await productsResponse.json();
+
+    const products =
+      productsData.products || [];
+
+    // =========================
+    // PRODUCTS TEXT
+    // =========================
+
+    const catalog =
+      products.map(product => {
+
+        return `
+PRODUCT:
+Title: ${product.title}
+
+Price:
+${product.variants?.[0]?.price}
+
+Description:
+${product.body_html}
+
+Image:
+${product.images?.[0]?.src}
+
+Link:
+https://${process.env.SHOPIFY_STORE}/products/${product.handle}
+        `;
+
+      }).join("\n\n");
+
+
+    // =========================
+    // OPENAI
+    // =========================
 
     const completion =
       await openai.chat.completions.create({
@@ -80,18 +98,37 @@ app.post("/chat", async (req, res) => {
 
           {
             role: "system",
+
             content: `
+
 You are Alymwndw AI.
 
 You are a luxury jewelry sales assistant.
 
-You help customers:
-- recommend products
-- explain moissanite
-- explain diamonds
-- upsell elegantly
-- speak Arabic and English
-- sound luxurious
+RULES:
+
+- Speak Arabic if customer speaks Arabic.
+- Speak English if customer speaks English.
+
+- ONLY recommend products from the catalog below.
+- Do NOT invent products.
+- Recommend only 1-3 products maximum.
+- Sound luxurious and premium.
+- Explain jewelry elegantly.
+- If customer dislikes a product:
+  suggest alternatives.
+- If customer asks for another color/material:
+  suggest similar products.
+- Always include:
+  product name,
+  price,
+  image,
+  product link.
+
+CATALOG:
+
+${catalog}
+
             `,
           },
 
@@ -103,9 +140,11 @@ You help customers:
         ],
       });
 
+    const reply =
+      completion.choices[0].message.content;
+
     res.json({
-      reply:
-        completion.choices[0].message.content,
+      reply,
     });
 
   } catch (error) {
@@ -113,7 +152,7 @@ You help customers:
     console.log(error);
 
     res.status(500).json({
-      error: "Chat failed",
+      error: "AI failed",
     });
 
   }
@@ -121,49 +160,9 @@ You help customers:
 });
 
 
-// ===============================
-// IMAGE GENERATION
-// ===============================
-
-app.post("/generate-image", async (req, res) => {
-
-  try {
-
-    const { prompt } = req.body;
-
-    const image =
-      await openai.images.generate({
-
-        model: "gpt-image-1",
-
-        prompt:
-          `Luxury jewelry photography, ${prompt}, ultra realistic, black background, luxury lighting`,
-
-        size: "1024x1024",
-
-      });
-
-    res.json({
-      image:
-        image.data[0].url,
-    });
-
-  } catch (error) {
-
-    console.log(error);
-
-    res.status(500).json({
-      error: "Image generation failed",
-    });
-
-  }
-
-});
-
-
-// ===============================
+// ====================================
 // SERVER
-// ===============================
+// ====================================
 
 const PORT =
   process.env.PORT || 10000;
@@ -171,7 +170,7 @@ const PORT =
 app.listen(PORT, () => {
 
   console.log(
-    `Server running on port ${PORT}`
+    `Server running on ${PORT}`
   );
 
 });
