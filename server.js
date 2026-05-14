@@ -66,7 +66,7 @@ Handle:
 ${p.handle}
 `;
       })
-      .join("\n-----------------\n");
+      .join("\n------------------\n");
 
     const prompt = `
 You are Alymwndw AI.
