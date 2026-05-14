@@ -1,3 +1,13 @@
+import express from "express";
+
+const app = express();
+
+const PORT = process.env.PORT || 10000;
+
+app.get("/", (req, res) => {
+  res.send("Alymwndw AI Running");
+});
+
 app.get("/get-token", async (req, res) => {
   try {
     const response = await fetch(
@@ -21,4 +31,8 @@ app.get("/get-token", async (req, res) => {
   } catch (err) {
     res.send(err.toString());
   }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on ${PORT}`);
 });
