@@ -1,326 +1,131 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html>
 <head>
+  <title>Alymwndw Jewellery AI</title>
 
-<meta charset="UTF-8">
+  <style>
+    body{
+      margin:0;
+      background:#f5f5f5;
+      font-family:Arial;
+    }
 
-<meta
-name="viewport"
-content="width=device-width, initial-scale=1.0"
-/>
+    .header{
+      background:black;
+      color:white;
+      padding:20px;
+      font-size:24px;
+      text-align:center;
+      font-weight:bold;
+    }
 
-<title>Alymwndw AI</title>
+    .chat{
+      height:80vh;
+      overflow:auto;
+      padding:20px;
+    }
 
-<style>
+    .msg{
+      padding:15px;
+      border-radius:15px;
+      margin-bottom:15px;
+      max-width:80%;
+    }
 
-body{
-margin:0;
-padding:0;
-background:#050505;
-font-family:Arial;
-display:flex;
-justify-content:center;
-align-items:center;
-min-height:100vh;
-color:white;
-}
+    .user{
+      background:black;
+      color:white;
+      margin-left:auto;
+    }
 
-.container{
-width:420px;
-background:#111;
-padding:20px;
-border-radius:30px;
-box-shadow:
-0 0 35px rgba(0,255,200,.15);
-}
+    .bot{
+      background:white;
+      color:black;
+    }
 
-.logo{
-font-size:42px;
-font-weight:bold;
-text-align:center;
-margin-bottom:20px;
-}
+    .inputArea{
+      position:fixed;
+      bottom:0;
+      width:100%;
+      display:flex;
+      background:white;
+      padding:10px;
+      box-shadow:0 -2px 10px rgba(0,0,0,0.1);
+    }
 
-.chat-box{
-height:520px;
-overflow-y:auto;
-background:#1b1b1b;
-padding:15px;
-border-radius:20px;
-margin-bottom:15px;
-}
+    input{
+      flex:1;
+      padding:15px;
+      border-radius:30px;
+      border:1px solid #ccc;
+      font-size:16px;
+    }
 
-.message{
-padding:15px;
-border-radius:18px;
-margin-bottom:12px;
-max-width:85%;
-line-height:1.8;
-white-space:pre-wrap;
-}
-
-.user{
-background:#19e0bc;
-color:black;
-margin-left:auto;
-}
-
-.ai{
-background:#2b2b2b;
-}
-
-.input-area{
-display:flex;
-gap:10px;
-}
-
-input{
-flex:1;
-padding:16px;
-border:none;
-outline:none;
-border-radius:15px;
-background:#222;
-color:white;
-font-size:16px;
-}
-
-button{
-padding:16px;
-border:none;
-border-radius:15px;
-background:#19e0bc;
-font-weight:bold;
-font-size:16px;
-cursor:pointer;
-}
-
-.product-card{
-background:#222;
-padding:15px;
-border-radius:20px;
-margin-bottom:20px;
-}
-
-.product-card img{
-width:100%;
-border-radius:18px;
-margin-bottom:12px;
-}
-
-.product-card h3{
-margin:0 0 10px;
-}
-
-.product-card p{
-line-height:1.7;
-}
-
-.price{
-font-size:22px;
-font-weight:bold;
-color:#19e0bc;
-margin-top:10px;
-}
-
-.buy-btn{
-display:block;
-margin-top:15px;
-background:#19e0bc;
-padding:14px;
-text-align:center;
-border-radius:14px;
-text-decoration:none;
-color:black;
-font-weight:bold;
-}
-
-</style>
-
+    button{
+      margin-left:10px;
+      padding:15px 25px;
+      border:none;
+      border-radius:30px;
+      background:black;
+      color:white;
+      cursor:pointer;
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="container">
-
-<div class="logo">
-💎 Alymwndw AI
+<div class="header">
+  Alymwndw Jewellery AI
 </div>
 
-<div
-class="chat-box"
-id="chat-box"
-></div>
-
-<div class="input-area">
-
-<input
-id="message"
-placeholder="Ask about jewelry..."
-onkeydown="handleKey(event)"
->
-
-<button onclick="sendMessage()">
-Send
-</button>
-
+<div class="chat" id="chat">
+  <div class="msg bot">
+    Welcome to Alymwndw Jewellery ✨<br><br>
+    I can help you choose luxury jewelry, diamonds, moissanite, gold and more.
+  </div>
 </div>
 
+<div class="inputArea">
+  <input id="message" placeholder="Ask anything about jewellery..." />
+  <button onclick="sendMessage()">Send</button>
 </div>
 
 <script>
 
-const chatBox =
-document.getElementById("chat-box");
-
-
-// =====================================
-// ADD TEXT MESSAGE
-// =====================================
-
-function addMessage(text,type){
-
-const div =
-document.createElement("div");
-
-div.className =
-`message ${type}`;
-
-div.innerText =
-text;
-
-chatBox.appendChild(div);
-
-chatBox.scrollTop =
-chatBox.scrollHeight;
-
-}
-
-
-// =====================================
-// ADD PRODUCT CARD
-// =====================================
-
-function addProduct(product){
-
-const div =
-document.createElement("div");
-
-div.className =
-"product-card";
-
-div.innerHTML = `
-
-<img src="${product.image}" />
-
-<h3>
-${product.title}
-</h3>
-
-<p>
-${product.description}
-</p>
-
-<div class="price">
-${product.price} AED
-</div>
-
-<a
-class="buy-btn"
-href="${product.link}"
-target="_blank"
->
-View Product
-</a>
-
-`;
-
-chatBox.appendChild(div);
-
-chatBox.scrollTop =
-chatBox.scrollHeight;
-
-}
-
-
-// =====================================
-// ENTER BUTTON
-// =====================================
-
-function handleKey(event){
-
-if(event.key === "Enter"){
-sendMessage();
-}
-
-}
-
-
-// =====================================
-// SEND MESSAGE
-// =====================================
-
 async function sendMessage(){
 
-const input =
-document.getElementById("message");
+  const input = document.getElementById("message");
 
-const message =
-input.value;
+  const message = input.value;
 
-if(!message) return;
+  if(!message) return;
 
-addMessage(message,"user");
+  const chat = document.getElementById("chat");
 
-input.value = "";
+  chat.innerHTML += `
+    <div class="msg user">${message}</div>
+  `;
 
-const response =
-await fetch("/chat",{
+  input.value = "";
 
-method:"POST",
+  const response = await fetch("/chat",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json"
+    },
+    body:JSON.stringify({
+      message
+    })
+  });
 
-headers:{
-"Content-Type":
-"application/json"
-},
+  const data = await response.json();
 
-body:JSON.stringify({
-message
-})
+  chat.innerHTML += `
+    <div class="msg bot">${data.reply}</div>
+  `;
 
-});
-
-const data =
-await response.json();
-
-
-// =====================================
-// PRODUCTS
-// =====================================
-
-if(data.products){
-
-data.products.forEach(product => {
-
-addProduct(product);
-
-});
-
-return;
-
-}
-
-
-// =====================================
-// AI REPLY
-// =====================================
-
-addMessage(
-data.reply,
-"ai"
-);
-
+  chat.scrollTop = chat.scrollHeight;
 }
 
 </script>
