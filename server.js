@@ -452,10 +452,77 @@ function searchProducts(message) {
   const keywords =
     msg.split(" ");
 
+  // ======================
+  // REQUESTED PRODUCT TYPE
+  // ======================
+
+  let requestedType = "";
+
+  if (
+    msg.includes("ring")
+  ) {
+
+    requestedType = "ring";
+
+  }
+
+  if (
+    msg.includes("necklace")
+  ) {
+
+    requestedType = "necklace";
+
+  }
+
+  if (
+    msg.includes("earring")
+  ) {
+
+    requestedType = "earrings";
+
+  }
+
+  if (
+    msg.includes("bracelet")
+  ) {
+
+    requestedType = "bracelet";
+
+  }
+
+  if (
+    msg.includes("pendant")
+  ) {
+
+    requestedType = "pendant";
+
+  }
+
   let scoredProducts =
     productsCache.map((p) => {
 
       let score = 0;
+
+      // ======================
+      // HARD FILTER
+      // ======================
+
+      if (
+        requestedType &&
+        p.productType !== requestedType
+      ) {
+
+        return {
+
+          ...p,
+
+          matchedVariants: [],
+
+          score: -999,
+
+        };
+
+      }
 
       const productText = `
         ${p.title}
@@ -565,7 +632,9 @@ function searchProducts(message) {
 
         });
 
-        if (variantMatched) {
+        if (
+          variantMatched
+        ) {
 
           matchedVariants.push(v);
 
@@ -644,33 +713,23 @@ function searchProducts(message) {
 
   scoredProducts =
     scoredProducts
-      .filter((p) => p.score > 0)
+      .filter((p) =>
+        p.score > 0
+      )
       .sort(
         (a, b) =>
           b.score - a.score
       );
 
   // ======================
-  // FALLBACK
+  // NO RESULTS
   // ======================
 
   if (
     scoredProducts.length === 0
   ) {
 
-    scoredProducts =
-      productsCache
-        .slice(0, 4)
-        .map((p) => ({
-
-          ...p,
-
-          matchedVariants:
-            p.variants || [],
-
-          score: 1,
-
-        }));
+    return [];
 
   }
 
@@ -757,6 +816,25 @@ app.post("/chat", async (req, res) => {
             : p.variants,
 
       }));
+
+    // ======================
+    // NO RESULTS
+    // ======================
+
+    if (
+      cleanProducts.length === 0
+    ) {
+
+      return res.json({
+
+        reply:
+          "Sorry, no matching products were found.",
+
+        products: [],
+
+      });
+
+    }
 
     // ======================
     // AI PROMPT
