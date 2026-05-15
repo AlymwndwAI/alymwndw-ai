@@ -27,6 +27,7 @@ const openai = new OpenAI({
 // =========================
 
 let conversations = {};
+let conversationSummaries = {};
 
 // =========================
 // LOAD PRODUCT BRAIN
@@ -64,9 +65,10 @@ async function aiRetrieveProducts(
   products
 ) {
 
-  // SMALLER AI DATA
+  // SMALLER DATASET
+
   const slimProducts =
-    products.slice(0, 200).map((p) => ({
+    products.slice(0, 50).map((p) => ({
 
       title:
         p.title,
@@ -78,20 +80,22 @@ async function aiRetrieveProducts(
         p.type,
 
       description:
-        p.description?.slice(0, 300),
+        p.description?.slice(0, 120),
 
       aiFeatures:
         p.aiFeatures,
 
-      variants:
-        p.variants?.slice(0, 5),
+      price:
 
-      image:
-        p.image,
+        p.variants?.[0]
+          ?.price ||
+
+        "N/A",
 
     }));
 
   // AI RETRIEVAL
+
   const completion =
     await openai.chat.completions.create({
 
@@ -112,24 +116,24 @@ async function aiRetrieveProducts(
 
 You are Alymwndw AI retrieval engine.
 
-Your job:
-- deeply understand customer request
-- select BEST matching luxury jewelry
-- prioritize emotional fit
-- prioritize luxury style
-- understand Arabic and English naturally
-- understand gifting
-- understand romance
-- understand personalization
-- understand jewelry fashion
+Understand customer intent deeply.
+
+Find BEST matching luxury jewelry.
+
+Understand:
+- Arabic
+- English
+- gifting
+- romance
+- personalization
+- luxury fashion
+- emotions
 
 Return ONLY JSON:
 
 {
   "matches": [0,1,2,3]
 }
-
-Indexes represent product positions.
 
 PRODUCTS:
 
@@ -153,6 +157,7 @@ ${JSON.stringify(slimProducts)}
   );
 
   // RETURN REAL PRODUCTS
+
   return data.matches
     .map((i) => products[i])
     .filter(Boolean);
@@ -216,6 +221,72 @@ app.post("/chat", async (req, res) => {
     });
 
     // =========================
+    // MEMORY SUMMARY
+    // =========================
+
+    if (
+      conversations[
+        sessionId
+      ].length > 10
+    ) {
+
+      const summaryCompletion =
+        await openai.chat.completions.create({
+
+          model: "gpt-4o-mini",
+
+          messages: [
+
+            {
+              role: "system",
+
+              content: `
+Summarize this jewelry conversation.
+
+Keep:
+- customer preferences
+- favorite styles
+- budget
+- relationship context
+- gifting intent
+- personalization requests
+`,
+            },
+
+            {
+              role: "user",
+
+              content:
+                JSON.stringify(
+                  conversations[
+                    sessionId
+                  ]
+                ),
+            },
+
+          ],
+
+        });
+
+      conversationSummaries[
+        sessionId
+      ] =
+        summaryCompletion
+          .choices[0]
+          .message.content;
+
+      // KEEP LAST MESSAGES ONLY
+
+      conversations[
+        sessionId
+      ] =
+        conversations[
+          sessionId
+        ].slice(-4);
+
+    }
+
+    // =========================
     // AI RETRIEVE PRODUCTS
     // =========================
 
@@ -232,26 +303,16 @@ app.post("/chat", async (req, res) => {
     const cleanProducts =
       matchedProducts.map((p) => ({
 
-        // BASIC
         title:
           p.title,
 
-        handle:
-          p.handle,
+        price:
 
-        url:
-          `https://alymwndw.com/products/${p.handle}`,
+          p.variants?.[0]
+            ?.price ||
 
-        type:
-          p.type,
+          "N/A",
 
-        description:
-          p.description,
-
-        image:
-          p.image,
-
-        // AI FEATURES
         collection:
           p.aiFeatures
             ?.collection,
@@ -260,76 +321,37 @@ app.post("/chat", async (req, res) => {
           p.aiFeatures
             ?.category,
 
-        productType:
+        styles:
           p.aiFeatures
-            ?.productType,
+            ?.styles,
 
         materials:
           p.aiFeatures
             ?.materials,
 
-        styles:
+        personalization:
           p.aiFeatures
-            ?.styles,
-
-        intent:
-          p.aiFeatures
-            ?.intent,
-
-        emotionalTriggers:
-          p.aiFeatures
-            ?.emotionalTriggers,
-
-        searchKeywords:
-          p.aiFeatures
-            ?.searchKeywords,
-
-        supportedLanguages:
-          p.aiFeatures
-            ?.supportedLanguages,
-
-        // PRICE
-        price:
-
-          p.variants?.[0]
-            ?.price ||
-
-          "N/A",
-
-        // VARIANTS
-        variants:
-
-          p.variants?.map(
-            (v) => ({
-
-              title:
-                v.title,
-
-              price:
-                v.price,
-
-              available:
-                v.available,
-
-              image:
-                v.image,
-
-              options:
-                v.options,
-
-            })
-          ),
+            ?.features,
 
       }));
 
     // =========================
-    // MAIN AI RESPONSE
+    // RECENT MEMORY
+    // =========================
+
+    const recentConversation =
+      conversations[
+        sessionId
+      ].slice(-10);
+
+    // =========================
+    // MAIN AI
     // =========================
 
     const completion =
       await openai.chat.completions.create({
 
-        model: "gpt-4o-mini",
+        model: "gpt-4.1-mini",
 
         temperature: 0.9,
 
@@ -357,41 +379,28 @@ You are:
 - fashionable
 - human-like
 
-You understand:
-- emotions
-- gifting
-- romance
-- luxury fashion
-- personalization
-- jewelry trends
-- relationships
-- special occasions
-
-IMPORTANT BEHAVIOR:
+IMPORTANT:
 
 - Talk naturally.
 - Continue conversations naturally.
 - Remember previous messages.
 - Never sound robotic.
-- Never repeat generic greetings.
+- Never repeat greetings.
 - Ask smart follow-up questions.
-- Guide customer like real luxury consultant.
-- Recommend products naturally inside conversation.
-- Explain WHY pieces fit customer.
-- Mention emotions and luxury feeling.
-- Arabic must feel natural and premium.
-- English must feel premium and elegant.
-- Never invent products.
+- Guide customer naturally.
+- Recommend jewelry naturally.
+- Mention luxury emotions naturally.
+- Arabic must feel natural.
+- English must feel premium.
+- NEVER invent products.
 - ONLY use AVAILABLE PRODUCTS.
+- Never print raw URLs.
+- Never print image links.
+- Frontend displays products separately.
 
-You can:
-- compare products
-- recommend gifts
-- suggest matching jewelry
-- upsell elegantly
-- explain materials
-- explain luxury styling
-- help choose between products
+Customer Memory:
+
+${conversationSummaries[sessionId] || ""}
 
 AVAILABLE PRODUCTS:
 
@@ -400,9 +409,7 @@ ${JSON.stringify(cleanProducts)}
 `,
           },
 
-          ...conversations[
-            sessionId
-          ],
+          ...recentConversation,
 
         ],
 
