@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import OpenAI from "openai";
 import fs from "fs";
+import crypto from "crypto";
 
 dotenv.config();
 
@@ -80,6 +81,7 @@ function normalizeText(text = "") {
 
     .replaceAll("عقد", "necklace")
     .replaceAll("سلسله", "necklace")
+    .replaceAll("سلسلة", "necklace")
 
     .replaceAll("اسوره", "bracelet")
 
@@ -92,7 +94,18 @@ function normalizeText(text = "") {
 
     .replaceAll("موزانيت", "moissanite")
     .replaceAll("مويسانيت", "moissanite")
-    .replaceAll("موزنايت", "moissanite");
+    .replaceAll("موزنايت", "moissanite")
+
+    .replaceAll("سلسله اسم", "name necklace")
+    .replaceAll("سلسلة اسم", "name necklace")
+
+    .replaceAll("سلسله حرف", "initial necklace")
+    .replaceAll("سلسلة حرف", "initial necklace")
+
+    .replaceAll("خاتم خطوبه", "engagement ring")
+
+    .replaceAll("هديه", "gift jewelry")
+    .replaceAll("هدية", "gift jewelry");
 
 }
 
@@ -160,7 +173,191 @@ function shouldSearchProducts(
 }
 
 // =====================================
-// FAST LOCAL PRODUCT SEARCH
+// SMART COLLECTION INTELLIGENCE
+// =====================================
+
+const INTELLIGENCE = {
+
+  // =====================================
+  // SOFT LUXURY
+  // =====================================
+
+  "soft luxury": {
+
+    triggers: [
+
+      "soft luxury",
+      "minimal",
+      "simple",
+      "elegant",
+      "classy",
+      "feminine",
+
+      "ناعم",
+      "ناعمه",
+      "رقيق",
+      "راقي",
+      "شيك",
+
+    ],
+
+    boosts: [
+
+      "minimal",
+      "luxury",
+      "elegance",
+      "timeless beauty",
+
+    ],
+
+  },
+
+  // =====================================
+  // OLD MONEY
+  // =====================================
+
+  "old money": {
+
+    triggers: [
+
+      "old money",
+      "classic luxury",
+      "timeless",
+
+      "كلاسيك",
+      "فخم",
+
+    ],
+
+    boosts: [
+
+      "classic",
+      "luxury",
+      "diamond",
+      "white gold",
+      "pearl",
+
+    ],
+
+  },
+
+  // =====================================
+  // GIFT
+  // =====================================
+
+  "gift jewelry": {
+
+    triggers: [
+
+      "gift",
+      "birthday",
+      "anniversary",
+
+      "هديه",
+      "هدية",
+
+    ],
+
+    boosts: [
+
+      "gift jewelry",
+      "personalized",
+      "minimal",
+      "feminine",
+
+    ],
+
+  },
+
+  // =====================================
+  // NAME NECKLACES
+  // =====================================
+
+  "name necklace": {
+
+    triggers: [
+
+      "name necklace",
+      "initial necklace",
+      "custom jewelry",
+
+      "سلسله اسم",
+      "سلسلة اسم",
+      "سلسله حرف",
+      "سلسلة حرف",
+
+    ],
+
+    boosts: [
+
+      "personalized",
+      "alpha gold",
+      "custom jewelry",
+      "initial necklace",
+
+    ],
+
+  },
+
+  // =====================================
+  // BRIDAL
+  // =====================================
+
+  "bridal": {
+
+    triggers: [
+
+      "engagement",
+      "wedding",
+      "bridal",
+
+      "خطوبه",
+      "زواج",
+
+    ],
+
+    boosts: [
+
+      "bridal",
+      "engagement",
+      "diamond ring",
+      "wedding ring",
+
+    ],
+
+  },
+
+  // =====================================
+  // MOISSANITE
+  // =====================================
+
+  "moissanite": {
+
+    triggers: [
+
+      "moissanite",
+      "gra certified",
+
+      "موزانيت",
+      "مويسانيت",
+
+    ],
+
+    boosts: [
+
+      "moissanite",
+      "gra certified",
+      "diamond alternative",
+      "high brilliance",
+
+    ],
+
+  },
+
+};
+
+// =====================================
+// SMART PRODUCT SEARCH
 // =====================================
 
 function searchProducts(
@@ -231,7 +428,7 @@ function searchProducts(
       let score = 0;
 
       // =====================================
-      // WORD MATCH
+      // BASIC WORD MATCH
       // =====================================
 
       words.forEach((word) => {
@@ -247,7 +444,47 @@ function searchProducts(
       });
 
       // =====================================
-      // SMART CATEGORY BOOST
+      // SMART INTELLIGENCE ENGINE
+      // =====================================
+
+      Object.values(INTELLIGENCE)
+
+      .forEach((intent) => {
+
+        const triggered =
+
+          intent.triggers.some((t) =>
+
+            msg.includes(
+              normalizeText(t)
+            )
+
+          );
+
+        if (triggered) {
+
+          intent.boosts.forEach((b) => {
+
+            if (
+
+              text.includes(
+                normalizeText(b)
+              )
+
+            ) {
+
+              score += 150;
+
+            }
+
+          });
+
+        }
+
+      });
+
+      // =====================================
+      // CATEGORY BOOST
       // =====================================
 
       if (
@@ -303,70 +540,6 @@ function searchProducts(
       ) {
 
         score += 80;
-
-      }
-
-      // =====================================
-      // STONE BOOST
-      // =====================================
-
-      if (
-
-        msg.includes("moissanite")
-
-        &&
-
-        text.includes("moissanite")
-
-      ) {
-
-        score += 100;
-
-      }
-
-      if (
-
-        msg.includes("diamond")
-
-        &&
-
-        text.includes("diamond")
-
-      ) {
-
-        score += 100;
-
-      }
-
-      // =====================================
-      // METAL BOOST
-      // =====================================
-
-      if (
-
-        msg.includes("gold")
-
-        &&
-
-        text.includes("gold")
-
-      ) {
-
-        score += 50;
-
-      }
-
-      if (
-
-        msg.includes("silver")
-
-        &&
-
-        text.includes("silver")
-
-      ) {
-
-        score += 50;
 
       }
 
