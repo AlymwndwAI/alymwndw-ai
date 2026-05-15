@@ -56,12 +56,14 @@ margin-bottom:20px;
 
 .chat-box{
 
-height:600px;
+height:650px;
 overflow-y:auto;
 background:#181818;
 padding:15px;
 border-radius:24px;
 margin-bottom:15px;
+
+scroll-behavior:smooth;
 
 }
 
@@ -74,6 +76,22 @@ max-width:85%;
 line-height:1.8;
 white-space:pre-wrap;
 font-size:16px;
+
+animation:fade .25s ease;
+
+}
+
+@keyframes fade{
+
+from{
+opacity:0;
+transform:translateY(10px);
+}
+
+to{
+opacity:1;
+transform:translateY(0);
+}
 
 }
 
@@ -145,10 +163,13 @@ opacity:.9;
 background:#121212;
 border-radius:24px;
 padding:15px;
-margin-top:15px;
+margin-top:18px;
 overflow:hidden;
+
 border:
 1px solid rgba(255,255,255,.08);
+
+animation:fade .35s ease;
 
 }
 
@@ -157,6 +178,7 @@ border:
 width:100%;
 border-radius:18px;
 margin-bottom:15px;
+background:#000;
 
 }
 
@@ -171,9 +193,9 @@ line-height:1.5;
 
 .product-price{
 
-font-size:20px;
+font-size:22px;
 color:#18e0bd;
-margin-bottom:12px;
+margin-bottom:14px;
 font-weight:bold;
 
 }
@@ -189,7 +211,16 @@ margin-bottom:15px;
 .product-info{
 
 margin-bottom:8px;
-opacity:.85;
+opacity:.9;
+
+}
+
+.variant-box{
+
+background:#1d1d1d;
+padding:12px;
+border-radius:14px;
+margin-bottom:15px;
 
 }
 
@@ -223,6 +254,34 @@ font-weight:bold;
 border:none;
 border-radius:14px;
 cursor:pointer;
+
+}
+
+.loading{
+
+width:24px;
+height:24px;
+
+border:
+3px solid rgba(255,255,255,.15);
+
+border-top:
+3px solid #18e0bd;
+
+border-radius:50%;
+
+animation:
+spin .7s linear infinite;
+
+margin:auto;
+
+}
+
+@keyframes spin{
+
+100%{
+transform:rotate(360deg);
+}
 
 }
 
@@ -303,6 +362,98 @@ sendMessage();
 }
 
 // =====================
+// RENDER PRODUCTS
+// =====================
+
+function renderProducts(products){
+
+products.forEach((product)=>{
+
+const variant =
+product.variants?.[0];
+
+const image =
+variant?.image ||
+product.image;
+
+const variantTitle =
+variant?.title || "";
+
+const card =
+document.createElement("div");
+
+card.className =
+"product-card";
+
+card.innerHTML = `
+
+<img
+src="${image}"
+class="product-image"
+/>
+
+<div class="product-title">
+${product.title}
+</div>
+
+<div class="product-price">
+${product.price} AED
+</div>
+
+<div class="variant-box">
+
+<div class="product-info">
+💎 Metal:
+${product.metal}
+</div>
+
+<div class="product-info">
+✨ Stone:
+${product.stone}
+</div>
+
+<div class="product-info">
+🎨 Variant:
+${variantTitle}
+</div>
+
+</div>
+
+<div class="product-description">
+${product.description.slice(0,140)}...
+</div>
+
+<div class="product-buttons">
+
+<a
+href="${product.url}"
+target="_blank"
+class="view-btn"
+>
+View Product
+</a>
+
+<button
+class="cart-btn"
+onclick="window.open('${product.url}','_blank')"
+>
+Add To Cart
+</button>
+
+</div>
+
+`;
+
+chatBox.appendChild(card);
+
+});
+
+chatBox.scrollTop =
+chatBox.scrollHeight;
+
+}
+
+// =====================
 // SEND MESSAGE
 // =====================
 
@@ -329,10 +480,18 @@ input.value = "";
 // =====================
 
 const typing =
-addMessage(
-"Alymwndw AI is typing...",
-"ai typing"
-);
+document.createElement("div");
+
+typing.className =
+"message ai";
+
+typing.innerHTML =
+`<div class="loading"></div>`;
+
+chatBox.appendChild(typing);
+
+chatBox.scrollTop =
+chatBox.scrollHeight;
 
 // =====================
 // FETCH
@@ -360,13 +519,13 @@ await response.json();
 typing.remove();
 
 // =====================
-// AI REPLY
+// AI REPLY FIRST
 // =====================
 
 addMessage(data.reply,"ai");
 
 // =====================
-// PRODUCTS
+// THEN PRODUCTS
 // =====================
 
 if(
@@ -374,102 +533,15 @@ data.products &&
 data.products.length
 ){
 
-data.products.forEach((product)=>{
+setTimeout(()=>{
 
-// =====================
-// VARIANT
-// =====================
+renderProducts(
+data.products
+);
 
-const variant =
-product.variants?.[0];
-
-// =====================
-// IMAGE
-// =====================
-
-const image =
-variant?.image ||
-product.image;
-
-// =====================
-// VARIANT TITLE
-// =====================
-
-const variantTitle =
-variant?.title || "";
-
-// =====================
-// CARD
-// =====================
-
-const card =
-document.createElement("div");
-
-card.className =
-"product-card";
-
-card.innerHTML = `
-
-<img
-src="${image}"
-class="product-image"
-/>
-
-<div class="product-title">
-${product.title}
-</div>
-
-<div class="product-price">
-${product.price} AED
-</div>
-
-<div class="product-info">
-Metal:
-${product.metal}
-</div>
-
-<div class="product-info">
-Stone:
-${product.stone}
-</div>
-
-<div class="product-info">
-Variant:
-${variantTitle}
-</div>
-
-<div class="product-description">
-${product.description.slice(0,150)}...
-</div>
-
-<div class="product-buttons">
-
-<a
-href="${product.url}"
-target="_blank"
-class="view-btn"
->
-View Product
-</a>
-
-<button
-class="cart-btn"
->
-Add To Cart
-</button>
-
-</div>
-
-`;
-
-chatBox.appendChild(card);
-
-});
+},300);
 
 }
-
-chatBox.scrollTop =
-chatBox.scrollHeight;
 
 }
 
