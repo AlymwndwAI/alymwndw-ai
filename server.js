@@ -94,10 +94,57 @@ async function loadProducts() {
           ${p.title}
           ${p.body_html}
           ${p.tags}
+          ${p.product_type}
           ${(p.options || [])
             .map((o) => o.values?.join(" "))
             .join(" ")}
         `.toLowerCase();
+
+        // ======================
+        // PRODUCT TYPE
+        // ======================
+
+        let productType = "other";
+
+        if (
+          text.includes("ring")
+        ) {
+
+          productType = "ring";
+
+        }
+
+        else if (
+          text.includes("necklace")
+        ) {
+
+          productType = "necklace";
+
+        }
+
+        else if (
+          text.includes("earring")
+        ) {
+
+          productType = "earrings";
+
+        }
+
+        else if (
+          text.includes("bracelet")
+        ) {
+
+          productType = "bracelet";
+
+        }
+
+        else if (
+          text.includes("pendant")
+        ) {
+
+          productType = "pendant";
+
+        }
 
         // ======================
         // METAL DETECTION
@@ -305,6 +352,8 @@ async function loadProducts() {
           handle:
             p.handle,
 
+          productType,
+
           price:
             p.variants?.[0]?.price || "",
 
@@ -366,6 +415,7 @@ function searchProducts(message) {
         ${p.title}
         ${p.description}
         ${p.tags}
+        ${p.productType}
         ${p.metal}
         ${p.stone}
         ${p.colors.join(" ")}
@@ -386,6 +436,55 @@ function searchProducts(message) {
         }
 
       });
+
+      // ======================
+      // PRODUCT TYPE MATCH
+      // ======================
+
+      if (
+        msg.includes("ring") &&
+        p.productType === "ring"
+      ) {
+
+        score += 50;
+
+      }
+
+      if (
+        msg.includes("necklace") &&
+        p.productType === "necklace"
+      ) {
+
+        score += 50;
+
+      }
+
+      if (
+        msg.includes("earring") &&
+        p.productType === "earrings"
+      ) {
+
+        score += 50;
+
+      }
+
+      if (
+        msg.includes("bracelet") &&
+        p.productType === "bracelet"
+      ) {
+
+        score += 50;
+
+      }
+
+      if (
+        msg.includes("pendant") &&
+        p.productType === "pendant"
+      ) {
+
+        score += 50;
+
+      }
 
       // ======================
       // VARIANT SCORE
@@ -540,8 +639,6 @@ app.post("/chat", async (req, res) => {
     const message =
       req.body.message || "";
 
-    // refresh cache every 15 min
-
     if (
       Date.now() - lastUpdate >
       1000 * 60 * 15
@@ -562,10 +659,6 @@ app.post("/chat", async (req, res) => {
     const matchedProducts =
       searchProducts(message);
 
-    // ======================
-    // CLEAN PRODUCTS
-    // ======================
-
     const cleanProducts =
       matchedProducts.map((p) => ({
 
@@ -577,6 +670,9 @@ app.post("/chat", async (req, res) => {
 
         price:
           p.price,
+
+        productType:
+          p.productType,
 
         metal:
           p.metal,
@@ -599,10 +695,6 @@ app.post("/chat", async (req, res) => {
             : p.variants,
 
       }));
-
-    // ======================
-    // AI PROMPT
-    // ======================
 
     const systemPrompt = `
 
@@ -631,16 +723,13 @@ STRICT RULES:
 17- NEVER output raw image URLs.
 18- ALWAYS use variant data accurately.
 19- Recommend matching variant colors when possible.
+20- ALWAYS respect product type.
 
 AVAILABLE PRODUCTS:
 
 ${JSON.stringify(cleanProducts)}
 
 `;
-
-    // ======================
-    // OPENAI
-    // ======================
 
     const completion =
       await openai.chat.completions.create({
@@ -666,10 +755,6 @@ ${JSON.stringify(cleanProducts)}
         ],
 
       });
-
-    // ======================
-    // RESPONSE
-    // ======================
 
     res.json({
 
