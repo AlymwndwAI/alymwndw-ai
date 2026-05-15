@@ -228,10 +228,6 @@ function moissaniteFeatures(product) {
 
   };
 
-  // ========================================
-  // PRODUCT TYPE
-  // ========================================
-
   if (text.includes("ring")) {
 
     aiData.productType =
@@ -257,10 +253,6 @@ function moissaniteFeatures(product) {
 
   }
 
-  // ========================================
-  // TENNIS DETECTION
-  // ========================================
-
   if (
     text.includes("tennis")
   ) {
@@ -281,10 +273,6 @@ function moissaniteFeatures(product) {
     );
 
   }
-
-  // ========================================
-  // VARIANTS
-  // ========================================
 
   (product.variants || []).forEach((v) => {
 
@@ -374,10 +362,6 @@ function labDiamondFeatures(product) {
     variantMetalColors: [],
 
   };
-
-  // ========================================
-  // VARIANTS
-  // ========================================
 
   (product.variants || []).forEach((v) => {
 
@@ -479,10 +463,6 @@ function alphaGoldFeatures(product) {
 
   };
 
-  // ========================================
-  // LANGUAGES
-  // ========================================
-
   if (
     text.includes("arabic")
   ) {
@@ -508,10 +488,6 @@ function alphaGoldFeatures(product) {
     );
 
   }
-
-  // ========================================
-  // VARIANTS
-  // ========================================
 
   (product.variants || []).forEach((v) => {
 
@@ -785,13 +761,20 @@ async function fetchProducts() {
 
           "",
 
+        rawPrice:
+
+          variants?.[0]?.rawPrice ||
+
+          0,
+
         currency:
 
           variants?.[0]?.currency ||
 
           "AED",
 
-        reviewRating: 4.9,
+        reviewRating:
+          4.9,
 
         reviewCount:
           Math.floor(
@@ -803,19 +786,11 @@ async function fetchProducts() {
 
       };
 
-      // ========================================
-      // PRODUCT TEXT
-      // ========================================
-
       const text = `
         ${p.title}
         ${p.description}
         ${p.tags.join(" ")}
       `.toLowerCase();
-
-      // ========================================
-      // MAKE FOR YOU
-      // ========================================
 
       if (
 
@@ -830,10 +805,6 @@ async function fetchProducts() {
 
       }
 
-      // ========================================
-      // WEDDING
-      // ========================================
-
       if (
 
         text.includes("wedding") ||
@@ -847,10 +818,6 @@ async function fetchProducts() {
 
       }
 
-      // ========================================
-      // PEARL
-      // ========================================
-
       if (
         text.includes("pearl")
       ) {
@@ -859,10 +826,6 @@ async function fetchProducts() {
           pearlJewelryFeatures(product);
 
       }
-
-      // ========================================
-      // MOISSANITE
-      // ========================================
 
       if (
 
@@ -877,10 +840,6 @@ async function fetchProducts() {
 
       }
 
-      // ========================================
-      // LAB DIAMOND
-      // ========================================
-
       if (
 
         text.includes("lab grown diamond") ||
@@ -893,10 +852,6 @@ async function fetchProducts() {
           labDiamondFeatures(product);
 
       }
-
-      // ========================================
-      // ALPHA GOLD
-      // ========================================
 
       if (
 
