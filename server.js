@@ -65,10 +65,6 @@ async function aiRetrieveProducts(
   products
 ) {
 
-  // =========================
-  // FULL PRODUCT BRAIN
-  // =========================
-
   const slimProducts =
 
     products.map((p) => ({
@@ -86,16 +82,12 @@ async function aiRetrieveProducts(
         p.type,
 
       description:
-        p.description?.slice(0, 80),
+        p.description?.slice(0, 120),
 
       aiFeatures:
         p.aiFeatures,
 
     }));
-
-  // =========================
-  // AI RETRIEVAL
-  // =========================
 
   const completion =
 
@@ -118,30 +110,31 @@ async function aiRetrieveProducts(
 
 You are Alymwndw AI retrieval engine.
 
-You MUST use aiFeatures as the primary intelligence layer.
+Your job:
+Find the BEST matching jewelry products.
 
-Understand:
-- style
-- emotion
-- collection vibe
-- luxury mood
-- personalization
-- gifting
-- feminine style
-- old money
-- soft luxury
-- modern elegance
+IMPORTANT:
+- Use aiFeatures FIRST.
+- Understand luxury style.
+- Understand emotions.
+- Understand gifting intent.
+- Understand soft luxury.
+- Understand old money aesthetic.
+- Understand feminine elegant style.
+- Understand personalized jewelry.
+- Understand collections.
+- Understand custom jewelry.
 
-Do NOT rely only on titles.
+DO NOT rely only on titles.
 
-Choose products by:
+Use:
 - aiFeatures.styles
 - aiFeatures.intent
-- aiFeatures.emotionalTriggers
-- aiFeatures.collection
 - aiFeatures.category
 - aiFeatures.searchKeywords
+- aiFeatures.collection
 - aiFeatures.materials
+- aiFeatures.emotionalTriggers
 
 Return ONLY JSON:
 
@@ -168,20 +161,12 @@ ${JSON.stringify(slimProducts)}
 
     });
 
-  // =========================
-  // PARSE RESULTS
-  // =========================
-
   const data = JSON.parse(
 
     completion.choices[0]
       .message.content
 
   );
-
-  // =========================
-  // RETURN PRODUCTS
-  // =========================
 
   return data.matches
 
@@ -275,7 +260,6 @@ Summarize this jewelry conversation.
 Keep:
 - customer preferences
 - favorite styles
-- budget
 - gifting intent
 - personalization requests
 - luxury taste
@@ -314,14 +298,61 @@ Keep:
     }
 
     // =========================
-    // PRODUCT RETRIEVAL
+    // AI PRODUCT RETRIEVAL
     // =========================
 
-    const matchedProducts =
+    let matchedProducts =
       await aiRetrieveProducts(
         userMessage,
         products
       );
+
+    // =========================
+    // FALLBACK SEARCH
+    // =========================
+
+    if (
+      matchedProducts.length === 0
+    ) {
+
+      const msg =
+        userMessage.toLowerCase();
+
+      const fallback =
+        products.filter((p) => {
+
+          const text = `
+            ${p.title || ""}
+            ${p.description || ""}
+            ${p.type || ""}
+            ${
+              p.aiFeatures
+                ?.searchKeywords
+                ?.join(" ") || ""
+            }
+            ${
+              p.aiFeatures
+                ?.styles
+                ?.join(" ") || ""
+            }
+            ${
+              p.aiFeatures
+                ?.category || ""
+            }
+            ${
+              p.aiFeatures
+                ?.collection || ""
+            }
+          `.toLowerCase();
+
+          return text.includes(msg);
+
+        });
+
+      matchedProducts =
+        fallback.slice(0, 4);
+
+    }
 
     // =========================
     // NO PRODUCTS
@@ -357,6 +388,8 @@ Keep:
           p.variants?.[0]
             ?.price ||
 
+          p.price ||
+
           "N/A",
 
         collection:
@@ -375,10 +408,6 @@ Keep:
           p.aiFeatures
             ?.materials,
 
-        intent:
-          p.aiFeatures
-            ?.intent,
-
         emotionalTriggers:
           p.aiFeatures
             ?.emotionalTriggers,
@@ -395,7 +424,7 @@ Keep:
       ].slice(-8);
 
     // =========================
-    // MAIN AI RESPONSE
+    // MAIN AI
     // =========================
 
     const completion =
@@ -403,7 +432,7 @@ Keep:
 
         model: "gpt-4.1-mini",
 
-        temperature: 0.9,
+        temperature: 0.8,
 
         messages: [
 
@@ -414,36 +443,20 @@ Keep:
 
 You are Alymwndw AI.
 
-You are a highly intelligent luxury jewelry advisor.
-
-You speak naturally like ChatGPT,
-but specialized in luxury jewelry.
-
-You are:
-- conversational
-- emotionally intelligent
-- elegant
-- persuasive
-- warm
-- premium
-- fashionable
-- human-like
+You are a luxury jewelry stylist and sales expert.
 
 IMPORTANT:
-
-- Talk naturally.
-- Continue conversations naturally.
-- Never sound robotic.
-- Ask smart follow-up questions.
-- Understand luxury fashion deeply.
-- Recommend jewelry naturally.
-- Mention luxury emotions naturally.
-- Keep replies elegant and concise.
-- Arabic must feel natural and premium.
-- English must feel premium and elegant.
+- Speak naturally like ChatGPT.
+- Be elegant and premium.
+- Be emotionally intelligent.
+- Keep replies concise.
+- Arabic must sound luxurious.
 - NEVER invent products.
 - ONLY use AVAILABLE PRODUCTS.
-- Frontend displays products separately.
+- Recommend products naturally.
+- Frontend already displays products separately.
+- Do not dump product lists.
+- Focus on helping customer choose.
 
 Customer Memory:
 
