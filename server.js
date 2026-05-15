@@ -87,6 +87,10 @@ async function loadProducts() {
 
     }
 
+    // ======================
+    // BUILD PRODUCT BRAIN
+    // ======================
+
     productsCache =
       allProducts.map((p) => {
 
@@ -95,19 +99,49 @@ async function loadProducts() {
           ${p.body_html}
           ${p.tags}
           ${p.product_type}
+          ${p.handle}
           ${(p.options || [])
             .map((o) => o.values?.join(" "))
             .join(" ")}
         `.toLowerCase();
 
         // ======================
-        // PRODUCT TYPE
+        // SMART PRODUCT TYPE
         // ======================
 
         let productType = "other";
 
+        const ringWords = [
+          "ring",
+          "rings",
+        ];
+
+        const necklaceWords = [
+          "necklace",
+          "necklaces",
+          "chain",
+        ];
+
+        const earringWords = [
+          "earring",
+          "earrings",
+        ];
+
+        const braceletWords = [
+          "bracelet",
+          "bracelets",
+          "bangle",
+        ];
+
+        const pendantWords = [
+          "pendant",
+          "pendants",
+        ];
+
         if (
-          text.includes("ring")
+          ringWords.some(word =>
+            text.includes(word)
+          )
         ) {
 
           productType = "ring";
@@ -115,7 +149,9 @@ async function loadProducts() {
         }
 
         else if (
-          text.includes("necklace")
+          necklaceWords.some(word =>
+            text.includes(word)
+          )
         ) {
 
           productType = "necklace";
@@ -123,7 +159,9 @@ async function loadProducts() {
         }
 
         else if (
-          text.includes("earring")
+          earringWords.some(word =>
+            text.includes(word)
+          )
         ) {
 
           productType = "earrings";
@@ -131,7 +169,9 @@ async function loadProducts() {
         }
 
         else if (
-          text.includes("bracelet")
+          braceletWords.some(word =>
+            text.includes(word)
+          )
         ) {
 
           productType = "bracelet";
@@ -139,7 +179,9 @@ async function loadProducts() {
         }
 
         else if (
-          text.includes("pendant")
+          pendantWords.some(word =>
+            text.includes(word)
+          )
         ) {
 
           productType = "pendant";
@@ -248,7 +290,7 @@ async function loadProducts() {
         });
 
         // ======================
-        // IMAGES
+        // MAIN IMAGE
         // ======================
 
         const mainImage =
@@ -284,6 +326,10 @@ async function loadProducts() {
 
             let variantImage =
               mainImage;
+
+            // ======================
+            // IMAGE ID MATCH
+            // ======================
 
             if (
               v.image_id
@@ -422,7 +468,7 @@ function searchProducts(message) {
       `.toLowerCase();
 
       // ======================
-      // PRODUCT SCORE
+      // KEYWORD SCORE
       // ======================
 
       keywords.forEach((word) => {
@@ -438,7 +484,7 @@ function searchProducts(message) {
       });
 
       // ======================
-      // PRODUCT TYPE MATCH
+      // PRODUCT TYPE SCORE
       // ======================
 
       if (
@@ -528,7 +574,7 @@ function searchProducts(message) {
       });
 
       // ======================
-      // EXTRA SMART MATCHING
+      // METAL MATCH
       // ======================
 
       if (
@@ -536,7 +582,7 @@ function searchProducts(message) {
         p.metal === "Gold"
       ) {
 
-        score += 10;
+        score += 20;
 
       }
 
@@ -545,7 +591,7 @@ function searchProducts(message) {
         p.metal === "Silver"
       ) {
 
-        score += 10;
+        score += 20;
 
       }
 
@@ -554,16 +600,20 @@ function searchProducts(message) {
         p.metal === "Platinum"
       ) {
 
-        score += 10;
+        score += 20;
 
       }
+
+      // ======================
+      // STONE MATCH
+      // ======================
 
       if (
         msg.includes("moissanite") &&
         p.stone === "Moissanite"
       ) {
 
-        score += 10;
+        score += 20;
 
       }
 
@@ -572,7 +622,7 @@ function searchProducts(message) {
         p.stone === "Diamond"
       ) {
 
-        score += 10;
+        score += 20;
 
       }
 
@@ -589,7 +639,7 @@ function searchProducts(message) {
     });
 
   // ======================
-  // SORT
+  // FILTER + SORT
   // ======================
 
   scoredProducts =
@@ -639,6 +689,10 @@ app.post("/chat", async (req, res) => {
     const message =
       req.body.message || "";
 
+    // ======================
+    // REFRESH CACHE
+    // ======================
+
     if (
       Date.now() - lastUpdate >
       1000 * 60 * 15
@@ -656,8 +710,16 @@ app.post("/chat", async (req, res) => {
 
     }
 
+    // ======================
+    // SEARCH
+    // ======================
+
     const matchedProducts =
       searchProducts(message);
+
+    // ======================
+    // CLEAN PRODUCTS
+    // ======================
 
     const cleanProducts =
       matchedProducts.map((p) => ({
@@ -668,11 +730,11 @@ app.post("/chat", async (req, res) => {
         description:
           p.description,
 
-        price:
-          p.price,
-
         productType:
           p.productType,
+
+        price:
+          p.price,
 
         metal:
           p.metal,
@@ -696,6 +758,10 @@ app.post("/chat", async (req, res) => {
 
       }));
 
+    // ======================
+    // AI PROMPT
+    // ======================
+
     const systemPrompt = `
 
 You are Alymwndw Jewellery AI.
@@ -713,23 +779,29 @@ STRICT RULES:
 7- ONLY recommend existing products.
 8- Use ONLY provided products.
 9- Speak naturally and elegantly.
-10- Upsell smartly.
-11- If user speaks Arabic answer Arabic.
-12- Mention price when useful.
-13- Mention metal and stone accurately.
-14- If unavailable politely say unavailable.
-15- Recommend closest alternatives if needed.
-16- NEVER output markdown image syntax.
-17- NEVER output raw image URLs.
-18- ALWAYS use variant data accurately.
-19- Recommend matching variant colors when possible.
+10- Keep replies shorter and luxury.
+11- Upsell smartly.
+12- If user speaks Arabic answer Arabic.
+13- Mention price when useful.
+14- Mention metal and stone accurately.
+15- If unavailable politely say unavailable.
+16- Recommend closest alternatives if needed.
+17- NEVER output markdown image syntax.
+18- NEVER output raw image URLs.
+19- ALWAYS use variant data accurately.
 20- ALWAYS respect product type.
+21- NEVER recommend necklaces when user asks for rings.
+22- NEVER recommend earrings when user asks for bracelets.
 
 AVAILABLE PRODUCTS:
 
 ${JSON.stringify(cleanProducts)}
 
 `;
+
+    // ======================
+    // OPENAI
+    // ======================
 
     const completion =
       await openai.chat.completions.create({
@@ -755,6 +827,10 @@ ${JSON.stringify(cleanProducts)}
         ],
 
       });
+
+    // ======================
+    // RESPONSE
+    // ======================
 
     res.json({
 
