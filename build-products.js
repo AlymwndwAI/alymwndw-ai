@@ -7,188 +7,255 @@ dotenv.config();
 const SHOP = process.env.SHOPIFY_STORE;
 const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
-const PRODUCTS_URL = `https://${SHOP}/admin/api/2024-01/products.json?limit=250`;
+// ========================================
+// SHOPIFY GRAPHQL REQUEST
+// ========================================
 
-function cleanHTML(html) {
-  return html
-    ?.replace(/<[^>]*>/g, "")
-    ?.replace(/\s+/g, " ")
-    ?.trim() || "";
-}
+async function shopifyQuery(query) {
 
-function detectType(product) {
-  const text = `
-    ${product.title}
-    ${product.product_type}
-    ${product.tags}
-  `.toLowerCase();
+  const response = await fetch(
+    `https://${SHOP}/admin/api/2025-01/graphql.json`,
+    {
+      method: "POST",
 
-  if (text.includes("ring")) return "ring";
-  if (text.includes("necklace")) return "necklace";
-  if (text.includes("earring")) return "earring";
-  if (text.includes("bracelet")) return "bracelet";
-  if (text.includes("tennis")) return "tennis";
-  return "jewelry";
-}
-
-function detectMaterials(product) {
-  const text = `
-    ${product.title}
-    ${product.body_html}
-    ${product.tags}
-  `.toLowerCase();
-
-  const materials = [];
-
-  if (text.includes("gold")) materials.push("gold");
-  if (text.includes("silver")) materials.push("silver");
-  if (text.includes("platinum")) materials.push("platinum");
-
-  return materials;
-}
-
-function detectStones(product) {
-  const text = `
-    ${product.title}
-    ${product.body_html}
-    ${product.tags}
-  `.toLowerCase();
-
-  const stones = [];
-
-  if (text.includes("moissanite"))
-    stones.push("moissanite");
-
-  if (text.includes("diamond"))
-    stones.push("diamond");
-
-  if (text.includes("ruby"))
-    stones.push("ruby");
-
-  if (text.includes("emerald"))
-    stones.push("emerald");
-
-  if (text.includes("sapphire"))
-    stones.push("sapphire");
-
-  return stones;
-}
-
-function detectColors(product) {
-  const text = `
-    ${product.title}
-    ${product.body_html}
-    ${product.tags}
-  `.toLowerCase();
-
-  const colors = [];
-
-  if (text.includes("red")) colors.push("red");
-  if (text.includes("blue")) colors.push("blue");
-  if (text.includes("green")) colors.push("green");
-  if (text.includes("yellow")) colors.push("yellow");
-  if (text.includes("white")) colors.push("white");
-  if (text.includes("black")) colors.push("black");
-  if (text.includes("rose gold"))
-    colors.push("rose gold");
-
-  return colors;
-}
-
-async function buildProductBrain() {
-  try {
-    console.log("LOADING PRODUCTS...");
-
-    const response = await fetch(PRODUCTS_URL, {
       headers: {
+        "Content-Type": "application/json",
         "X-Shopify-Access-Token": TOKEN,
       },
-    });
 
-    const data = await response.json();
+      body: JSON.stringify({ query }),
+    }
+  );
 
-    const products = data.products || [];
+  const json = await response.json();
 
-    console.log(
-      `FOUND ${products.length} PRODUCTS`
-    );
+  if (json.errors) {
 
-    const brain = products.map((product) => {
-      const variants = product.variants.map(
-        (variant) => ({
-          id: variant.id,
-          title: variant.title,
-          price: variant.price,
-          sku: variant.sku,
-          option1: variant.option1,
-          option2: variant.option2,
-          option3: variant.option3,
-        })
-      );
+    console.log("================================");
+    console.log("SHOPIFY ERRORS");
+    console.log("================================");
 
-      return {
-        id: product.id,
-
-        title: product.title,
-
-        description: cleanHTML(
-          product.body_html
-        ),
-
-        type: detectType(product),
-
-        materials: detectMaterials(product),
-
-        stones: detectStones(product),
-
-        colors: detectColors(product),
-
-        tags: product.tags
-          ?.split(",")
-          ?.map((t) => t.trim().toLowerCase()),
-
-        handle: product.handle,
-
-        url: `https://${SHOP}/products/${product.handle}`,
-
-        image:
-          product.images?.[0]?.src || "",
-
-        images:
-          product.images?.map(
-            (img) => img.src
-          ) || [],
-
-        price:
-          product.variants?.[0]?.price || 0,
-
-        variants,
-
-        options: product.options || [],
-
-        vendor: product.vendor,
-
-        product_type: product.product_type,
-
-        created_at: product.created_at,
-      };
-    });
-
-    fs.writeFileSync(
-      "./public/products-brain.json",
-      JSON.stringify(brain, null, 2)
-    );
-
-    console.log("PRODUCT BRAIN BUILT ✅");
-    console.log(
-      `TOTAL PRODUCTS: ${brain.length}`
-    );
-  } catch (err) {
-    console.error(
-      "ERROR BUILDING PRODUCT BRAIN",
-      err
-    );
+    console.log(json.errors);
   }
+
+  return json;
 }
 
-buildProductBrain();
+// ========================================
+// FETCH ALL PRODUCTS
+// ========================================
+
+async function fetchAllProducts() {
+
+  let allProducts = [];
+
+  let hasNextPage = true;
+
+  let cursor = null;
+
+  while (hasNextPage) {
+
+    console.log("================================");
+    console.log("FETCHING NEXT 250 PRODUCTS...");
+    console.log("CURRENT TOTAL:", allProducts.length);
+    console.log("================================");
+
+    const query = `
+    {
+      products(first: 250 ${cursor ? `, after: "${cursor}"` : ""}) {
+
+        pageInfo {
+          hasNextPage
+        }
+
+        edges {
+
+          cursor
+
+          node {
+
+            id
+
+            title
+
+            handle
+
+            description
+
+            productType
+
+            vendor
+
+            tags
+
+            images(first: 20) {
+
+              edges {
+
+                node {
+
+                  url
+
+                  altText
+                }
+              }
+            }
+
+            variants(first: 100) {
+
+              edges {
+
+                node {
+
+                  id
+
+                  title
+
+                  price
+
+                  sku
+
+                  availableForSale
+
+                  selectedOptions {
+
+                    name
+
+                    value
+                  }
+
+                  image {
+
+                    url
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    `;
+
+    const data = await shopifyQuery(query);
+
+    if (!data.data) {
+
+      console.log("NO DATA RETURNED");
+
+      break;
+    }
+
+    const products = data.data.products.edges;
+
+    for (const item of products) {
+
+      const p = item.node;
+
+      // ==============================
+      // PRODUCT IMAGES
+      // ==============================
+
+      const images = p.images.edges.map((img) => ({
+        url: img.node.url,
+        alt: img.node.altText || "",
+      }));
+
+      // ==============================
+      // PRODUCT VARIANTS
+      // ==============================
+
+      const variants = p.variants.edges.map((v) => ({
+
+        id: v.node.id,
+
+        title: v.node.title,
+
+        price: v.node.price,
+
+        sku: v.node.sku,
+
+        available: v.node.availableForSale,
+
+        image:
+          v.node.image?.url ||
+          images[0]?.url ||
+          "",
+
+        options: v.node.selectedOptions,
+      }));
+
+      // ==============================
+      // FINAL PRODUCT OBJECT
+      // ==============================
+
+      const product = {
+
+        id: p.id,
+
+        title: p.title,
+
+        handle: p.handle,
+
+        description: p.description,
+
+        type: p.productType,
+
+        vendor: p.vendor,
+
+        tags: p.tags,
+
+        image:
+          images[0]?.url || "",
+
+        images,
+
+        variants,
+      };
+
+      allProducts.push(product);
+    }
+
+    hasNextPage = data.data.products.pageInfo.hasNextPage;
+
+    if (hasNextPage && products.length > 0) {
+
+      cursor = products[products.length - 1].cursor;
+    }
+
+    console.log("TOTAL LOADED:", allProducts.length);
+  }
+
+  return allProducts;
+}
+
+// ========================================
+// BUILD PRODUCT BRAIN
+// ========================================
+
+async function buildBrain() {
+
+  console.log("================================");
+  console.log("STARTING ALYMWNDW PRODUCT BRAIN");
+  console.log("================================");
+
+  const products = await fetchAllProducts();
+
+  fs.writeFileSync(
+    "./public/products-brain.json",
+    JSON.stringify(products, null, 2)
+  );
+
+  console.log("================================");
+  console.log("PRODUCT BRAIN COMPLETE");
+  console.log("TOTAL PRODUCTS:", products.length);
+  console.log("FILE SAVED:");
+  console.log("./public/products-brain.json");
+  console.log("================================");
+}
+
+// ========================================
+// RUN
+// ========================================
+
+buildBrain();
