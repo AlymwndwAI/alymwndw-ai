@@ -10,10 +10,14 @@ const app = express();
 app.use(express.json());
 app.use(express.static("public"));
 
-const PORT = process.env.PORT || 10000;
+const PORT =
+  process.env.PORT || 10000;
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+
+  apiKey:
+    process.env.OPENAI_API_KEY,
+
 });
 
 const SHOP =
@@ -414,10 +418,6 @@ async function loadProducts() {
                 }
               );
 
-              // ======================
-              // VARIANT IMAGE
-              // ======================
-
               let variantImage =
                 mainImage;
 
@@ -478,10 +478,6 @@ async function loadProducts() {
                 }
 
               }
-
-              // ======================
-              // SEARCH TEXT
-              // ======================
 
               const searchText = `
 
@@ -679,17 +675,13 @@ function searchProducts(message) {
     }
   );
 
-  // ======================
-  // KEYWORDS
-  // ======================
-
   const keywords =
     msg
       .split(" ")
       .filter(Boolean);
 
   // ======================
-  // DETECT PRODUCT TYPE
+  // DETECT TYPE
   // ======================
 
   let requestedType =
@@ -794,8 +786,6 @@ function searchProducts(message) {
 
       `.toLowerCase();
 
-      // PRODUCT SCORE
-
       keywords.forEach((word) => {
 
         if (
@@ -899,9 +889,7 @@ function searchProducts(message) {
 
       }
 
-      // ======================
       // VARIANTS
-      // ======================
 
       let matchedVariants =
         [];
@@ -932,8 +920,6 @@ function searchProducts(message) {
 
           }
         );
-
-        // MATCHED VARIANT
 
         if (
           variantScore > 0
@@ -988,8 +974,6 @@ function searchProducts(message) {
 
     });
 
-  // FILTER
-
   scoredProducts =
     scoredProducts
       .filter(
@@ -1001,8 +985,6 @@ function searchProducts(message) {
           b.score -
           a.score
       );
-
-  // FALLBACK
 
   if (
     scoredProducts.length === 0
@@ -1044,9 +1026,7 @@ app.post(
         req.body.message ||
         "";
 
-      // ======================
       // GREETINGS
-      // ======================
 
       const greetings = [
 
@@ -1083,9 +1063,7 @@ app.post(
 
       }
 
-      // ======================
       // REFRESH CACHE
-      // ======================
 
       if (
 
@@ -1110,18 +1088,14 @@ app.post(
 
       }
 
-      // ======================
       // SEARCH
-      // ======================
 
       const matchedProducts =
         searchProducts(
           message
         );
 
-      // ======================
       // CLEAN PRODUCTS
-      // ======================
 
       const cleanProducts =
         matchedProducts.map(
@@ -1165,9 +1139,7 @@ app.post(
           })
         );
 
-      // ======================
       // AI PROMPT
-      // ======================
 
       const systemPrompt = `
 
@@ -1196,9 +1168,7 @@ ${JSON.stringify(
 
 `;
 
-      // ======================
       // OPENAI
-      // ======================
 
       const completion =
         await openai.chat.completions.create(
@@ -1221,6 +1191,9 @@ ${JSON.stringify(
 
               },
 
+              // IMPORTANT
+              // SEND ORIGINAL MESSAGE
+
               {
                 role:
                   "user",
@@ -1235,9 +1208,7 @@ ${JSON.stringify(
           }
         );
 
-      // ======================
       // RESPONSE
-      // ======================
 
       res.json({
 
