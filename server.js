@@ -6,7 +6,7 @@ import fs from "fs";
 dotenv.config();
 
 // ======================
-// APP
+// EXPRESS
 // ======================
 
 const app = express();
@@ -33,114 +33,52 @@ const openai =
   });
 
 // ======================
-// LOAD PRODUCT BRAIN
+// LOAD PRODUCTS
 // ======================
 
-const productsCache =
-  JSON.parse(
+let products = [];
 
-    fs.readFileSync(
-      "./products.json",
-      "utf8"
-    )
+try {
 
+  products =
+    JSON.parse(
+
+      fs.readFileSync(
+        "products.json",
+        "utf8"
+      )
+
+    );
+
+  console.log(
+    "PRODUCT BRAIN LOADED:",
+    products.length
   );
 
-console.log(
+} catch (e) {
 
-  "PRODUCT BRAIN LOADED:",
+  console.log(
+    "NO PRODUCTS.JSON FOUND"
+  );
 
-  productsCache.length
-
-);
+}
 
 // ======================
-// NORMALIZE ARABIC
+// NORMALIZE
 // ======================
 
-function normalizeArabic(text){
+function normalize(text = "") {
 
-  let msg =
-    text.toLowerCase();
+  return text
+    .toLowerCase()
 
-  const map = {
+    .replaceAll("أ", "ا")
+    .replaceAll("إ", "ا")
+    .replaceAll("آ", "ا")
+    .replaceAll("ة", "ه")
+    .replaceAll("ى", "ي")
 
-    // RINGS
-
-    "خاتم":"ring",
-    "خواتم":"ring",
-    "دبلة":"ring",
-    "محبس":"ring",
-    "سوليتير":"solitaire ring",
-
-    // NECKLACES
-
-    "سلسلة":"necklace",
-    "عقد":"necklace",
-    "قلادة":"necklace",
-
-    // EARRINGS
-
-    "حلق":"earring",
-    "اقراط":"earring",
-    "أقراط":"earring",
-
-    // BRACELETS
-
-    "اسورة":"bracelet",
-    "سوار":"bracelet",
-
-    // STONES
-
-    "موزانيت":"moissanite",
-    "مويسانيت":"moissanite",
-
-    "الماس":"diamond",
-    "دايموند":"diamond",
-
-    "ياقوت":"ruby",
-
-    "حجر احمر":"ruby",
-    "حجر أحمر":"ruby",
-
-    // METALS
-
-    "ذهب":"gold",
-
-    "ذهب ابيض":"white gold",
-    "ذهب أبيض":"white gold",
-
-    "ذهب اصفر":"yellow gold",
-
-    "روز جولد":"rose gold",
-
-    // COLORS
-
-    "احمر":"red",
-    "أحمر":"red",
-
-    "ازرق":"blue",
-    "أزرق":"blue",
-
-    "اخضر":"green",
-    "أخضر":"green",
-
-    "ابيض":"white",
-    "أبيض":"white",
-
-    "اسود":"black",
-
-  };
-
-  Object.entries(map)
-  .forEach(([ar,en])=>{
-
-    msg =
-      msg.replaceAll(ar,en);
-
-  });
-
-  return msg;
+    .trim();
 
 }
 
@@ -148,69 +86,101 @@ function normalizeArabic(text){
 // SEARCH
 // ======================
 
-function semanticSearch(message){
+function searchProducts(message) {
 
   const msg =
-    normalizeArabic(message);
+    normalize(message);
 
-  const words =
-    msg
+  // ======================
+  // ARABIC MAP
+  // ======================
+
+  const arabicMap = {
+
+    "خاتم": "ring",
+    "خواتم": "ring",
+    "دبله": "ring",
+
+    "عقد": "necklace",
+    "سلسله": "necklace",
+
+    "حلق": "earring",
+
+    "ذهب": "gold",
+    "فضه": "silver",
+
+    "موزنايت": "moissanite",
+    "مويسانيت": "moissanite",
+
+    "الماس": "diamond",
+
+    "احمر": "ruby",
+
+  };
+
+  let finalMsg = msg;
+
+  Object.entries(
+    arabicMap
+  ).forEach(([ar, en]) => {
+
+    finalMsg =
+      finalMsg.replaceAll(
+        ar,
+        en
+      );
+
+  });
+
+  const keywords =
+    finalMsg
       .split(" ")
       .filter(Boolean);
-
-  // ======================
-  // REQUESTED TYPE
-  // ======================
 
   let requestedType =
     "";
 
-  if(
+  // ======================
+  // TYPE DETECTION
+  // ======================
 
-    msg.includes("ring") ||
-    msg.includes("solitaire") ||
-    msg.includes("engagement")
-
-  ){
+  if (
+    finalMsg.includes("ring")
+  ) {
 
     requestedType =
       "ring";
 
   }
 
-  if(
-    msg.includes("necklace")
-  ){
+  if (
+    finalMsg.includes(
+      "necklace"
+    )
+  ) {
 
     requestedType =
       "necklace";
 
   }
 
-  if(
-    msg.includes("earring")
-  ){
+  if (
+    finalMsg.includes(
+      "earring"
+    )
+  ) {
 
     requestedType =
-      "earrings";
-
-  }
-
-  if(
-    msg.includes("bracelet")
-  ){
-
-    requestedType =
-      "bracelet";
+      "earring";
 
   }
 
   // ======================
-  // SCORE PRODUCTS
+  // SCORE
   // ======================
 
-  let results =
-    productsCache.map((p)=>{
+  let scoredProducts =
+    products.map((p) => {
 
       let score = 0;
 
@@ -218,20 +188,15 @@ function semanticSearch(message){
       // HARD FILTER
       // ======================
 
-      if(
-
+      if (
         requestedType &&
         p.productType !==
           requestedType
-
-      ){
+      ) {
 
         return {
 
           ...p,
-
-          matchedVariants:
-            [],
 
           score: -999,
 
@@ -240,45 +205,368 @@ function semanticSearch(message){
       }
 
       // ======================
-      // PRODUCT TEXT
+      // PRODUCT SCORE
       // ======================
 
-      const productText = `
+      keywords.forEach((k) => {
 
-${p.title}
-${p.description}
-${p.tags}
-${p.productType}
-${p.metal}
-${p.stone}
-${p.colors?.join(" ")}
+        if (
+          p.searchText.includes(k)
+        ) {
 
-`
-      .toLowerCase();
-
-      // ======================
-      // WORD MATCH
-      // ======================
-
-      words.forEach((w)=>{
-
-        if(
-
-          w.length > 2 &&
-          productText.includes(w)
-
-        ){
-
-          score += 15;
+          score += 10;
 
         }
 
       });
 
       // ======================
-      // PRODUCT TYPE BOOST
+      // TYPE BOOST
       // ======================
 
-      if(
+      if (
+        requestedType &&
+        p.productType ===
+          requestedType
+      ) {
 
-        requested
+        score += 100;
+
+      }
+
+      // ======================
+      // VARIANTS
+      // ======================
+
+      let matchedVariants =
+        [];
+
+      (
+        p.variants || []
+      ).forEach((v) => {
+
+        let variantScore =
+          0;
+
+        keywords.forEach(
+          (k) => {
+
+            if (
+              v.searchText.includes(
+                k
+              )
+            ) {
+
+              variantScore +=
+                30;
+
+            }
+
+          }
+        );
+
+        if (
+          variantScore > 0
+        ) {
+
+          matchedVariants.push({
+
+            ...v,
+
+            variantScore,
+
+          });
+
+          score +=
+            variantScore;
+
+        }
+
+      });
+
+      matchedVariants.sort(
+        (a, b) =>
+          b.variantScore -
+          a.variantScore
+      );
+
+      return {
+
+        ...p,
+
+        matchedVariants,
+
+        score,
+
+      };
+
+    });
+
+  // ======================
+  // FILTER + SORT
+  // ======================
+
+  scoredProducts =
+    scoredProducts
+
+      .filter(
+        (p) =>
+          p.score > 0
+      )
+
+      .sort(
+        (a, b) =>
+          b.score -
+          a.score
+      );
+
+  return scoredProducts.slice(
+    0,
+    4
+  );
+
+}
+
+// ======================
+// CHAT
+// ======================
+
+app.post(
+  "/chat",
+
+  async (req, res) => {
+
+    try {
+
+      const message =
+        req.body.message || "";
+
+      // ======================
+      // GREETINGS
+      // ======================
+
+      const greetings = [
+
+        "hi",
+        "hello",
+        "hey",
+
+        "مرحبا",
+        "اهلا",
+        "هلا",
+        "هاي",
+
+      ];
+
+      if (
+
+        greetings.includes(
+          normalize(message)
+        )
+
+      ) {
+
+        return res.json({
+
+          reply:
+            "Welcome to Alymwndw Jewellery 💎",
+
+          products: [],
+
+        });
+
+      }
+
+      // ======================
+      // SEARCH
+      // ======================
+
+      const matchedProducts =
+        searchProducts(
+          message
+        );
+
+      // ======================
+      // NO PRODUCTS
+      // ======================
+
+      if (
+        matchedProducts.length ===
+        0
+      ) {
+
+        return res.json({
+
+          reply:
+
+            normalize(message)
+              .match(/[ء-ي]/)
+
+              ?
+
+              "لم اجد منتجات مطابقة حاليا"
+
+              :
+
+              "No matching products found",
+
+          products: [],
+
+        });
+
+      }
+
+      // ======================
+      // CLEAN PRODUCTS
+      // ======================
+
+      const cleanProducts =
+        matchedProducts.map(
+          (p) => ({
+
+            title:
+              p.title,
+
+            description:
+              p.description,
+
+            price:
+              p.variants?.[0]
+                ?.price || "",
+
+            image:
+              p.variants?.[0]
+                ?.image ||
+              p.image,
+
+            metal:
+              p.metal,
+
+            stone:
+              p.stone,
+
+            url:
+              p.url,
+
+            variants:
+              p.matchedVariants
+                ?.length
+
+                ?
+
+                p.matchedVariants
+
+                :
+
+                p.variants,
+
+          })
+        );
+
+      // ======================
+      // AI
+      // ======================
+
+      const completion =
+        await openai.chat.completions.create({
+
+          model:
+            "gpt-4.1-mini",
+
+          temperature:
+            0.2,
+
+          messages: [
+
+            {
+
+              role:
+                "system",
+
+              content: `
+
+You are Alymwndw Jewellery AI.
+
+STRICT RULES:
+
+1- NEVER invent products.
+2- ONLY recommend provided products.
+3- NEVER recommend necklaces when user asks for rings.
+4- NEVER lie about products.
+5- Answer same language as user.
+6- Be elegant and luxury.
+
+AVAILABLE PRODUCTS:
+
+${JSON.stringify(cleanProducts)}
+
+              `,
+
+            },
+
+            {
+
+              role:
+                "user",
+
+              content:
+                message,
+
+            },
+
+          ],
+
+        });
+
+      // ======================
+      // RESPONSE
+      // ======================
+
+      res.json({
+
+        reply:
+          completion
+            .choices[0]
+            .message
+            .content,
+
+        products:
+          cleanProducts,
+
+      });
+
+    } catch (error) {
+
+      console.log(error);
+
+      res.json({
+
+        reply:
+          "AI Error",
+
+        products: [],
+
+      });
+
+    }
+
+  }
+);
+
+// ======================
+// START
+// ======================
+
+app.listen(
+
+  PORT,
+
+  () => {
+
+    console.log(
+      "ALYMWNDW AI RUNNING"
+    );
+
+  }
+
+);
