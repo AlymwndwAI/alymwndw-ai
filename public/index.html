@@ -36,6 +36,7 @@ padding:20px;
 .container{
 
 width:430px;
+max-width:100%;
 background:#101010;
 border-radius:30px;
 padding:20px;
@@ -47,7 +48,7 @@ box-shadow:
 
 .logo{
 
-font-size:40px;
+font-size:38px;
 font-weight:bold;
 text-align:center;
 margin-bottom:20px;
@@ -106,13 +107,6 @@ margin-left:auto;
 .ai{
 
 background:#262626;
-
-}
-
-.typing{
-
-opacity:.7;
-font-style:italic;
 
 }
 
@@ -176,6 +170,9 @@ animation:fade .35s ease;
 .product-image{
 
 width:100%;
+height:300px;
+object-fit:cover;
+
 border-radius:18px;
 margin-bottom:15px;
 background:#000;
@@ -184,16 +181,21 @@ background:#000;
 
 .product-title{
 
-font-size:22px;
+font-size:20px;
 font-weight:bold;
 margin-bottom:10px;
-line-height:1.5;
+line-height:1.4;
+
+display:-webkit-box;
+-webkit-line-clamp:2;
+-webkit-box-orient:vertical;
+overflow:hidden;
 
 }
 
 .product-price{
 
-font-size:22px;
+font-size:28px;
 color:#18e0bd;
 margin-bottom:14px;
 font-weight:bold;
@@ -202,9 +204,10 @@ font-weight:bold;
 
 .product-description{
 
-opacity:.8;
+opacity:.75;
 line-height:1.7;
 margin-bottom:15px;
+font-size:14px;
 
 }
 
@@ -217,10 +220,13 @@ opacity:.9;
 
 .variant-box{
 
-background:#1d1d1d;
-padding:12px;
+background:#1a1a1a;
+padding:12px 14px;
 border-radius:14px;
 margin-bottom:15px;
+
+font-size:14px;
+opacity:.92;
 
 }
 
@@ -320,6 +326,10 @@ Send
 
 <script>
 
+// =====================
+// CHAT BOX
+// =====================
+
 const chatBox =
 document.getElementById("chat-box");
 
@@ -378,13 +388,35 @@ variant.image ||
 
 product.image ||
 
+product.images?.[0]?.url ||
+
 "https://via.placeholder.com/500";
 
-const variantTitle =
+const price =
 
-variant.title ||
+variant.price ||
 
-"Default Variant";
+product.price ||
+
+"Price unavailable";
+
+const url =
+
+product.url ||
+
+`https://alymwndw.com/products/${product.handle}`;
+
+const rating =
+
+product.reviewRating ||
+
+4.9;
+
+const reviewCount =
+
+product.reviewCount ||
+
+120;
 
 const options =
 
@@ -398,31 +430,13 @@ variant.options
 
 || "Luxury Jewelry";
 
-const price =
+const stock =
 
-variant.price ||
+variant.available !== false
 
-product.price ||
+? "In Stock"
 
-"AED";
-
-const rating =
-
-product.reviewRating ||
-
-4.9;
-
-const reviews =
-
-product.reviewCount ||
-
-0;
-
-const url =
-
-product.url ||
-
-`https://alymwndw.com/products/${product.handle}`;
+: "Out Of Stock";
 
 const card =
 document.createElement("div");
@@ -438,7 +452,7 @@ class="product-image"
 />
 
 <div class="product-title">
-${product.title}
+${product.title || "Luxury Jewelry"}
 </div>
 
 <div class="product-price">
@@ -446,14 +460,14 @@ ${price}
 </div>
 
 <div class="product-info">
-⭐ ${rating} (${reviews} reviews)
+⭐ ${rating} (${reviewCount} reviews)
 </div>
 
 <div class="variant-box">
 
 <div class="product-info">
 💎 Variant:
-${variantTitle}
+${variant.title || "Default Variant"}
 </div>
 
 <div class="product-info">
@@ -462,11 +476,7 @@ ${options}
 </div>
 
 <div class="product-info">
-📦 ${
-variant.available
-? "In Stock"
-: "Out Of Stock"
-}
+📦 ${stock}
 </div>
 
 </div>
@@ -520,17 +530,13 @@ input.value.trim();
 
 if(!message) return;
 
-// =====================
 // USER MESSAGE
-// =====================
 
 addMessage(message,"user");
 
 input.value = "";
 
-// =====================
-// TYPING
-// =====================
+// LOADING
 
 const typing =
 document.createElement("div");
@@ -546,9 +552,7 @@ chatBox.appendChild(typing);
 chatBox.scrollTop =
 chatBox.scrollHeight;
 
-// =====================
 // FETCH
-// =====================
 
 const response =
 await fetch("/chat",{
@@ -571,15 +575,11 @@ await response.json();
 
 typing.remove();
 
-// =====================
 // AI REPLY
-// =====================
 
 addMessage(data.reply,"ai");
 
-// =====================
 // PRODUCTS
-// =====================
 
 if(
 data.products &&
