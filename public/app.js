@@ -1,67 +1,67 @@
 const chatBox =
-document.getElementById("chat-box");
+  document.getElementById("chat-box");
 
 // =====================
 // ADD MESSAGE
 // =====================
 
 function addMessage(
-text,
-type = "ai"
-){
+  text,
+  type = "ai"
+) {
 
-const wrapper =
-document.createElement("div");
+  const wrapper =
+    document.createElement("div");
 
-wrapper.className =
+  wrapper.className =
 
-type === "user"
+    type === "user"
 
-? "message user-message"
+      ? "message user-message"
 
-: "message ai-message";
+      : "message ai-message";
 
-// =====================
-// AVATAR
-// =====================
+  // =====================
+  // AVATAR
+  // =====================
 
-const avatar =
-type === "user"
+  const avatar =
+    type === "user"
 
-? `
+      ? `
 <div class="avatar">
-<img src="https://ui-avatars.com/api/?name=U&background=18e0bd&color=000"/>
+  <img src="https://ui-avatars.com/api/?name=U&background=18e0bd&color=000"/>
 </div>
 `
 
-: `
+      : `
 <div class="avatar">
-<img src="deer.png"/>
+  <img src="deer.png"/>
 </div>
 `;
 
-// =====================
-// BUBBLE
-// =====================
+  // =====================
+  // BUBBLE
+  // =====================
 
-wrapper.innerHTML = `
+  wrapper.innerHTML = `
 
-${type === "ai" ? avatar : ""}
+    ${type === "ai" ? avatar : ""}
 
-<div class="bubble">
-${text}
-</div>
+    <div class="bubble">
+      ${text}
+    </div>
 
-${type === "user" ? avatar : ""}
+    ${type === "user" ? avatar : ""}
 
-`;
+  `;
 
-chatBox.appendChild(wrapper);
+  chatBox.appendChild(wrapper);
 
-chatBox.scrollTop =
-chatBox.scrollHeight;
+  chatBox.scrollTop =
+    chatBox.scrollHeight;
 
-return wrapper;
+  return wrapper;
 
 }
 
@@ -69,41 +69,37 @@ return wrapper;
 // TYPING
 // =====================
 
-function showTyping(){
+function showTyping() {
 
-const typing =
-document.createElement("div");
+  const typing =
+    document.createElement("div");
 
-typing.className =
-"message ai-message";
+  typing.className =
+    "message ai-message";
 
-typing.id =
-"typing";
+  typing.id =
+    "typing";
 
-typing.innerHTML = `
+  typing.innerHTML = `
 
-<div class="avatar">
-<img src="deer.png"/>
-</div>
+    <div class="avatar">
+      <img src="deer.png"/>
+    </div>
 
-<div class="bubble">
+    <div class="bubble">
+      <div class="typing">
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+      </div>
+    </div>
 
-<div class="typing">
+  `;
 
-<div class="dot"></div>
-<div class="dot"></div>
-<div class="dot"></div>
+  chatBox.appendChild(typing);
 
-</div>
-
-</div>
-
-`;
-
-chatBox.appendChild(typing);
-
-chatBox.scrollTop =
-chatBox.scrollHeight;
+  chatBox.scrollTop =
+    chatBox.scrollHeight;
 
 }
 
@@ -111,18 +107,14 @@ chatBox.scrollHeight;
 // REMOVE TYPING
 // =====================
 
-function removeTyping(){
+function removeTyping() {
 
-const typing =
-document.getElementById(
-"typing"
-);
+  const typing =
+    document.getElementById("typing");
 
-if(typing){
-
-typing.remove();
-
-}
+  if (typing) {
+    typing.remove();
+  }
 
 }
 
@@ -131,43 +123,36 @@ typing.remove();
 // =====================
 
 function switchVariantImage(
+  imageId,
+  newImage,
+  button
+) {
 
-imageId,
-newImage,
-button
+  const image =
+    document.getElementById(imageId);
 
-){
+  if (image && newImage) {
+    image.src = newImage;
+  }
 
-const image =
-document.getElementById(
-imageId
-);
+  // REMOVE ACTIVE
 
-if(image){
+  const card =
+    button.closest(".product-card");
 
-image.src = newImage;
+  if (card) {
 
-}
+    card
+      .querySelectorAll(".variant-btn")
+      .forEach((btn) => {
+        btn.classList.remove("active-variant");
+      });
 
-// REMOVE ACTIVE
+  }
 
-document
-.querySelectorAll(
-".variant-btn"
-)
-.forEach((btn)=>{
+  // ACTIVE BUTTON
 
-btn.classList.remove(
-"active-variant"
-);
-
-});
-
-// ACTIVE BUTTON
-
-button.classList.add(
-"active-variant"
-);
+  button.classList.add("active-variant");
 
 }
 
@@ -175,160 +160,149 @@ button.classList.add(
 // PRODUCT CARD
 // =====================
 
-function renderProducts(products){
+function renderProducts(products) {
 
-products.forEach((product)=>{
+  products.forEach((product) => {
 
-const firstVariant =
-product.variants?.[0] || {};
+    const firstVariant =
+      product.variants?.[0] || {};
 
-const image =
+    const image =
 
-firstVariant.mappedImage ||
+      firstVariant.mappedImage ||
+      firstVariant.image ||
+      product.image ||
+      "https://via.placeholder.com/500";
 
-firstVariant.image ||
+    const price =
 
-product.image ||
+      firstVariant.price ||
+      product.price ||
+      "";
 
-"https://via.placeholder.com/500";
+    const rating =
+      product.reviewRating || 4.9;
 
-const price =
+    const reviews =
+      product.reviewCount || 120;
 
-firstVariant.price ||
+    const url =
 
-product.price ||
+      product.url ||
+      `https://alymwndw.com/products/${product.handle}`;
 
-"";
+    // =====================
+    // IMAGE ID (SAFE)
+    // =====================
 
-const rating =
+    const imageId =
+      `product-image-${product.handle}`;
 
-product.reviewRating ||
+    // =====================
+    // VARIANT BUTTONS
+    // =====================
 
-4.9;
+    const variantButtons =
 
-const reviews =
+      product.variants?.map((v, index) => {
 
-product.reviewCount ||
+        const variantImage =
+          v.mappedImage ||
+          v.image ||
+          image;
 
-120;
+        const variantName =
+          v.metal ||
+          v.stoneColor ||
+          v.shape ||
+          v.title ||
+          "Variant";
 
-const url =
-
-product.url ||
-
-`https://alymwndw.com/products/${product.handle}`;
-
-// =====================
-// VARIANT BUTTONS
-// =====================
-
-const variantButtons =
-
-product.variants?.map(
-(v,index)=>{
-
-const variantName =
-
-v.metal ||
-
-v.title ||
-
-"Variant";
-
-return `
+        return `
 
 <button
 
-class="variant-btn ${index === 0 ? "active-variant" : ""}"
+  class="variant-btn ${index === 0 ? "active-variant" : ""}"
 
-onclick="switchVariantImage(
-
-'product-image-${product.id}',
-
-'${v.mappedImage || v.image}',
-
-this
-
-)"
+  onclick="switchVariantImage(
+    '${imageId}',
+    '${variantImage}',
+    this
+  )"
 
 >
 
-${variantName}
+  ${variantName}
 
 </button>
 
-`;
+        `;
 
-}).join("") || "";
+      }).join("") || "";
 
-// =====================
-// CARD
-// =====================
+    // =====================
+    // CARD
+    // =====================
 
-const card =
-document.createElement("div");
+    const card =
+      document.createElement("div");
 
-card.className =
-"product-card";
+    card.className =
+      "product-card";
 
-card.innerHTML = `
+    card.innerHTML = `
 
-<img
+      <img
+        id="${imageId}"
+        src="${image}"
+        class="product-image"
+        onerror="this.src='https://via.placeholder.com/500'"
+      />
 
-id="product-image-${product.id}"
+      <div class="product-title">
+        ${product.title}
+      </div>
 
-src="${image}"
+      <div class="product-price">
+        ${price}
+      </div>
 
-class="product-image"
+      <div class="product-rating">
+        ⭐ ${rating} (${reviews} reviews)
+      </div>
 
-/>
+      <div class="variant-switcher">
+        ${variantButtons}
+      </div>
 
-<div class="product-title">
-${product.title}
-</div>
+      <div class="product-buttons">
 
-<div class="product-price">
-${price}
-</div>
+        <a
+          href="${url}"
+          target="_blank"
+          class="view-btn"
+        >
+          View
+        </a>
 
-<div class="product-rating">
-⭐ ${rating} (${reviews} reviews)
-</div>
+        <a
+          href="${url}"
+          target="_blank"
+          class="cart-btn"
+        >
+          Shop
+        </a>
 
-<div class="variant-switcher">
+      </div>
 
-${variantButtons}
+    `;
 
-</div>
+    chatBox.appendChild(card);
 
-<div class="product-buttons">
+  });
 
-<a
-href="${url}"
-target="_blank"
-class="view-btn"
->
-View
-</a>
-
-<a
-href="${url}"
-target="_blank"
-class="cart-btn"
->
-Shop
-</a>
-
-</div>
-
-`;
-
-chatBox.appendChild(card);
-
-});
-
-chatBox.scrollTop =
-chatBox.scrollHeight;
+  chatBox.scrollTop =
+    chatBox.scrollHeight;
 
 }
 
@@ -336,117 +310,115 @@ chatBox.scrollHeight;
 // HANDLE ENTER
 // =====================
 
-function handleKey(event){
+function handleKey(event) {
 
-if(event.key === "Enter"){
-
-sendMessage();
-
-}
+  if (event.key === "Enter") {
+    sendMessage();
+  }
 
 }
+
+// =====================
+// SESSION ID
+// =====================
+
+let sessionId = null;
 
 // =====================
 // SEND MESSAGE
 // =====================
 
-async function sendMessage(){
+async function sendMessage() {
 
-const input =
-document.getElementById(
-"message"
-);
+  const input =
+    document.getElementById("message");
 
-const message =
-input.value.trim();
+  const message =
+    input.value.trim();
 
-if(!message) return;
+  if (!message) return;
 
-// =====================
-// USER MESSAGE
-// =====================
+  // =====================
+  // USER MESSAGE
+  // =====================
 
-addMessage(
-message,
-"user"
-);
+  addMessage(message, "user");
 
-input.value = "";
+  input.value = "";
 
-// =====================
-// SHOW TYPING
-// =====================
+  // =====================
+  // SHOW TYPING
+  // =====================
 
-showTyping();
+  showTyping();
 
-try {
+  try {
 
-// =====================
-// FETCH
-// =====================
+    // =====================
+    // FETCH
+    // =====================
 
-const response =
-await fetch("/chat",{
+    const response = await fetch("/chat", {
 
-method:"POST",
+      method: "POST",
 
-headers:{
-"Content-Type":
-"application/json"
-},
+      headers: {
+        "Content-Type": "application/json",
+      },
 
-body:JSON.stringify({
-message
-})
+      body: JSON.stringify({
+        message,
+        sessionId,
+      }),
 
-});
+    });
 
-const data =
-await response.json();
+    const data = await response.json();
 
-// =====================
-// REMOVE TYPING
-// =====================
+    // =====================
+    // SAVE SESSION ID
+    // =====================
 
-removeTyping();
+    if (data.sessionId) {
+      sessionId = data.sessionId;
+    }
 
-// =====================
-// AI MESSAGE
-// =====================
+    // =====================
+    // REMOVE TYPING
+    // =====================
 
-addMessage(
-data.reply,
-"ai"
-);
+    removeTyping();
 
-// =====================
-// PRODUCTS
-// =====================
+    // =====================
+    // AI MESSAGE
+    // =====================
 
-if(
-data.products &&
-data.products.length
-){
+    addMessage(data.reply, "ai");
 
-setTimeout(()=>{
+    // =====================
+    // PRODUCTS
+    // =====================
 
-renderProducts(
-data.products
-);
+    if (
+      data.products &&
+      data.products.length
+    ) {
 
-},300);
+      setTimeout(() => {
+        renderProducts(data.products);
+      }, 300);
 
-}
+    }
 
-} catch(err){
+  } catch (err) {
 
-removeTyping();
+    removeTyping();
 
-addMessage(
-"Something went wrong.",
-"ai"
-);
+    addMessage(
+      "Something went wrong.",
+      "ai"
+    );
 
-}
+  }
 
 }
