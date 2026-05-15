@@ -23,12 +23,13 @@ const openai = new OpenAI({
 });
 
 // =========================
-// LOAD PRODUCTS BRAIN
+// LOAD PRODUCT BRAIN
 // =========================
 
 let products = [];
 
 try {
+
   const raw = fs.readFileSync(
     "./public/products-brain.json",
     "utf8"
@@ -39,68 +40,181 @@ try {
   console.log(
     `PRODUCT BRAIN LOADED: ${products.length}`
   );
+
 } catch (err) {
-  console.log("NO PRODUCTS BRAIN FOUND");
+
+  console.log(
+    "NO PRODUCTS BRAIN FOUND"
+  );
+
+}
+
+// =========================
+// AI INTENT ANALYZER
+// =========================
+
+async function analyzeIntent(message) {
+
+  const completion =
+    await openai.chat.completions.create({
+
+      model: "gpt-4o-mini",
+
+      temperature: 0,
+
+      response_format: {
+        type: "json_object",
+      },
+
+      messages: [
+
+        {
+          role: "system",
+
+          content: `
+You are Alymwndw AI intent analyzer.
+
+Analyze customer message.
+
+Extract:
+- language
+- productType
+- category
+- stone
+- metal
+- style
+- occasion
+- personalization
+- luxuryLevel
+- searchTerms
+
+Return ONLY valid JSON.
+`,
+        },
+
+        {
+          role: "user",
+          content: message,
+        },
+
+      ],
+
+    });
+
+  return JSON.parse(
+    completion.choices[0]
+      .message.content
+  );
 }
 
 // =========================
 // SMART SEARCH
 // =========================
 
-function searchProducts(message, products) {
-  const msg = message.toLowerCase();
+function searchProducts(intent, products) {
 
-  const keywords = msg
-    .split(" ")
-    .map((w) => w.trim())
-    .filter((w) => w.length > 1);
+  const searchTerms = [
 
-  const scoredProducts = products.map((p) => {
-    const searchable = `
-      ${p.title || ""}
-      ${p.description || ""}
-      ${p.type || ""}
-      ${p.product_type || ""}
-      ${p.tags?.join(" ") || ""}
-      ${p.materials?.join(" ") || ""}
-      ${p.stones?.join(" ") || ""}
-      ${p.colors?.join(" ") || ""}
-    `.toLowerCase();
+    ...(intent.searchTerms || []),
 
-    let score = 0;
+    intent.productType,
+    intent.category,
+    intent.stone,
+    intent.metal,
+    intent.style,
 
-    keywords.forEach((word) => {
-      // TYPE MATCH
+  ]
+    .filter(Boolean)
+    .map((t) =>
+      String(t).toLowerCase()
+    );
+
+  const scoredProducts =
+    products.map((p) => {
+
+      const ai =
+        p.aiFeatures || {};
+
+      const searchable = `
+        ${p.title || ""}
+        ${p.description || ""}
+        ${p.type || ""}
+        ${p.tags?.join(" ") || ""}
+        ${JSON.stringify(ai)}
+      `.toLowerCase();
+
+      let score = 0;
+
+      searchTerms.forEach((term) => {
+
+        if (!term) return;
+
+        // TITLE MATCH
+        if (
+          p.title
+            ?.toLowerCase()
+            .includes(term)
+        ) {
+
+          score += 15;
+
+        }
+
+        // TYPE MATCH
+        if (
+          p.type
+            ?.toLowerCase()
+            .includes(term)
+        ) {
+
+          score += 12;
+
+        }
+
+        // GENERAL MATCH
+        if (
+          searchable.includes(term)
+        ) {
+
+          score += 5;
+
+        }
+
+      });
+
+      // PERSONALIZATION BOOST
       if (
-        p.type &&
-        p.type.toLowerCase().includes(word)
+        intent.personalization &&
+        searchable.includes(
+          "personalized"
+        )
       ) {
-        score += 10;
+
+        score += 20;
+
       }
 
-      // TITLE MATCH
+      // LUXURY BOOST
       if (
-        p.title &&
-        p.title.toLowerCase().includes(word)
+        intent.style === "luxury"
       ) {
-        score += 8;
-      }
 
-      // GENERAL MATCH
-      if (searchable.includes(word)) {
         score += 3;
-      }
-    });
 
-    return {
-      ...p,
-      score,
-    };
-  });
+      }
+
+      return {
+        ...p,
+        score,
+      };
+
+    });
 
   return scoredProducts
     .filter((p) => p.score > 0)
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4);
+
 }
 
 // =========================
@@ -108,7 +222,11 @@ function searchProducts(message, products) {
 // =========================
 
 app.get("/", (req, res) => {
-  res.send("ALYMWNDW AI RUNNING");
+
+  res.send(
+    "ALYMWNDW AI RUNNING"
+  );
+
 });
 
 // =========================
@@ -116,60 +234,121 @@ app.get("/", (req, res) => {
 // =========================
 
 app.post("/chat", async (req, res) => {
+
   try {
+
     const userMessage =
       req.body.message || "";
 
+    // =========================
+    // ANALYZE USER INTENT
+    // =========================
+
+    const intent =
+      await analyzeIntent(
+        userMessage
+      );
+
+    console.log(
+      "AI INTENT:",
+      intent
+    );
+
+    // =========================
     // SEARCH PRODUCTS
+    // =========================
+
     const matchedProducts =
       searchProducts(
-        userMessage,
+        intent,
         products
-      ).slice(0, 4);
+      );
 
+    // =========================
     // NO PRODUCTS
-    if (matchedProducts.length === 0) {
+    // =========================
+
+    if (
+      matchedProducts.length === 0
+    ) {
+
       return res.json({
+
         reply:
-          "No matching luxury jewellery found ✨",
+
+          intent.language ===
+          "arabic"
+
+            ? "لم أجد قطعة مطابقة حالياً ✨"
+
+            : "No matching luxury jewellery found ✨",
+
         products: [],
+
       });
+
     }
 
-    // CLEAN PRODUCTS FOR AI
+    // =========================
+    // CLEAN PRODUCTS
+    // =========================
+
     const cleanProducts =
       matchedProducts.map((p) => ({
-        title: p.title,
-        type: p.type,
-        materials: p.materials,
-        stones: p.stones,
-        colors: p.colors,
-        price: p.price,
+
+        title:
+          p.title,
+
+        type:
+          p.type,
+
+        description:
+          p.description,
+
+        aiFeatures:
+          p.aiFeatures,
+
+        variants:
+          p.variants?.slice(0, 5),
+
       }));
 
-    // AI RESPONSE
+    // =========================
+    // AI SALES RESPONSE
+    // =========================
+
     const completion =
       await openai.chat.completions.create({
+
         model: "gpt-4o-mini",
 
-        temperature: 0,
+        temperature: 0.7,
 
         messages: [
+
           {
             role: "system",
-            content: `
-You are Alymwndw Jewellery AI.
 
-RULES:
-- Speak same language as customer.
-- Keep replies short.
-- Sound luxurious and elegant.
+            content: `
+You are Alymwndw AI,
+a luxury jewelry sales assistant.
+
+IMPORTANT RULES:
+
+- Speak SAME language as customer.
+- Arabic customer = Arabic only.
+- English customer = English only.
+- Be luxurious and elegant.
+- Sound like premium jewelry consultant.
 - NEVER invent products.
-- ONLY recommend products from AVAILABLE PRODUCTS.
-- Maximum 2 short sentences.
-- Focus on selling luxury jewellery.
+- ONLY recommend from AVAILABLE PRODUCTS.
+- Focus on emotional luxury selling.
+- Recommend best matching pieces.
+- Mention personalization when relevant.
+- Keep response short.
 
 AVAILABLE PRODUCTS:
+
 ${JSON.stringify(cleanProducts)}
 `,
           },
@@ -178,25 +357,45 @@ ${JSON.stringify(cleanProducts)}
             role: "user",
             content: userMessage,
           },
+
         ],
+
       });
 
     const aiReply =
-      completion.choices[0].message.content;
+      completion.choices[0]
+        .message.content;
 
-    // RETURN RESPONSE
+    // =========================
+    // RESPONSE
+    // =========================
+
     res.json({
+
       reply: aiReply,
-      products: matchedProducts,
+
+      products:
+        matchedProducts,
+
+      intent,
+
     });
+
   } catch (err) {
+
     console.log(err);
 
     res.status(500).json({
-      reply: "Server error",
+
+      reply:
+        "Server error",
+
       products: [],
+
     });
+
   }
+
 });
 
 // =========================
@@ -204,7 +403,9 @@ ${JSON.stringify(cleanProducts)}
 // =========================
 
 app.listen(PORT, () => {
+
   console.log(
     `ALYMWNDW AI RUNNING ON PORT ${PORT}`
   );
+
 });
