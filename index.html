@@ -370,14 +370,59 @@ function renderProducts(products){
 products.forEach((product)=>{
 
 const variant =
-product.variants?.[0];
+product.variants?.[0] || {};
 
 const image =
-variant?.image ||
-product.image;
+
+variant.image ||
+
+product.image ||
+
+"https://via.placeholder.com/500";
 
 const variantTitle =
-variant?.title || "";
+
+variant.title ||
+
+"Default Variant";
+
+const options =
+
+variant.options
+?.map((o)=>
+
+`${o.name}: ${o.value}`
+
+)
+?.join(" • ")
+
+|| "Luxury Jewelry";
+
+const price =
+
+variant.price ||
+
+product.price ||
+
+"AED";
+
+const rating =
+
+product.reviewRating ||
+
+4.9;
+
+const reviews =
+
+product.reviewCount ||
+
+0;
+
+const url =
+
+product.url ||
+
+`https://alymwndw.com/products/${product.handle}`;
 
 const card =
 document.createElement("div");
@@ -397,36 +442,44 @@ ${product.title}
 </div>
 
 <div class="product-price">
-${product.price} AED
+${price}
+</div>
+
+<div class="product-info">
+⭐ ${rating} (${reviews} reviews)
 </div>
 
 <div class="variant-box">
 
 <div class="product-info">
-💎 Metal:
-${product.metal}
-</div>
-
-<div class="product-info">
-✨ Stone:
-${product.stone}
-</div>
-
-<div class="product-info">
-🎨 Variant:
+💎 Variant:
 ${variantTitle}
+</div>
+
+<div class="product-info">
+✨ Options:
+${options}
+</div>
+
+<div class="product-info">
+📦 ${
+variant.available
+? "In Stock"
+: "Out Of Stock"
+}
 </div>
 
 </div>
 
 <div class="product-description">
-${product.description.slice(0,140)}...
+${(product.description || "")
+.slice(0,140)}...
 </div>
 
 <div class="product-buttons">
 
 <a
-href="${product.url}"
+href="${url}"
 target="_blank"
 class="view-btn"
 >
@@ -435,7 +488,7 @@ View Product
 
 <button
 class="cart-btn"
-onclick="window.open('${product.url}','_blank')"
+onclick="window.open('${url}','_blank')"
 >
 Add To Cart
 </button>
@@ -519,13 +572,13 @@ await response.json();
 typing.remove();
 
 // =====================
-// AI REPLY FIRST
+// AI REPLY
 // =====================
 
 addMessage(data.reply,"ai");
 
 // =====================
-// THEN PRODUCTS
+// PRODUCTS
 // =====================
 
 if(
