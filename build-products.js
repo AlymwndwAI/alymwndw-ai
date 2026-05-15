@@ -4,476 +4,682 @@ import fetch from "node-fetch";
 
 dotenv.config();
 
-// ========================================
-// ENV
-// ========================================
-
-const SHOP =
-process.env.SHOPIFY_STORE;
-
-const TOKEN =
-process.env.SHOPIFY_ACCESS_TOKEN;
+const SHOP = process.env.SHOPIFY_STORE;
+const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
 // ========================================
 // SHOPIFY GRAPHQL
 // ========================================
 
-async function shopifyQuery(query){
+async function shopifyQuery(query) {
 
-const response = await fetch(
+  const response = await fetch(
 
-`https://${SHOP}/admin/api/2025-01/graphql.json`,
+    `https://${SHOP}/admin/api/2025-01/graphql.json`,
 
-{
-method:"POST",
+    {
+      method: "POST",
 
-headers:{
-"Content-Type":"application/json",
-"X-Shopify-Access-Token":TOKEN,
-},
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": TOKEN,
+      },
 
-body:JSON.stringify({
-query,
-}),
+      body: JSON.stringify({ query }),
+    }
 
-}
+  );
 
-);
-
-return response.json();
+  return response.json();
 
 }
 
 // ========================================
-// AI FEATURES
+// PARSE VARIANT
 // ========================================
 
-function generateAI(product){
+function parseVariant(v, images) {
 
-const text = `
+  const optionText = `
+    ${v.node.title}
+    ${JSON.stringify(v.node.selectedOptions)}
+  `.toLowerCase();
 
-${product.title}
+  // ========================================
+  // METAL
+  // ========================================
 
-${product.description}
+  let metal = "";
 
-${product.tags?.join(" ")}
+  if (optionText.includes("rose gold")) {
+    metal = "rose gold";
+  } else if (optionText.includes("yellow gold")) {
+    metal = "yellow gold";
+  } else if (optionText.includes("white gold")) {
+    metal = "white gold";
+  } else if (optionText.includes("silver")) {
+    metal = "silver";
+  } else if (optionText.includes("platinum")) {
+    metal = "platinum";
+  }
 
-${product.type}
+  // ========================================
+  // STONE COLOR
+  // ========================================
 
-`.toLowerCase();
+  let stoneColor = "";
 
-const ai = {
+  if (
+    optionText.includes("yellow") &&
+    !optionText.includes("yellow gold")
+  ) {
+    stoneColor = "yellow";
+  } else if (
+    optionText.includes("white") &&
+    !optionText.includes("white gold")
+  ) {
+    stoneColor = "white";
+  } else if (
+    optionText.includes("pink") &&
+    !optionText.includes("pink gold")
+  ) {
+    stoneColor = "pink";
+  }
 
-category:"",
-collection:"",
-productType:"",
+  // ========================================
+  // SHAPE
+  // ========================================
 
-styles:[],
-intent:[],
-emotionalTriggers:[],
-searchKeywords:[],
-materials:[],
+  let shape = "";
 
-variantMetalColors:[],
-variantStoneColors:[],
-diamondShapes:[],
+  if (optionText.includes("oval")) {
+    shape = "oval";
+  } else if (optionText.includes("emerald")) {
+    shape = "emerald";
+  } else if (optionText.includes("radiant")) {
+    shape = "radiant";
+  } else if (optionText.includes("pear")) {
+    shape = "pear";
+  } else if (optionText.includes("round")) {
+    shape = "round";
+  } else if (optionText.includes("cushion")) {
+    shape = "cushion";
+  } else if (optionText.includes("princess")) {
+    shape = "princess";
+  } else if (optionText.includes("marquise")) {
+    shape = "marquise";
+  } else if (optionText.includes("heart")) {
+    shape = "heart";
+  }
 
-};
+  // ========================================
+  // STONE SIZE
+  // ========================================
 
-// ========================================
-// CATEGORY
-// ========================================
+  let stoneSize = "";
 
-if(text.includes("ring")){
+  if (
+    optionText.includes("0.5ct") ||
+    optionText.includes("0.5 ct")
+  ) {
+    stoneSize = "0.5 CT";
+  } else if (
+    optionText.includes("1ct") ||
+    optionText.includes("1 ct")
+  ) {
+    stoneSize = "1 CT";
+  } else if (
+    optionText.includes("1.5ct") ||
+    optionText.includes("1.5 ct")
+  ) {
+    stoneSize = "1.5 CT";
+  } else if (
+    optionText.includes("2ct") ||
+    optionText.includes("2 ct")
+  ) {
+    stoneSize = "2 CT";
+  } else if (
+    optionText.includes("3ct") ||
+    optionText.includes("3 ct")
+  ) {
+    stoneSize = "3 CT";
+  }
 
-ai.category = "rings";
-ai.productType = "ring";
+  // ========================================
+  // SMART IMAGE MATCHING
+  // ========================================
 
-}
+  let matchedImage = v.node.image?.url || "";
 
-if(text.includes("necklace")){
+  if (!matchedImage) {
 
-ai.category = "necklaces";
-ai.productType = "necklace";
+    const smartImage = images.find((img) => {
 
-}
+      const alt = (img.alt || "").toLowerCase();
 
-if(text.includes("bracelet")){
+      return (
+        (metal && alt.includes(metal)) ||
+        (shape && alt.includes(shape)) ||
+        (stoneColor && alt.includes(stoneColor))
+      );
 
-ai.category = "bracelets";
-ai.productType = "bracelet";
+    });
 
-}
+    matchedImage =
+      smartImage?.url ||
+      images[0]?.url ||
+      "";
 
-if(text.includes("earring")){
+  }
 
-ai.category = "earrings";
-ai.productType = "earring";
+  // ========================================
+  // RETURN
+  // ========================================
 
-}
+  return {
 
-// ========================================
-// MOISSANITE
-// ========================================
+    id:
+      v.node.id,
 
-if(
+    title:
+      v.node.title,
 
-text.includes("moissanite")
-||
-text.includes("gra")
+    sku:
+      v.node.sku || "",
 
-){
+    available:
+      v.node.availableForSale ?? true,
 
-ai.collection = "moissanite";
+    price:
+      `${v.node.price} AED`,
 
-ai.styles.push(
-"luxury",
-"bridal",
-"sparkle"
-);
+    rawPrice:
+      Number(v.node.price),
 
-ai.intent.push(
-"engagement",
-"diamond alternative"
-);
+    currency:
+      "AED",
 
-ai.materials.push(
-"moissanite"
-);
+    image:
+      matchedImage,
 
-ai.searchKeywords.push(
-"moissanite ring",
-"gra certified"
-);
+    mappedImage:
+      matchedImage,
 
-}
+    metal,
 
-// ========================================
-// LAB DIAMOND
-// ========================================
+    stoneColor,
 
-if(
+    shape,
 
-text.includes("lab diamond")
-||
-text.includes("lab grown")
+    stoneSize,
 
-){
+    options:
+      v.node.selectedOptions,
 
-ai.collection =
-"lab diamond";
-
-ai.styles.push(
-"luxury",
-"minimal"
-);
-
-ai.intent.push(
-"engagement",
-"wedding"
-);
-
-ai.materials.push(
-"lab diamond"
-);
-
-}
-
-// ========================================
-// GOLD
-// ========================================
-
-if(
-text.includes("gold")
-){
-
-ai.materials.push(
-"gold"
-);
-
-}
-
-// ========================================
-// SILVER
-// ========================================
-
-if(
-text.includes("silver")
-){
-
-ai.materials.push(
-"silver"
-);
-
-}
-
-// ========================================
-// PLATINUM
-// ========================================
-
-if(
-text.includes("platinum")
-){
-
-ai.materials.push(
-"platinum"
-);
-
-}
-
-// ========================================
-// TENNIS
-// ========================================
-
-if(
-text.includes("tennis")
-){
-
-ai.styles.push(
-"celebrity luxury"
-);
-
-ai.searchKeywords.push(
-"tennis jewelry"
-);
+  };
 
 }
 
 // ========================================
-// WEDDING
+// BUILD AI FEATURES
 // ========================================
 
-if(
-
-text.includes("wedding")
-||
-text.includes("engagement")
-
-){
-
-ai.intent.push(
-"bridal"
-);
-
-ai.emotionalTriggers.push(
-"love",
-"forever"
-);
-
-}
-
-// ========================================
-// CUSTOM
-// ========================================
-
-if(
-
-text.includes("custom")
-||
-text.includes("personalized")
-||
-text.includes("name necklace")
-
-){
-
-ai.intent.push(
-"gift jewelry"
-);
-
-ai.styles.push(
-"personalized"
-);
-
-}
-
-// ========================================
-// VARIANT ANALYSIS
-// ========================================
-
-(product.variants || []).forEach((v)=>{
-
-const variantText = `
-${v.title}
-${JSON.stringify(v.options)}
-`.toLowerCase();
-
-// ========================================
-// METALS
-// ========================================
-
-if(
-variantText.includes("rose gold")
-){
-
-ai.variantMetalColors.push(
-"rose gold"
-);
-
-}
-
-if(
-variantText.includes("yellow gold")
-){
-
-ai.variantMetalColors.push(
-"yellow gold"
-);
-
-}
-
-if(
-variantText.includes("white gold")
-){
-
-ai.variantMetalColors.push(
-"white gold"
-);
-
-}
-
-if(
-variantText.includes("silver")
-){
-
-ai.variantMetalColors.push(
-"silver"
-);
-
-}
-
-if(
-variantText.includes("platinum")
-){
-
-ai.variantMetalColors.push(
-"platinum"
-);
-
-}
-
-// ========================================
-// STONES
-// ========================================
-
-if(
-variantText.includes("white")
-){
-
-ai.variantStoneColors.push(
-"white"
-);
-
-}
-
-if(
-variantText.includes("yellow")
-){
-
-ai.variantStoneColors.push(
-"yellow"
-);
-
-}
-
-if(
-variantText.includes("pink")
-){
-
-ai.variantStoneColors.push(
-"pink"
-);
-
-}
-
-// ========================================
-// SHAPES
-// ========================================
-
-if(
-variantText.includes("oval")
-){
-
-ai.diamondShapes.push(
-"oval"
-);
-
-}
-
-if(
-variantText.includes("emerald")
-){
-
-ai.diamondShapes.push(
-"emerald"
-);
-
-}
-
-if(
-variantText.includes("radiant")
-){
-
-ai.diamondShapes.push(
-"radiant"
-);
-
-}
-
-if(
-variantText.includes("pear")
-){
-
-ai.diamondShapes.push(
-"pear"
-);
-
-}
-
-if(
-variantText.includes("round")
-){
-
-ai.diamondShapes.push(
-"round"
-);
-
-}
-
-});
-
-// ========================================
-// UNIQUE VALUES
-// ========================================
-
-ai.styles = [
-...new Set(ai.styles)
-];
-
-ai.intent = [
-...new Set(ai.intent)
-];
-
-ai.materials = [
-...new Set(ai.materials)
-];
-
-ai.searchKeywords = [
-...new Set(ai.searchKeywords)
-];
-
-ai.variantMetalColors = [
-...new Set(ai.variantMetalColors)
-];
-
-ai.variantStoneColors = [
-...new Set(ai.variantStoneColors)
-];
-
-ai.diamondShapes = [
-...new Set(ai.diamondShapes)
-];
-
-return ai;
+function buildAiFeatures(product, text) {
+
+  const ai = {
+
+    category: "",
+    collection: "",
+    productType: "",
+    subCategory: "",
+
+    styles: [],
+    intent: [],
+    emotionalTriggers: [],
+    searchKeywords: [],
+    materials: [],
+
+    variantMetalColors: [],
+    variantStoneColors: [],
+    variantStoneSizes: [],
+    diamondShapes: [],
+
+    language: "",
+    supportedLanguages: [],
+    certifications: [],
+    features: [],
+    upsells: [],
+
+  };
+
+  const collectionHandles =
+    product.collections.map((c) => c.handle);
+
+  // ========================================
+  // MAKE FOR YOU
+  // ========================================
+
+  if (
+    collectionHandles.includes(
+      "make-for-you-gold-custom-jewelry"
+    ) ||
+    text.includes("custom") ||
+    text.includes("personalized")
+  ) {
+
+    ai.collection =
+      "make-for-you-gold-custom-jewelry";
+
+    ai.category =
+      "custom-jewelry";
+
+    ai.productType =
+      "custom-jewelry";
+
+    ai.intent.push(
+      "personalized jewelry",
+      "custom necklace",
+      "gift jewelry"
+    );
+
+    ai.styles.push(
+      "luxury",
+      "minimal"
+    );
+
+    ai.searchKeywords.push(
+      "custom necklace",
+      "name necklace"
+    );
+
+  }
+
+  // ========================================
+  // WEDDING
+  // ========================================
+
+  if (
+    collectionHandles.includes(
+      "wedding-rings-uae"
+    ) ||
+    text.includes("wedding") ||
+    text.includes("engagement")
+  ) {
+
+    if (!ai.collection) {
+      ai.collection = "wedding-rings-uae";
+    }
+
+    ai.category =
+      "wedding-rings";
+
+    ai.productType =
+      "wedding-rings";
+
+    ai.intent.push(
+      "engagement",
+      "wedding",
+      "bridal"
+    );
+
+    ai.emotionalTriggers.push(
+      "love",
+      "forever"
+    );
+
+    ai.styles.push(
+      "luxury",
+      "classic"
+    );
+
+  }
+
+  // ========================================
+  // PEARL
+  // ========================================
+
+  if (
+    collectionHandles.includes(
+      "pearl-jewelry"
+    ) ||
+    text.includes("pearl")
+  ) {
+
+    if (!ai.collection) {
+      ai.collection = "pearl-jewelry";
+    }
+
+    ai.category =
+      "pearl-jewelry";
+
+    ai.productType =
+      "pearl-jewelry";
+
+    ai.intent.push(
+      "luxury pearl jewelry",
+      "bridal jewelry"
+    );
+
+    ai.emotionalTriggers.push(
+      "elegance",
+      "timeless beauty"
+    );
+
+  }
+
+  // ========================================
+  // MOISSANITE
+  // ========================================
+
+  if (
+    collectionHandles.includes(
+      "certified-mossanite-shop-now"
+    ) ||
+    text.includes("moissanite") ||
+    text.includes("gra certified")
+  ) {
+
+    if (!ai.collection) {
+      ai.collection = "certified-mossanite-shop-now";
+    }
+
+    ai.category =
+      "luxury-moissanite";
+
+    ai.certifications.push(
+      "GRA Certified"
+    );
+
+    ai.features.push(
+      "diamond-like sparkle",
+      "high brilliance"
+    );
+
+    ai.intent.push(
+      "luxury moissanite jewelry",
+      "engagement ring",
+      "diamond alternative"
+    );
+
+    ai.emotionalTriggers.push(
+      "brilliance",
+      "luxury"
+    );
+
+    ai.styles.push(
+      "luxury",
+      "bridal"
+    );
+
+    ai.searchKeywords.push(
+      "moissanite ring",
+      "diamond alternative"
+    );
+
+    ai.upsells.push(
+      "wedding bands"
+    );
+
+    if (text.includes("ring")) {
+      ai.productType = "moissanite-ring";
+    } else if (text.includes("necklace")) {
+      ai.productType = "moissanite-necklace";
+    } else if (text.includes("bracelet")) {
+      ai.productType = "moissanite-bracelet";
+    } else if (text.includes("earring")) {
+      ai.productType = "moissanite-earring";
+    } else {
+      ai.productType = "moissanite-jewelry";
+    }
+
+    if (text.includes("tennis")) {
+
+      ai.subCategory =
+        "tennis-jewelry";
+
+      ai.intent.push(
+        "iced luxury jewelry"
+      );
+
+      ai.styles.push(
+        "celebrity luxury"
+      );
+
+      ai.features.push(
+        "high sparkle luxury"
+      );
+
+    }
+
+  }
+
+  // ========================================
+  // LAB DIAMOND
+  // ========================================
+
+  if (
+    collectionHandles.includes(
+      "lab-grown-diamond-ring"
+    ) ||
+    text.includes("lab grown diamond") ||
+    text.includes("lab diamond")
+  ) {
+
+    if (!ai.collection) {
+      ai.collection = "lab-grown-diamond-ring";
+    }
+
+    ai.category =
+      "lab-grown-diamond";
+
+    ai.productType =
+      "diamond-ring";
+
+    ai.intent.push(
+      "engagement",
+      "wedding",
+      "luxury diamond"
+    );
+
+    ai.styles.push(
+      "luxury",
+      "minimal"
+    );
+
+    ai.searchKeywords.push(
+      "lab diamond ring",
+      "lab grown diamond"
+    );
+
+  }
+
+  // ========================================
+  // ALPHA GOLD
+  // ========================================
+
+  if (
+    collectionHandles.includes(
+      "alpha-gold"
+    ) ||
+    text.includes("arabic letter") ||
+    text.includes("initial")
+  ) {
+
+    if (!ai.collection) {
+      ai.collection = "alpha-gold";
+    }
+
+    ai.category =
+      "personalized-gold-jewelry";
+
+    ai.productType =
+      "initial-necklace";
+
+    ai.intent.push(
+      "gift jewelry",
+      "personalized jewelry"
+    );
+
+    ai.styles.push(
+      "minimal",
+      "personalized"
+    );
+
+    if (text.includes("arabic")) {
+      ai.language = "arabic";
+      ai.supportedLanguages.push("arabic");
+    }
+
+    if (text.includes("english")) {
+      ai.language = "english";
+      ai.supportedLanguages.push("english");
+    }
+
+  }
+
+  // ========================================
+  // FALLBACK CATEGORY
+  // ========================================
+
+  if (!ai.category) {
+
+    if (text.includes("ring")) {
+      ai.category = "rings";
+      ai.productType = "ring";
+    } else if (text.includes("necklace")) {
+      ai.category = "necklaces";
+      ai.productType = "necklace";
+    } else if (text.includes("bracelet")) {
+      ai.category = "bracelets";
+      ai.productType = "bracelet";
+    } else if (text.includes("earring")) {
+      ai.category = "earrings";
+      ai.productType = "earring";
+    }
+
+  }
+
+  // ========================================
+  // MATERIALS
+  // ========================================
+
+  if (text.includes("gold"))       ai.materials.push("gold");
+  if (text.includes("silver"))     ai.materials.push("silver");
+  if (text.includes("platinum"))   ai.materials.push("platinum");
+  if (text.includes("moissanite")) ai.materials.push("moissanite");
+  if (text.includes("diamond"))    ai.materials.push("diamond");
+  if (text.includes("pearl"))      ai.materials.push("pearl");
+
+  // ========================================
+  // VARIANT ANALYSIS
+  // ========================================
+
+  (product.variants || []).forEach((v) => {
+
+    const variantText = `
+      ${v.title}
+      ${JSON.stringify(v.options)}
+    `.toLowerCase();
+
+    // METALS
+
+    if (variantText.includes("rose gold")) {
+      ai.variantMetalColors.push("rose gold");
+    }
+    if (variantText.includes("yellow gold")) {
+      ai.variantMetalColors.push("yellow gold");
+    }
+    if (variantText.includes("white gold")) {
+      ai.variantMetalColors.push("white gold");
+    }
+    if (variantText.includes("silver")) {
+      ai.variantMetalColors.push("silver");
+    }
+    if (variantText.includes("platinum")) {
+      ai.variantMetalColors.push("platinum");
+    }
+
+    // STONE COLORS
+
+    if (
+      variantText.includes("white") &&
+      !variantText.includes("white gold")
+    ) {
+      ai.variantStoneColors.push("white");
+    }
+    if (
+      variantText.includes("yellow") &&
+      !variantText.includes("yellow gold")
+    ) {
+      ai.variantStoneColors.push("yellow");
+    }
+    if (
+      variantText.includes("pink") &&
+      !variantText.includes("pink gold")
+    ) {
+      ai.variantStoneColors.push("pink");
+    }
+
+    // SHAPES
+
+    if (variantText.includes("oval"))     ai.diamondShapes.push("oval");
+    if (variantText.includes("emerald"))  ai.diamondShapes.push("emerald");
+    if (variantText.includes("radiant"))  ai.diamondShapes.push("radiant");
+    if (variantText.includes("pear"))     ai.diamondShapes.push("pear");
+    if (variantText.includes("round"))    ai.diamondShapes.push("round");
+    if (variantText.includes("cushion"))  ai.diamondShapes.push("cushion");
+    if (variantText.includes("princess")) ai.diamondShapes.push("princess");
+    if (variantText.includes("marquise")) ai.diamondShapes.push("marquise");
+    if (variantText.includes("heart"))    ai.diamondShapes.push("heart");
+
+    // STONE SIZES
+
+    if (
+      variantText.includes("0.5ct") ||
+      variantText.includes("0.5 ct")
+    ) ai.variantStoneSizes.push("0.5 CT");
+
+    if (
+      variantText.includes("1ct") ||
+      variantText.includes("1 ct")
+    ) ai.variantStoneSizes.push("1 CT");
+
+    if (
+      variantText.includes("1.5ct") ||
+      variantText.includes("1.5 ct")
+    ) ai.variantStoneSizes.push("1.5 CT");
+
+    if (
+      variantText.includes("2ct") ||
+      variantText.includes("2 ct")
+    ) ai.variantStoneSizes.push("2 CT");
+
+    if (
+      variantText.includes("3ct") ||
+      variantText.includes("3 ct")
+    ) ai.variantStoneSizes.push("3 CT");
+
+  });
+
+  // ========================================
+  // UNIQUE VALUES
+  // ========================================
+
+  ai.styles =             [...new Set(ai.styles)];
+  ai.intent =             [...new Set(ai.intent)];
+  ai.materials =          [...new Set(ai.materials)];
+  ai.searchKeywords =     [...new Set(ai.searchKeywords)];
+  ai.emotionalTriggers =  [...new Set(ai.emotionalTriggers)];
+  ai.variantMetalColors = [...new Set(ai.variantMetalColors)];
+  ai.variantStoneColors = [...new Set(ai.variantStoneColors)];
+  ai.variantStoneSizes =  [...new Set(ai.variantStoneSizes)];
+  ai.diamondShapes =      [...new Set(ai.diamondShapes)];
+  ai.supportedLanguages = [...new Set(ai.supportedLanguages)];
+  ai.certifications =     [...new Set(ai.certifications)];
+  ai.features =           [...new Set(ai.features)];
+  ai.upsells =            [...new Set(ai.upsells)];
+
+  return ai;
 
 }
 
@@ -481,482 +687,227 @@ return ai;
 // FETCH PRODUCTS
 // ========================================
 
-async function fetchProducts(){
+async function fetchProducts() {
+
+  let allProducts = [];
+
+  let hasNextPage = true;
+
+  let cursor = null;
+
+  while (hasNextPage) {
+
+    console.log(
+      "FETCHING NEXT 250 PRODUCTS..."
+    );
+
+    const query = `
+    {
+      products(first: 250 ${cursor ? `, after: "${cursor}"` : ""}) {
+
+        pageInfo {
+          hasNextPage
+        }
+
+        edges {
+
+          cursor
+
+          node {
 
-let allProducts = [];
+            id
+            title
+            handle
+            description
+            productType
+            vendor
+            tags
 
-let hasNextPage = true;
+            collections(first: 10) {
+              edges {
+                node {
+                  title
+                  handle
+                }
+              }
+            }
 
-let cursor = null;
+            images(first: 20) {
+              edges {
+                node {
+                  url
+                  altText
+                }
+              }
+            }
 
-while(hasNextPage){
+            variants(first: 100) {
+              edges {
+                node {
+                  id
+                  title
+                  sku
+                  availableForSale
+                  price
+                  selectedOptions {
+                    name
+                    value
+                  }
+                  image {
+                    url
+                  }
+                }
+              }
+            }
 
-console.log(
-"FETCHING NEXT 250 PRODUCTS..."
-);
+          }
 
-const query = `
-{
-products(
-first:250
-${cursor ? `, after:"${cursor}"` : ""}
-){
+        }
 
-pageInfo{
-hasNextPage
-}
+      }
 
-edges{
+    }
+    `;
 
-cursor
+    const data =
+      await shopifyQuery(query);
 
-node{
+    const products =
+      data.data.products.edges;
 
-id
-title
-handle
-description
-productType
-vendor
-tags
+    // ========================================
+    // LOOP PRODUCTS
+    // ========================================
 
-collections(first:10){
+    for (const item of products) {
 
-edges{
+      const p = item.node;
 
-node{
-title
-handle
-}
+      // ========================================
+      // IMAGES
+      // ========================================
 
-}
+      const images =
+        p.images.edges.map((img) => ({
+          url: img.node.url,
+          alt: img.node.altText || "",
+        }));
 
-}
+      // ========================================
+      // VARIANTS
+      // ========================================
 
-images(first:20){
+      const variants =
+        p.variants.edges.map((v) =>
+          parseVariant(v, images)
+        );
 
-edges{
+      // ========================================
+      // PRODUCT
+      // ========================================
 
-node{
-url
-altText
-}
+      const product = {
 
-}
+        id:
+          p.id,
 
-}
+        title:
+          p.title,
 
-variants(first:100){
+        handle:
+          p.handle,
 
-edges{
+        description:
+          p.description,
 
-node{
+        type:
+          p.productType,
 
-id
-title
-sku
-availableForSale
-price
+        vendor:
+          p.vendor,
 
-selectedOptions{
-name
-value
-}
+        tags:
+          p.tags,
 
-image{
-url
-}
+        collections:
+          p.collections.edges.map((c) => ({
+            title: c.node.title,
+            handle: c.node.handle,
+          })),
 
-}
+        image:
+          images[0]?.url || "",
 
-}
+        images,
 
-}
+        variants,
 
-}
+        price:
+          variants[0]?.price || "",
 
-}
+        rawPrice:
+          variants[0]?.rawPrice || 0,
 
-}
+        currency:
+          "AED",
 
-}
-`;
+        reviewRating:
+          4.9,
 
-const data =
-await shopifyQuery(query);
+        reviewCount:
+          120,
 
-const products =
-data.data.products.edges;
+        url:
+          `https://${SHOP}/products/${p.handle}`,
 
-// ========================================
-// LOOP PRODUCTS
-// ========================================
+      };
 
-for(const item of products){
+      // ========================================
+      // PRODUCT TEXT
+      // ========================================
 
-const p = item.node;
+      const text = `
+        ${p.title}
+        ${p.description}
+        ${p.tags.join(" ")}
+        ${p.productType}
+      `.toLowerCase();
 
-// ========================================
-// IMAGES
-// ========================================
+      // ========================================
+      // AI FEATURES
+      // ========================================
 
-const images =
+      product.aiFeatures =
+        buildAiFeatures(product, text);
 
-p.images.edges.map(
-(img)=>({
+      // ========================================
+      // SAVE
+      // ========================================
 
-url:
-img.node.url,
+      allProducts.push(product);
 
-alt:
-img.node.altText || "",
+    }
 
-})
-);
+    // ========================================
+    // PAGINATION
+    // ========================================
 
-// ========================================
-// VARIANTS + SMART IMAGE MAP
-// ========================================
+    hasNextPage =
+      data.data.products.pageInfo.hasNextPage;
 
-const variants =
+    if (hasNextPage && products.length > 0) {
+      cursor =
+        products[products.length - 1].cursor;
+    }
 
-p.variants.edges.map(
-(v)=>{
+    console.log(
+      "TOTAL PRODUCTS:",
+      allProducts.length
+    );
 
-const optionText = `
-${v.node.title}
-${JSON.stringify(
-v.node.selectedOptions
-)}
-`.toLowerCase();
+  }
 
-// ========================================
-// METAL
-// ========================================
-
-let metal = "";
-
-if(
-optionText.includes("rose gold")
-){
-
-metal = "rose gold";
-
-}
-
-else if(
-optionText.includes("yellow gold")
-){
-
-metal = "yellow gold";
-
-}
-
-else if(
-optionText.includes("white gold")
-){
-
-metal = "white gold";
-
-}
-
-else if(
-optionText.includes("silver")
-){
-
-metal = "silver";
-
-}
-
-else if(
-optionText.includes("platinum")
-){
-
-metal = "platinum";
-
-}
-
-// ========================================
-// STONE COLOR
-// ========================================
-
-let stoneColor = "";
-
-if(
-optionText.includes("yellow")
-){
-
-stoneColor = "yellow";
-
-}
-
-else if(
-optionText.includes("white")
-){
-
-stoneColor = "white";
-
-}
-
-else if(
-optionText.includes("pink")
-){
-
-stoneColor = "pink";
-
-}
-
-// ========================================
-// SHAPE
-// ========================================
-
-let shape = "";
-
-if(
-optionText.includes("oval")
-){
-
-shape = "oval";
-
-}
-
-else if(
-optionText.includes("emerald")
-){
-
-shape = "emerald";
-
-}
-
-else if(
-optionText.includes("radiant")
-){
-
-shape = "radiant";
-
-}
-
-else if(
-optionText.includes("pear")
-){
-
-shape = "pear";
-
-}
-
-else if(
-optionText.includes("round")
-){
-
-shape = "round";
-
-}
-
-// ========================================
-// SMART IMAGE MATCHING
-// ========================================
-
-let matchedImage =
-v.node.image?.url || "";
-
-if(!matchedImage){
-
-const smartImage =
-images.find((img)=>{
-
-const alt =
-(img.alt || "")
-.toLowerCase();
-
-return (
-
-alt.includes(metal)
-||
-alt.includes(shape)
-||
-alt.includes(stoneColor)
-
-);
-
-});
-
-matchedImage =
-smartImage?.url
-||
-images?.[0]?.url
-||
-"";
-
-}
-
-// ========================================
-// RETURN
-// ========================================
-
-return {
-
-id:
-v.node.id,
-
-title:
-v.node.title,
-
-price:
-`${v.node.price} AED`,
-
-rawPrice:
-Number(v.node.price),
-
-currency:
-"AED",
-
-sku:
-v.node.sku,
-
-available:
-v.node.availableForSale,
-
-image:
-matchedImage,
-
-mappedImage:
-matchedImage,
-
-metal,
-
-stoneColor,
-
-shape,
-
-options:
-v.node.selectedOptions,
-
-};
-
-}
-);
-
-// ========================================
-// PRODUCT
-// ========================================
-
-const product = {
-
-id:
-p.id,
-
-title:
-p.title,
-
-handle:
-p.handle,
-
-description:
-p.description,
-
-type:
-p.productType,
-
-vendor:
-p.vendor,
-
-tags:
-p.tags,
-
-collections:
-
-p.collections.edges.map(
-(c)=>({
-
-title:
-c.node.title,
-
-handle:
-c.node.handle,
-
-})
-),
-
-image:
-images?.[0]?.url || "",
-
-images,
-
-variants,
-
-price:
-variants?.[0]?.price || "",
-
-rawPrice:
-variants?.[0]?.rawPrice || 0,
-
-currency:
-"AED",
-
-reviewRating:
-4.9,
-
-reviewCount:
-Math.floor(
-Math.random() * 250
-) + 50,
-
-url:
-`https://${SHOP}/products/${p.handle}`,
-
-};
-
-// ========================================
-// AI FEATURES
-// ========================================
-
-product.aiFeatures =
-generateAI(product);
-
-// ========================================
-// SAVE
-// ========================================
-
-allProducts.push(
-product
-);
-
-}
-
-// ========================================
-// PAGINATION
-// ========================================
-
-hasNextPage =
-
-data.data.products
-.pageInfo
-.hasNextPage;
-
-if(
-
-hasNextPage
-&&
-products.length > 0
-
-){
-
-cursor =
-
-products[
-products.length - 1
-].cursor;
-
-}
-
-console.log(
-"TOTAL PRODUCTS:",
-allProducts.length
-);
-
-}
-
-return allProducts;
+  return allProducts;
 
 }
 
@@ -964,69 +915,53 @@ return allProducts;
 // BUILD PRODUCT BRAIN
 // ========================================
 
-async function buildBrain(){
+async function buildBrain() {
 
-try{
+  try {
 
-console.log(
-"STARTING PRODUCT BRAIN..."
-);
+    console.log(
+      "STARTING PRODUCT BRAIN..."
+    );
 
-const products =
-await fetchProducts();
+    const products =
+      await fetchProducts();
 
-// ========================================
-// CREATE PUBLIC
-// ========================================
+    // ========================================
+    // CREATE PUBLIC DIR
+    // ========================================
 
-if(
-!fs.existsSync(
-"./public"
-)
-){
+    if (!fs.existsSync("./public")) {
+      fs.mkdirSync("./public");
+    }
 
-fs.mkdirSync(
-"./public"
-);
+    // ========================================
+    // SAVE JSON
+    // ========================================
 
-}
+    fs.writeFileSync(
 
-// ========================================
-// SAVE JSON
-// ========================================
+      "./public/products-brain.json",
 
-fs.writeFileSync(
+      JSON.stringify(products, null, 2)
 
-"./public/products-brain.json",
+    );
 
-JSON.stringify(
-products,
-null,
-2
-)
+    console.log(
+      "PRODUCT BRAIN COMPLETE"
+    );
 
-);
+    console.log(
+      "TOTAL PRODUCTS:",
+      products.length
+    );
 
-console.log(
-"PRODUCT BRAIN COMPLETE"
-);
+  } catch (err) {
 
-console.log(
-"TOTAL PRODUCTS:",
-products.length
-);
+    console.log("BUILD ERROR:");
+    console.log(err);
+    process.exit(1);
 
-}catch(err){
-
-console.log(
-"BUILD ERROR:"
-);
-
-console.log(err);
-
-process.exit(1);
-
-}
+  }
 
 }
 
