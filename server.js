@@ -16,14 +16,18 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const SHOP = process.env.SHOPIFY_STORE;
-const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
+const SHOP =
+  process.env.SHOPIFY_STORE;
+
+const TOKEN =
+  process.env.SHOPIFY_ACCESS_TOKEN;
 
 // ======================
 // CACHE
 // ======================
 
 let productsCache = [];
+
 let lastUpdate = 0;
 
 // ======================
@@ -35,7 +39,9 @@ async function loadProducts() {
   try {
 
     let allProducts = [];
+
     let since_id = 0;
+
     let keepLoading = true;
 
     while (keepLoading) {
@@ -45,17 +51,29 @@ async function loadProducts() {
         since_id
       );
 
-      const response = await fetch(
-        `https://${SHOP}/admin/api/2025-01/products.json?limit=250&since_id=${since_id}`,
-        {
-          headers: {
-            "X-Shopify-Access-Token": TOKEN,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const response =
+        await fetch(
 
-      const data = await response.json();
+          `https://${SHOP}/admin/api/2025-01/products.json?limit=250&since_id=${since_id}`,
+
+          {
+
+            headers: {
+
+              "X-Shopify-Access-Token":
+                TOKEN,
+
+              "Content-Type":
+                "application/json",
+
+            },
+
+          }
+
+        );
+
+      const data =
+        await response.json();
 
       const products =
         data.products || [];
@@ -70,11 +88,14 @@ async function loadProducts() {
       ) {
 
         keepLoading = false;
+
         break;
 
       }
 
-      allProducts.push(...products);
+      allProducts.push(
+        ...products
+      );
 
       since_id =
         products[
@@ -99,16 +120,19 @@ async function loadProducts() {
       allProducts.map((p) => {
 
         const text = `
+
           ${p.title}
           ${p.body_html}
           ${p.tags}
           ${p.product_type}
           ${p.handle}
+
           ${(p.options || [])
             .map((o) =>
               o.values?.join(" ")
             )
             .join(" ")}
+
         `.toLowerCase();
 
         // ======================
@@ -127,7 +151,6 @@ async function loadProducts() {
           "wedding band",
           "eternity ring",
           "halo ring",
-          "bridal ring",
 
         ];
 
@@ -136,8 +159,6 @@ async function loadProducts() {
           "necklace",
           "necklaces",
           "chain",
-          "name necklace",
-          "initial necklace",
 
         ];
 
@@ -226,10 +247,12 @@ async function loadProducts() {
           "Unknown";
 
         if (
+
           text.includes("gold") ||
           text.includes("18k") ||
           text.includes("21k") ||
           text.includes("22k")
+
         ) {
 
           metal = "Gold";
@@ -237,11 +260,14 @@ async function loadProducts() {
         }
 
         if (
+
           text.includes("silver") ||
           text.includes("925")
+
         ) {
 
-          metal = "Silver";
+          metal =
+            "Silver";
 
         }
 
@@ -313,6 +339,13 @@ async function loadProducts() {
 
         const colorList = [
 
+          "gold",
+          "yellow gold",
+          "white gold",
+          "rose gold",
+
+          "silver",
+
           "red",
           "blue",
           "green",
@@ -321,13 +354,6 @@ async function loadProducts() {
           "yellow",
           "black",
           "white",
-
-          "rose gold",
-          "yellow gold",
-          "white gold",
-
-          "gold",
-          "silver",
 
         ];
 
@@ -360,10 +386,12 @@ async function loadProducts() {
             (v) => {
 
               const variantText = `
+
                 ${v.title}
                 ${v.option1}
                 ${v.option2}
                 ${v.option3}
+
               `.toLowerCase();
 
               let variantColor =
@@ -393,6 +421,8 @@ async function loadProducts() {
               let variantImage =
                 mainImage;
 
+              // IMAGE ID
+
               if (
                 v.image_id
               ) {
@@ -413,23 +443,63 @@ async function loadProducts() {
 
               }
 
+              // COLOR ALT MATCH
+
+              if (
+                !v.image_id
+              ) {
+
+                const colorImage =
+                  p.images?.find(
+                    (img) => {
+
+                      const alt =
+                        (
+                          img.alt ||
+                          ""
+                        ).toLowerCase();
+
+                      return (
+                        alt.includes(
+                          variantColor
+                        )
+                      );
+
+                    }
+                  );
+
+                if (
+                  colorImage
+                ) {
+
+                  variantImage =
+                    colorImage.src;
+
+                }
+
+              }
+
               // ======================
               // SEARCH TEXT
               // ======================
 
               const searchText = `
+
                 ${v.title}
                 ${v.option1}
                 ${v.option2}
                 ${v.option3}
+
                 ${variantColor}
                 ${metal}
                 ${stone}
+
               `.toLowerCase();
 
               return {
 
-                id: v.id,
+                id:
+                  v.id,
 
                 title:
                   v.title,
@@ -465,7 +535,8 @@ async function loadProducts() {
 
         return {
 
-          id: p.id,
+          id:
+            p.id,
 
           title:
             p.title,
@@ -519,9 +590,10 @@ async function loadProducts() {
   } catch (error) {
 
     console.log(
-      "LOAD PRODUCTS ERROR",
-      error
+      "LOAD PRODUCTS ERROR"
     );
+
+    console.log(error);
 
   }
 
@@ -533,19 +605,103 @@ async function loadProducts() {
 
 function searchProducts(message) {
 
-  const msg =
-    message.toLowerCase();
+  let msg =
+    message.toLowerCase().trim();
+
+  // ======================
+  // ARABIC NORMALIZATION
+  // ======================
+
+  const arabicMap = {
+
+    "خاتم": "ring",
+    "خواتم": "ring",
+    "دبلة": "ring",
+    "دبل": "wedding band",
+    "محبس": "ring",
+    "محابس": "ring",
+
+    "شبكة": "wedding ring",
+    "خطوبة": "engagement ring",
+    "سوليتير": "solitaire ring",
+
+    "سلسلة": "necklace",
+    "سلسال": "necklace",
+    "عقد": "necklace",
+    "قلادة": "necklace",
+
+    "حلق": "earring",
+    "اقراط": "earring",
+    "أقراط": "earring",
+
+    "اسورة": "bracelet",
+    "سوار": "bracelet",
+
+    "موزانيت": "moissanite",
+    "مويسانيت": "moissanite",
+
+    "الماس": "diamond",
+    "ألماس": "diamond",
+    "دايموند": "diamond",
+
+    "ذهب": "gold",
+    "دهب": "gold",
+
+    "ذهب اصفر":
+      "yellow gold",
+
+    "ذهب أبيض":
+      "white gold",
+
+    "ذهب ابيض":
+      "white gold",
+
+    "روز جولد":
+      "rose gold",
+
+    "ابيض": "white",
+    "أبيض": "white",
+
+    "اسود": "black",
+
+    "وردي": "pink",
+
+    "اصفر": "yellow",
+
+  };
+
+  Object.entries(arabicMap).forEach(
+    ([ar, en]) => {
+
+      msg =
+        msg.replaceAll(ar, en);
+
+    }
+  );
+
+  // ======================
+  // KEYWORDS
+  // ======================
 
   const keywords =
-    msg.split(" ");
+    msg
+      .split(" ")
+      .filter(Boolean);
+
+  // ======================
+  // DETECT PRODUCT TYPE
+  // ======================
 
   let requestedType =
     "";
 
   if (
+
     msg.includes("ring") ||
     msg.includes("solitaire") ||
-    msg.includes("engagement")
+    msg.includes("engagement") ||
+    msg.includes("wedding band")
+
   ) {
 
     requestedType =
@@ -554,7 +710,10 @@ function searchProducts(message) {
   }
 
   if (
-    msg.includes("necklace")
+
+    msg.includes("necklace") ||
+    msg.includes("chain")
+
   ) {
 
     requestedType =
@@ -589,19 +748,23 @@ function searchProducts(message) {
 
   }
 
+  // ======================
+  // SCORE PRODUCTS
+  // ======================
+
   let scoredProducts =
     productsCache.map((p) => {
 
       let score = 0;
 
-      // ======================
       // HARD FILTER
-      // ======================
 
       if (
+
         requestedType &&
         p.productType !==
           requestedType
+
       ) {
 
         return {
@@ -618,37 +781,126 @@ function searchProducts(message) {
       }
 
       const productText = `
+
         ${p.title}
         ${p.description}
         ${p.tags}
+
         ${p.productType}
         ${p.metal}
         ${p.stone}
+
         ${p.colors.join(" ")}
+
       `.toLowerCase();
 
-      // ======================
       // PRODUCT SCORE
-      // ======================
 
-      keywords.forEach(
-        (word) => {
+      keywords.forEach((word) => {
 
-          if (
-            productText.includes(
-              word
-            )
-          ) {
+        if (
+          productText.includes(
+            word
+          )
+        ) {
 
-            score += 2;
-
-          }
+          score += 5;
 
         }
-      );
+
+        // LUXURY BOOST
+
+        if (
+          [
+
+            "luxury",
+            "luxurious",
+            "elegant",
+
+            "شيك",
+            "فخم",
+            "راقي",
+
+          ].includes(word)
+        ) {
+
+          score += 15;
+
+        }
+
+      });
+
+      // TYPE BOOST
+
+      if (
+
+        requestedType &&
+        p.productType ===
+          requestedType
+
+      ) {
+
+        score += 100;
+
+      }
+
+      // METAL BOOST
+
+      if (
+        msg.includes("gold") &&
+        p.metal === "Gold"
+      ) {
+
+        score += 40;
+
+      }
+
+      if (
+        msg.includes("silver") &&
+        p.metal === "Silver"
+      ) {
+
+        score += 40;
+
+      }
+
+      if (
+        msg.includes("platinum") &&
+        p.metal === "Platinum"
+      ) {
+
+        score += 40;
+
+      }
+
+      // STONE BOOST
+
+      if (
+        msg.includes(
+          "moissanite"
+        ) &&
+        p.stone ===
+          "Moissanite"
+      ) {
+
+        score += 50;
+
+      }
+
+      if (
+        msg.includes(
+          "diamond"
+        ) &&
+        p.stone ===
+          "Diamond"
+      ) {
+
+        score += 50;
+
+      }
 
       // ======================
-      // VARIANT SCORE
+      // VARIANTS
       // ======================
 
       let matchedVariants =
@@ -674,25 +926,43 @@ function searchProducts(message) {
             ) {
 
               variantScore +=
-                10;
+                20;
 
             }
 
           }
         );
 
+        // MATCHED VARIANT
+
         if (
           variantScore > 0
         ) {
-
-          score +=
-            variantScore;
 
           matchedVariants.push({
 
             ...v,
 
             variantScore,
+
+          });
+
+          score +=
+            variantScore;
+
+        }
+
+        // FALLBACK
+
+        else if (
+          matchedVariants.length === 0
+        ) {
+
+          matchedVariants.push({
+
+            ...v,
+
+            variantScore: 1,
 
           });
 
@@ -706,55 +976,6 @@ function searchProducts(message) {
           a.variantScore
       );
 
-      // ======================
-      // EXTRA MATCHES
-      // ======================
-
-      if (
-        msg.includes("gold") &&
-        p.metal === "Gold"
-      ) {
-
-        score += 20;
-
-      }
-
-      if (
-        msg.includes(
-          "silver"
-        ) &&
-        p.metal ===
-          "Silver"
-      ) {
-
-        score += 20;
-
-      }
-
-      if (
-        msg.includes(
-          "moissanite"
-        ) &&
-        p.stone ===
-          "Moissanite"
-      ) {
-
-        score += 20;
-
-      }
-
-      if (
-        msg.includes(
-          "diamond"
-        ) &&
-        p.stone ===
-          "Diamond"
-      ) {
-
-        score += 20;
-
-      }
-
       return {
 
         ...p,
@@ -767,9 +988,7 @@ function searchProducts(message) {
 
     });
 
-  // ======================
-  // SORT
-  // ======================
+  // FILTER
 
   scoredProducts =
     scoredProducts
@@ -782,6 +1001,27 @@ function searchProducts(message) {
           b.score -
           a.score
       );
+
+  // FALLBACK
+
+  if (
+    scoredProducts.length === 0
+  ) {
+
+    return productsCache
+      .slice(0, 4)
+      .map((p) => ({
+
+        ...p,
+
+        matchedVariants:
+          p.variants || [],
+
+        score: 1,
+
+      }));
+
+  }
 
   return scoredProducts.slice(
     0,
@@ -817,6 +1057,7 @@ app.post(
         "مرحبا",
         "هاي",
         "السلام عليكم",
+
         "اهلا",
         "أهلا",
         "هلا",
@@ -847,11 +1088,13 @@ app.post(
       // ======================
 
       if (
+
         Date.now() -
           lastUpdate >
         1000 *
           60 *
           15
+
       ) {
 
         await loadProducts();
@@ -875,26 +1118,6 @@ app.post(
         searchProducts(
           message
         );
-
-      // ======================
-      // NO RESULTS
-      // ======================
-
-      if (
-        matchedProducts.length ===
-        0
-      ) {
-
-        return res.json({
-
-          reply:
-            "Sorry, no matching products were found.",
-
-          products: [],
-
-        });
-
-      }
 
       // ======================
       // CLEAN PRODUCTS
