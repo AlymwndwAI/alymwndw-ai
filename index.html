@@ -14,9 +14,14 @@ content="width=device-width, initial-scale=1.0"
 
 <style>
 
-body{
+*{
 margin:0;
 padding:0;
+box-sizing:border-box;
+}
+
+body{
+
 background:#050505;
 font-family:Arial;
 display:flex;
@@ -24,85 +29,201 @@ justify-content:center;
 align-items:center;
 min-height:100vh;
 color:white;
+padding:20px;
+
 }
 
 .container{
-width:420px;
-background:#111;
-padding:20px;
+
+width:430px;
+background:#101010;
 border-radius:30px;
+padding:20px;
+
 box-shadow:
-0 0 35px rgba(0,255,200,.12);
+0 0 40px rgba(0,255,200,.12);
+
 }
 
 .logo{
-font-size:42px;
+
+font-size:40px;
 font-weight:bold;
 text-align:center;
 margin-bottom:20px;
+
 }
 
 .chat-box{
-height:500px;
+
+height:600px;
 overflow-y:auto;
 background:#181818;
 padding:15px;
-border-radius:20px;
+border-radius:24px;
 margin-bottom:15px;
+
 }
 
 .message{
-padding:15px;
+
+padding:16px;
 border-radius:18px;
-margin-bottom:12px;
+margin-bottom:14px;
 max-width:85%;
 line-height:1.8;
 white-space:pre-wrap;
+font-size:16px;
+
 }
 
 .user{
+
 background:#18e0bd;
 color:black;
 margin-left:auto;
+
 }
 
 .ai{
-background:#2a2a2a;
+
+background:#262626;
+
+}
+
+.typing{
+
+opacity:.7;
+font-style:italic;
+
 }
 
 .input-area{
+
 display:flex;
 gap:10px;
+
 }
 
 input{
+
 flex:1;
 padding:16px;
 border:none;
 outline:none;
-border-radius:16px;
-background:#222;
+border-radius:18px;
+background:#202020;
 color:white;
 font-size:16px;
+
 }
 
 button{
+
 padding:16px;
 border:none;
-border-radius:16px;
+border-radius:18px;
 background:#18e0bd;
 font-size:16px;
 font-weight:bold;
 cursor:pointer;
+
 }
 
 button:hover{
+
 opacity:.9;
+
 }
 
-.typing{
-opacity:.7;
-font-style:italic;
+/* ===================== */
+/* PRODUCT CARD */
+/* ===================== */
+
+.product-card{
+
+background:#121212;
+border-radius:24px;
+padding:15px;
+margin-top:15px;
+overflow:hidden;
+border:
+1px solid rgba(255,255,255,.08);
+
+}
+
+.product-image{
+
+width:100%;
+border-radius:18px;
+margin-bottom:15px;
+
+}
+
+.product-title{
+
+font-size:22px;
+font-weight:bold;
+margin-bottom:10px;
+line-height:1.5;
+
+}
+
+.product-price{
+
+font-size:20px;
+color:#18e0bd;
+margin-bottom:12px;
+font-weight:bold;
+
+}
+
+.product-description{
+
+opacity:.8;
+line-height:1.7;
+margin-bottom:15px;
+
+}
+
+.product-info{
+
+margin-bottom:8px;
+opacity:.85;
+
+}
+
+.product-buttons{
+
+display:flex;
+gap:10px;
+
+}
+
+.view-btn{
+
+flex:1;
+text-align:center;
+padding:14px;
+background:#18e0bd;
+color:black;
+font-weight:bold;
+border-radius:14px;
+text-decoration:none;
+
+}
+
+.cart-btn{
+
+flex:1;
+padding:14px;
+background:white;
+color:black;
+font-weight:bold;
+border:none;
+border-radius:14px;
+cursor:pointer;
+
 }
 
 </style>
@@ -143,6 +264,10 @@ Send
 const chatBox =
 document.getElementById("chat-box");
 
+// =====================
+// ADD MESSAGE
+// =====================
+
 function addMessage(text,type){
 
 const div =
@@ -163,15 +288,23 @@ return div;
 
 }
 
+// =====================
+// ENTER KEY
+// =====================
 
 function handleKey(event){
 
 if(event.key === "Enter"){
+
 sendMessage();
-}
 
 }
 
+}
+
+// =====================
+// SEND MESSAGE
+// =====================
 
 async function sendMessage(){
 
@@ -179,19 +312,31 @@ const input =
 document.getElementById("message");
 
 const message =
-input.value;
+input.value.trim();
 
 if(!message) return;
+
+// =====================
+// USER MESSAGE
+// =====================
 
 addMessage(message,"user");
 
 input.value = "";
+
+// =====================
+// TYPING
+// =====================
 
 const typing =
 addMessage(
 "Alymwndw AI is typing...",
 "ai typing"
 );
+
+// =====================
+// FETCH
+// =====================
 
 const response =
 await fetch("/chat",{
@@ -214,11 +359,122 @@ await response.json();
 
 typing.remove();
 
+// =====================
+// AI REPLY
+// =====================
+
 addMessage(data.reply,"ai");
+
+// =====================
+// PRODUCTS
+// =====================
+
+if(
+data.products &&
+data.products.length
+){
+
+data.products.forEach((product)=>{
+
+// =====================
+// VARIANT
+// =====================
+
+const variant =
+product.variants?.[0];
+
+// =====================
+// IMAGE
+// =====================
+
+const image =
+variant?.image ||
+product.image;
+
+// =====================
+// VARIANT TITLE
+// =====================
+
+const variantTitle =
+variant?.title || "";
+
+// =====================
+// CARD
+// =====================
+
+const card =
+document.createElement("div");
+
+card.className =
+"product-card";
+
+card.innerHTML = `
+
+<img
+src="${image}"
+class="product-image"
+/>
+
+<div class="product-title">
+${product.title}
+</div>
+
+<div class="product-price">
+${product.price} AED
+</div>
+
+<div class="product-info">
+Metal:
+${product.metal}
+</div>
+
+<div class="product-info">
+Stone:
+${product.stone}
+</div>
+
+<div class="product-info">
+Variant:
+${variantTitle}
+</div>
+
+<div class="product-description">
+${product.description.slice(0,150)}...
+</div>
+
+<div class="product-buttons">
+
+<a
+href="${product.url}"
+target="_blank"
+class="view-btn"
+>
+View Product
+</a>
+
+<button
+class="cart-btn"
+>
+Add To Cart
+</button>
+
+</div>
+
+`;
+
+chatBox.appendChild(card);
+
+});
+
+}
+
+chatBox.scrollTop =
+chatBox.scrollHeight;
 
 }
 
 </script>
 
 </body>
+
 </html>
