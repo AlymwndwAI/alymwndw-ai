@@ -85,6 +85,9 @@ function shouldSearchProducts(
     "suggest",
     "collection",
     "products",
+    "luxury",
+    "bridal",
+    "wedding",
 
     // ARABIC
 
@@ -105,12 +108,52 @@ function shouldSearchProducts(
     "كولكشن",
     "المزيد",
     "شوفني",
+    "موزانيت",
+    "الماس",
+    "زواج",
+    "خطوبة",
 
   ];
 
   return keywords.some((w) =>
     msg.includes(w)
   );
+
+}
+
+// =====================================
+// NORMALIZE TEXT
+// =====================================
+
+function normalizeText(text) {
+
+  return text
+
+    .toLowerCase()
+
+    .replaceAll("أ", "ا")
+    .replaceAll("إ", "ا")
+    .replaceAll("آ", "ا")
+
+    .replaceAll("ة", "ه")
+
+    .replaceAll("ى", "ي")
+
+    .replaceAll("موزنايت", "moissanite")
+    .replaceAll("موزانيت", "moissanite")
+    .replaceAll("مويسانيت", "moissanite")
+
+    .replaceAll("الماس", "diamond")
+
+    .replaceAll("خاتم", "ring")
+    .replaceAll("دبله", "ring")
+
+    .replaceAll("عقد", "necklace")
+    .replaceAll("سلسله", "necklace")
+
+    .replaceAll("اسوره", "bracelet")
+
+    .replaceAll("حلق", "earring");
 
 }
 
@@ -125,10 +168,9 @@ async function aiRetrieveProducts(
 
   const slimProducts =
 
-    products.map((p) => ({
+    products.map((p, index) => ({
 
-      index:
-        products.indexOf(p),
+      index,
 
       title:
         p.title,
@@ -136,11 +178,22 @@ async function aiRetrieveProducts(
       type:
         p.type,
 
-      description:
-        p.description?.slice(0, 120),
-
       aiFeatures:
         p.aiFeatures,
+
+      variants:
+
+        p.variants
+          ?.slice(0, 3)
+          ?.map((v) => ({
+
+            title:
+              v.title,
+
+            price:
+              v.price,
+
+          })),
 
     }));
 
@@ -148,7 +201,7 @@ async function aiRetrieveProducts(
 
     await openai.chat.completions.create({
 
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-mini",
 
       temperature: 0,
 
@@ -169,29 +222,16 @@ Your ONLY job:
 choose the BEST matching jewelry products.
 
 IMPORTANT:
-- Understand luxury style.
-- Understand fashion.
-- Understand gifting.
-- Understand women jewelry taste.
-- Understand old money.
-- Understand soft luxury.
+
+- Understand luxury jewelry.
 - Understand elegant feminine jewelry.
 - Understand minimal luxury.
-- Understand collections.
-- Understand emotional buying.
-
-Use aiFeatures FIRST.
-
-Use:
-- aiFeatures.styles
-- aiFeatures.intent
-- aiFeatures.category
-- aiFeatures.collection
-- aiFeatures.searchKeywords
-- aiFeatures.materials
-- aiFeatures.emotionalTriggers
-
-Return ONLY JSON.
+- Understand bridal jewelry.
+- Understand gifting.
+- Understand Arabic and English.
+- Use aiFeatures FIRST.
+- Focus on product relevance.
+- Return ONLY JSON.
 
 Example:
 
@@ -210,7 +250,9 @@ ${JSON.stringify(slimProducts)}
           role: "user",
 
           content:
-            userMessage,
+            normalizeText(
+              userMessage
+            ),
 
         },
 
@@ -218,22 +260,32 @@ ${JSON.stringify(slimProducts)}
 
     });
 
-  const data = JSON.parse(
+  try {
 
-    completion.choices[0]
-      .message.content
+    const data = JSON.parse(
 
-  );
+      completion.choices[0]
+        .message.content
 
-  return data.matches
+    );
 
-    ?.map(
-      (i) => products[i]
-    )
+    return data.matches
 
-    ?.filter(Boolean)
+      ?.map(
+        (i) => products[i]
+      )
 
-    || [];
+      ?.filter(Boolean)
+
+      ?.slice(0, 4)
+
+      || [];
+
+  } catch {
+
+    return [];
+
+  }
 
 }
 
@@ -259,6 +311,11 @@ app.post("/chat", async (req, res) => {
 
     const userMessage =
       req.body.message || "";
+
+    const normalizedMessage =
+      normalizeText(
+        userMessage
+      );
 
     const sessionId =
       req.body.sessionId ||
@@ -309,7 +366,9 @@ app.post("/chat", async (req, res) => {
 
         await openai.chat.completions.create({
 
-          model: "gpt-4o-mini",
+          model: "gpt-4.1-mini",
+
+          temperature: 0.3,
 
           messages: [
 
@@ -365,7 +424,7 @@ Keep:
     }
 
     // =====================================
-    // SEARCH PRODUCTS ONLY WHEN NEEDED
+    // PRODUCT SEARCH
     // =====================================
 
     let matchedProducts = [];
@@ -373,7 +432,7 @@ Keep:
     if (
 
       shouldSearchProducts(
-        userMessage
+        normalizedMessage
       )
 
     ) {
@@ -381,8 +440,11 @@ Keep:
       matchedProducts =
 
         await aiRetrieveProducts(
-          userMessage,
+
+          normalizedMessage,
+
           products
+
         );
 
     }
@@ -392,21 +454,22 @@ Keep:
     // =====================================
 
     if (
-      matchedProducts.length === 0
-      &&
-      shouldSearchProducts(
-        userMessage
-      )
-    ) {
 
-      const msg =
-        userMessage.toLowerCase();
+      matchedProducts.length === 0
+
+      &&
+
+      shouldSearchProducts(
+        normalizedMessage
+      )
+
+    ) {
 
       matchedProducts =
 
         products.filter((p) => {
 
-          const text = `
+          const text = normalizeText(`
 
             ${p.title || ""}
             ${p.description || ""}
@@ -438,9 +501,13 @@ Keep:
               || ""
             }
 
-          `.toLowerCase();
+          `);
 
-          return text.includes(msg);
+          return normalizedMessage
+            .split(" ")
+            .some((word) =>
+              text.includes(word)
+            );
 
         })
 
@@ -449,15 +516,28 @@ Keep:
     }
 
     // =====================================
-    // CLEAN PRODUCTS
+    // LIGHT PRODUCTS FOR OPENAI
     // =====================================
 
-    const cleanProducts =
+    const aiProducts =
 
       matchedProducts.map((p) => ({
 
         title:
           p.title,
+
+        productType:
+
+          p.type ||
+
+          p.aiFeatures
+            ?.productType ||
+
+          "",
+
+        category:
+          p.aiFeatures
+            ?.category || "",
 
         price:
 
@@ -470,27 +550,33 @@ Keep:
 
           ||
 
-          "N/A",
-
-        collection:
-          p.aiFeatures
-            ?.collection,
-
-        category:
-          p.aiFeatures
-            ?.category,
+          "",
 
         styles:
           p.aiFeatures
-            ?.styles,
-
-        materials:
-          p.aiFeatures
-            ?.materials,
+            ?.styles || [],
 
         emotionalTriggers:
           p.aiFeatures
-            ?.emotionalTriggers,
+            ?.emotionalTriggers || [],
+
+        searchKeywords:
+          p.aiFeatures
+            ?.searchKeywords || [],
+
+        variants:
+
+          p.variants
+            ?.slice(0, 3)
+            ?.map((v) => ({
+
+              title:
+                v.title,
+
+              price:
+                v.price,
+
+            })),
 
       }));
 
@@ -504,7 +590,7 @@ Keep:
 
         model: "gpt-4.1-mini",
 
-        temperature: 0.8,
+        temperature: 0.5,
 
         messages: [
 
@@ -523,31 +609,20 @@ but specialized in jewelry.
 IMPORTANT:
 
 - Talk naturally.
-- Be emotionally intelligent.
-- Be elegant.
-- Be conversational.
 - Sound human.
-- Ask follow-up questions naturally.
-- Understand luxury fashion deeply.
+- Be elegant.
+- Be emotionally intelligent.
 - Keep replies concise.
 - Arabic should sound premium.
 - English should sound premium.
-
-CRITICAL:
-
-- If AVAILABLE PRODUCTS exist:
-recommend them naturally.
-
-- If no products:
-continue normal conversation naturally.
-
-- NEVER say:
-"I cannot find products"
-unless customer explicitly asked.
-
+- Understand luxury deeply.
+- Recommend products naturally.
+- NEVER invent products.
+- NEVER invent variants.
+- NEVER invent prices.
 - NEVER sound robotic.
 
-- Frontend already shows products separately.
+Frontend already shows products separately.
 
 Customer Memory:
 
@@ -555,7 +630,7 @@ ${summaries[sessionId] || ""}
 
 AVAILABLE PRODUCTS:
 
-${JSON.stringify(cleanProducts)}
+${JSON.stringify(aiProducts)}
 
 `,
           },
