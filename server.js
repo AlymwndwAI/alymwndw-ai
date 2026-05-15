@@ -14,24 +14,24 @@ app.use(express.static("public"));
 
 const PORT = process.env.PORT || 10000;
 
-// =========================
+// =====================================
 // OPENAI
-// =========================
+// =====================================
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// =========================
+// =====================================
 // MEMORY
-// =========================
+// =====================================
 
-let conversations = {};
-let conversationSummaries = {};
+const conversations = {};
+const summaries = {};
 
-// =========================
+// =====================================
 // LOAD PRODUCT BRAIN
-// =========================
+// =====================================
 
 let products = [];
 
@@ -56,9 +56,67 @@ try {
 
 }
 
-// =========================
+// =====================================
+// SHOULD SEARCH PRODUCTS
+// =====================================
+
+function shouldSearchProducts(
+  message
+) {
+
+  const msg =
+    message.toLowerCase();
+
+  const keywords = [
+
+    // ENGLISH
+
+    "ring",
+    "necklace",
+    "bracelet",
+    "earring",
+    "diamond",
+    "gold",
+    "silver",
+    "moissanite",
+    "gift",
+    "show",
+    "recommend",
+    "suggest",
+    "collection",
+    "products",
+
+    // ARABIC
+
+    "خاتم",
+    "عقد",
+    "سلسلة",
+    "اسورة",
+    "حلق",
+    "ذهب",
+    "فضة",
+    "هديه",
+    "هدية",
+    "وريني",
+    "عاوز",
+    "عايز",
+    "منتجات",
+    "قطع",
+    "كولكشن",
+    "المزيد",
+    "شوفني",
+
+  ];
+
+  return keywords.some((w) =>
+    msg.includes(w)
+  );
+
+}
+
+// =====================================
 // AI PRODUCT RETRIEVAL
-// =========================
+// =====================================
 
 async function aiRetrieveProducts(
   userMessage,
@@ -69,14 +127,11 @@ async function aiRetrieveProducts(
 
     products.map((p) => ({
 
-      id:
-        p.id,
+      index:
+        products.indexOf(p),
 
       title:
         p.title,
-
-      handle:
-        p.handle,
 
       type:
         p.type,
@@ -110,36 +165,38 @@ async function aiRetrieveProducts(
 
 You are Alymwndw AI retrieval engine.
 
-Your job:
-Find the BEST matching jewelry products.
+Your ONLY job:
+choose the BEST matching jewelry products.
 
 IMPORTANT:
-- Use aiFeatures FIRST.
 - Understand luxury style.
-- Understand emotions.
-- Understand gifting intent.
+- Understand fashion.
+- Understand gifting.
+- Understand women jewelry taste.
+- Understand old money.
 - Understand soft luxury.
-- Understand old money aesthetic.
-- Understand feminine elegant style.
-- Understand personalized jewelry.
+- Understand elegant feminine jewelry.
+- Understand minimal luxury.
 - Understand collections.
-- Understand custom jewelry.
+- Understand emotional buying.
 
-DO NOT rely only on titles.
+Use aiFeatures FIRST.
 
 Use:
 - aiFeatures.styles
 - aiFeatures.intent
 - aiFeatures.category
-- aiFeatures.searchKeywords
 - aiFeatures.collection
+- aiFeatures.searchKeywords
 - aiFeatures.materials
 - aiFeatures.emotionalTriggers
 
-Return ONLY JSON:
+Return ONLY JSON.
+
+Example:
 
 {
-  "matches": [0,1,2,3]
+  "matches": [1,5,8,12]
 }
 
 PRODUCTS:
@@ -170,17 +227,19 @@ ${JSON.stringify(slimProducts)}
 
   return data.matches
 
-    .map(
+    ?.map(
       (i) => products[i]
     )
 
-    .filter(Boolean);
+    ?.filter(Boolean)
+
+    || [];
 
 }
 
-// =========================
+// =====================================
 // HOME
-// =========================
+// =====================================
 
 app.get("/", (req, res) => {
 
@@ -190,9 +249,9 @@ app.get("/", (req, res) => {
 
 });
 
-// =========================
+// =====================================
 // CHAT API
-// =========================
+// =====================================
 
 app.post("/chat", async (req, res) => {
 
@@ -205,9 +264,9 @@ app.post("/chat", async (req, res) => {
       req.body.sessionId ||
       "default";
 
-    // =========================
-    // MEMORY INIT
-    // =========================
+    // =====================================
+    // INIT MEMORY
+    // =====================================
 
     if (
       !conversations[sessionId]
@@ -219,9 +278,9 @@ app.post("/chat", async (req, res) => {
 
     }
 
-    // =========================
+    // =====================================
     // SAVE USER MESSAGE
-    // =========================
+    // =====================================
 
     conversations[
       sessionId
@@ -234,17 +293,20 @@ app.post("/chat", async (req, res) => {
 
     });
 
-    // =========================
+    // =====================================
     // MEMORY SUMMARY
-    // =========================
+    // =====================================
 
     if (
+
       conversations[
         sessionId
-      ].length > 10
+      ].length > 12
+
     ) {
 
       const summaryCompletion =
+
         await openai.chat.completions.create({
 
           model: "gpt-4o-mini",
@@ -255,14 +317,17 @@ app.post("/chat", async (req, res) => {
               role: "system",
 
               content: `
-Summarize this jewelry conversation.
+
+Summarize this luxury jewelry conversation.
 
 Keep:
-- customer preferences
+- taste
 - favorite styles
-- gifting intent
+- gifting preferences
+- luxury preferences
+- metal preferences
 - personalization requests
-- luxury taste
+
 `,
             },
 
@@ -281,9 +346,10 @@ Keep:
 
         });
 
-      conversationSummaries[
+      summaries[
         sessionId
       ] =
+
         summaryCompletion
           .choices[0]
           .message.content;
@@ -291,93 +357,103 @@ Keep:
       conversations[
         sessionId
       ] =
+
         conversations[
           sessionId
-        ].slice(-4);
+        ].slice(-6);
 
     }
 
-    // =========================
-    // AI PRODUCT RETRIEVAL
-    // =========================
+    // =====================================
+    // SEARCH PRODUCTS ONLY WHEN NEEDED
+    // =====================================
 
-    let matchedProducts =
-      await aiRetrieveProducts(
-        userMessage,
-        products
-      );
+    let matchedProducts = [];
 
-    // =========================
+    if (
+
+      shouldSearchProducts(
+        userMessage
+      )
+
+    ) {
+
+      matchedProducts =
+
+        await aiRetrieveProducts(
+          userMessage,
+          products
+        );
+
+    }
+
+    // =====================================
     // FALLBACK SEARCH
-    // =========================
+    // =====================================
 
     if (
       matchedProducts.length === 0
+      &&
+      shouldSearchProducts(
+        userMessage
+      )
     ) {
 
       const msg =
         userMessage.toLowerCase();
 
-      const fallback =
+      matchedProducts =
+
         products.filter((p) => {
 
           const text = `
+
             ${p.title || ""}
             ${p.description || ""}
             ${p.type || ""}
+
             ${
               p.aiFeatures
                 ?.searchKeywords
-                ?.join(" ") || ""
+                ?.join(" ")
+              || ""
             }
+
             ${
               p.aiFeatures
                 ?.styles
-                ?.join(" ") || ""
+                ?.join(" ")
+              || ""
             }
+
             ${
               p.aiFeatures
-                ?.category || ""
+                ?.category
+              || ""
             }
+
             ${
               p.aiFeatures
-                ?.collection || ""
+                ?.collection
+              || ""
             }
+
           `.toLowerCase();
 
           return text.includes(msg);
 
-        });
+        })
 
-      matchedProducts =
-        fallback.slice(0, 4);
-
-    }
-
-    // =========================
-    // NO PRODUCTS
-    // =========================
-
-    if (
-      matchedProducts.length === 0
-    ) {
-
-      return res.json({
-
-        reply:
-          "لم أجد قطعة مطابقة تماماً حالياً ✨ لكن يمكنني مساعدتك في اختيار أقرب تصميم فاخر مناسب.",
-
-        products: [],
-
-      });
+        .slice(0, 4);
 
     }
 
-    // =========================
+    // =====================================
     // CLEAN PRODUCTS
-    // =========================
+    // =====================================
 
     const cleanProducts =
+
       matchedProducts.map((p) => ({
 
         title:
@@ -386,9 +462,13 @@ Keep:
         price:
 
           p.variants?.[0]
-            ?.price ||
+            ?.price
 
-          p.price ||
+          ||
+
+          p.price
+
+          ||
 
           "N/A",
 
@@ -414,20 +494,12 @@ Keep:
 
       }));
 
-    // =========================
-    // RECENT MEMORY
-    // =========================
-
-    const recentConversation =
-      conversations[
-        sessionId
-      ].slice(-8);
-
-    // =========================
-    // MAIN AI
-    // =========================
+    // =====================================
+    // MAIN AI CHAT
+    // =====================================
 
     const completion =
+
       await openai.chat.completions.create({
 
         model: "gpt-4.1-mini",
@@ -443,24 +515,43 @@ Keep:
 
 You are Alymwndw AI.
 
-You are a luxury jewelry stylist and sales expert.
+You are a luxury jewelry AI sales agent.
+
+You behave like ChatGPT,
+but specialized in jewelry.
 
 IMPORTANT:
-- Speak naturally like ChatGPT.
-- Be elegant and premium.
+
+- Talk naturally.
 - Be emotionally intelligent.
+- Be elegant.
+- Be conversational.
+- Sound human.
+- Ask follow-up questions naturally.
+- Understand luxury fashion deeply.
 - Keep replies concise.
-- Arabic must sound luxurious.
-- NEVER invent products.
-- ONLY use AVAILABLE PRODUCTS.
-- Recommend products naturally.
-- Frontend already displays products separately.
-- Do not dump product lists.
-- Focus on helping customer choose.
+- Arabic should sound premium.
+- English should sound premium.
+
+CRITICAL:
+
+- If AVAILABLE PRODUCTS exist:
+recommend them naturally.
+
+- If no products:
+continue normal conversation naturally.
+
+- NEVER say:
+"I cannot find products"
+unless customer explicitly asked.
+
+- NEVER sound robotic.
+
+- Frontend already shows products separately.
 
 Customer Memory:
 
-${conversationSummaries[sessionId] || ""}
+${summaries[sessionId] || ""}
 
 AVAILABLE PRODUCTS:
 
@@ -469,19 +560,22 @@ ${JSON.stringify(cleanProducts)}
 `,
           },
 
-          ...recentConversation,
+          ...conversations[
+            sessionId
+          ].slice(-8),
 
         ],
 
       });
 
     const aiReply =
+
       completion.choices[0]
         .message.content;
 
-    // =========================
+    // =====================================
     // SAVE AI RESPONSE
-    // =========================
+    // =====================================
 
     conversations[
       sessionId
@@ -494,9 +588,9 @@ ${JSON.stringify(cleanProducts)}
 
     });
 
-    // =========================
+    // =====================================
     // RESPONSE
-    // =========================
+    // =====================================
 
     res.json({
 
@@ -525,9 +619,9 @@ ${JSON.stringify(cleanProducts)}
 
 });
 
-// =========================
+// =====================================
 // START SERVER
-// =========================
+// =====================================
 
 app.listen(PORT, () => {
 
