@@ -1,656 +1,284 @@
+import express from "express";
 import dotenv from "dotenv";
+import OpenAI from "openai";
 import fs from "fs";
-import fetch from "node-fetch";
 
 dotenv.config();
 
 // ======================
-// SHOPIFY
+// APP
 // ======================
 
-const SHOP =
-  process.env.SHOPIFY_STORE;
+const app = express();
 
-const TOKEN =
-  process.env.SHOPIFY_ACCESS_TOKEN;
+app.use(express.json());
+
+app.use(
+  express.static("public")
+);
+
+const PORT =
+  process.env.PORT || 10000;
 
 // ======================
-// CLEAN HTML
+// OPENAI
 // ======================
 
-function cleanHTML(html) {
+const openai =
+  new OpenAI({
 
-  return (
-    html || ""
-  )
+    apiKey:
+      process.env.OPENAI_API_KEY,
 
-    .replace(
-      /<[^>]*>/g,
-      " "
+  });
+
+// ======================
+// LOAD PRODUCT BRAIN
+// ======================
+
+const productsCache =
+  JSON.parse(
+
+    fs.readFileSync(
+      "./products.json",
+      "utf8"
     )
 
-    .replace(
-      /\s+/g,
-      " "
-    )
+  );
 
-    .trim();
+console.log(
+
+  "PRODUCT BRAIN LOADED:",
+
+  productsCache.length
+
+);
+
+// ======================
+// NORMALIZE ARABIC
+// ======================
+
+function normalizeArabic(text){
+
+  let msg =
+    text.toLowerCase();
+
+  const map = {
+
+    // RINGS
+
+    "خاتم":"ring",
+    "خواتم":"ring",
+    "دبلة":"ring",
+    "محبس":"ring",
+    "سوليتير":"solitaire ring",
+
+    // NECKLACES
+
+    "سلسلة":"necklace",
+    "عقد":"necklace",
+    "قلادة":"necklace",
+
+    // EARRINGS
+
+    "حلق":"earring",
+    "اقراط":"earring",
+    "أقراط":"earring",
+
+    // BRACELETS
+
+    "اسورة":"bracelet",
+    "سوار":"bracelet",
+
+    // STONES
+
+    "موزانيت":"moissanite",
+    "مويسانيت":"moissanite",
+
+    "الماس":"diamond",
+    "دايموند":"diamond",
+
+    "ياقوت":"ruby",
+
+    "حجر احمر":"ruby",
+    "حجر أحمر":"ruby",
+
+    // METALS
+
+    "ذهب":"gold",
+
+    "ذهب ابيض":"white gold",
+    "ذهب أبيض":"white gold",
+
+    "ذهب اصفر":"yellow gold",
+
+    "روز جولد":"rose gold",
+
+    // COLORS
+
+    "احمر":"red",
+    "أحمر":"red",
+
+    "ازرق":"blue",
+    "أزرق":"blue",
+
+    "اخضر":"green",
+    "أخضر":"green",
+
+    "ابيض":"white",
+    "أبيض":"white",
+
+    "اسود":"black",
+
+  };
+
+  Object.entries(map)
+  .forEach(([ar,en])=>{
+
+    msg =
+      msg.replaceAll(ar,en);
+
+  });
+
+  return msg;
 
 }
 
 // ======================
-// LOAD ALL PRODUCTS
+// SEARCH
 // ======================
 
-async function loadProducts() {
+function semanticSearch(message){
 
-  try {
+  const msg =
+    normalizeArabic(message);
 
-    let allProducts =
-      [];
+  const words =
+    msg
+      .split(" ")
+      .filter(Boolean);
 
-    let since_id = 0;
+  // ======================
+  // REQUESTED TYPE
+  // ======================
 
-    let keepLoading =
-      true;
+  let requestedType =
+    "";
 
-    while (
-      keepLoading
-    ) {
+  if(
 
-      console.log(
-        "Loading after:",
-        since_id
-      );
+    msg.includes("ring") ||
+    msg.includes("solitaire") ||
+    msg.includes("engagement")
 
-      const response =
-        await fetch(
+  ){
 
-`https://${SHOP}/admin/api/2025-01/products.json?limit=250&since_id=${since_id}`,
-
-          {
-
-            headers: {
-
-              "X-Shopify-Access-Token":
-                TOKEN,
-
-              "Content-Type":
-                "application/json",
-
-            },
-
-          }
-        );
-
-      const data =
-        await response.json();
-
-      const products =
-        data.products ||
-        [];
-
-      console.log(
-        "Loaded:",
-        products.length
-      );
-
-      if (
-        products.length ===
-        0
-      ) {
-
-        keepLoading =
-          false;
-
-        break;
-
-      }
-
-      allProducts.push(
-        ...products
-      );
-
-      since_id =
-        products[
-          products.length -
-            1
-        ].id;
-
-      if (
-        products.length <
-        250
-      ) {
-
-        keepLoading =
-          false;
-
-      }
-
-    }
-
-    // ======================
-    // BUILD PRODUCT BRAIN
-    // ======================
-
-    const productsBrain =
-      allProducts.map(
-        (p) => {
-
-          // ======================
-          // CLEAN TEXT
-          // ======================
-
-          const title =
-            (
-              p.title || ""
-            ).toLowerCase();
-
-          const tags =
-            (
-              p.tags || ""
-            ).toLowerCase();
-
-          const type =
-            (
-              p.product_type ||
-              ""
-            ).toLowerCase();
-
-          const desc =
-            cleanHTML(
-              p.body_html
-            ).toLowerCase();
-
-          const combined = `
-
-${title}
-${tags}
-${type}
-${desc}
-
-`;
-
-          // ======================
-          // PRODUCT TYPE
-          // ======================
-
-          let productType =
-            "other";
-
-          // RINGS
-
-          if (
-
-            combined.includes(
-              "ring"
-            ) ||
-
-            combined.includes(
-              "rings"
-            ) ||
-
-            combined.includes(
-              "خاتم"
-            ) ||
-
-            combined.includes(
-              "خواتم"
-            ) ||
-
-            combined.includes(
-              "دبلة"
-            ) ||
-
-            combined.includes(
-              "محبس"
-            ) ||
-
-            combined.includes(
-              "solitaire"
-            ) ||
-
-            combined.includes(
-              "engagement"
-            ) ||
-
-            combined.includes(
-              "wedding band"
-            )
-
-          ) {
-
-            productType =
-              "ring";
-
-          }
-
-          // NECKLACES
-
-          else if (
-
-            combined.includes(
-              "necklace"
-            ) ||
-
-            combined.includes(
-              "necklaces"
-            ) ||
-
-            combined.includes(
-              "chain"
-            ) ||
-
-            combined.includes(
-              "سلسلة"
-            ) ||
-
-            combined.includes(
-              "عقد"
-            ) ||
-
-            combined.includes(
-              "قلادة"
-            )
-
-          ) {
-
-            productType =
-              "necklace";
-
-          }
-
-          // EARRINGS
-
-          else if (
-
-            combined.includes(
-              "earring"
-            ) ||
-
-            combined.includes(
-              "earrings"
-            ) ||
-
-            combined.includes(
-              "حلق"
-            ) ||
-
-            combined.includes(
-              "أقراط"
-            ) ||
-
-            combined.includes(
-              "اقراط"
-            )
-
-          ) {
-
-            productType =
-              "earrings";
-
-          }
-
-          // BRACELETS
-
-          else if (
-
-            combined.includes(
-              "bracelet"
-            ) ||
-
-            combined.includes(
-              "bracelets"
-            ) ||
-
-            combined.includes(
-              "اسورة"
-            ) ||
-
-            combined.includes(
-              "سوار"
-            )
-
-          ) {
-
-            productType =
-              "bracelet";
-
-          }
-
-          // ======================
-          // METAL
-          // ======================
-
-          let metal =
-            "Unknown";
-
-          if (
-
-            combined.includes(
-              "gold"
-            ) ||
-
-            combined.includes(
-              "ذهب"
-            ) ||
-
-            combined.includes(
-              "18k"
-            ) ||
-
-            combined.includes(
-              "21k"
-            ) ||
-
-            combined.includes(
-              "22k"
-            )
-
-          ) {
-
-            metal =
-              "Gold";
-
-          }
-
-          if (
-
-            combined.includes(
-              "silver"
-            ) ||
-
-            combined.includes(
-              "فضة"
-            ) ||
-
-            combined.includes(
-              "925"
-            )
-
-          ) {
-
-            metal =
-              "Silver";
-
-          }
-
-          if (
-
-            combined.includes(
-              "platinum"
-            )
-
-          ) {
-
-            metal =
-              "Platinum";
-
-          }
-
-          // ======================
-          // STONE
-          // ======================
-
-          let stone =
-            "None";
-
-          if (
-
-            combined.includes(
-              "moissanite"
-            ) ||
-
-            combined.includes(
-              "موزانيت"
-            )
-
-          ) {
-
-            stone =
-              "Moissanite";
-
-          }
-
-          if (
-
-            combined.includes(
-              "diamond"
-            ) ||
-
-            combined.includes(
-              "الماس"
-            )
-
-          ) {
-
-            stone =
-              "Diamond";
-
-          }
-
-          if (
-
-            combined.includes(
-              "ruby"
-            ) ||
-
-            combined.includes(
-              "ياقوت"
-            )
-
-          ) {
-
-            stone =
-              "Ruby";
-
-          }
-
-          // ======================
-          // COLORS
-          // ======================
-
-          let colors =
-            [];
-
-          const colorList =
-            [
-
-              "red",
-              "blue",
-              "green",
-              "pink",
-              "purple",
-              "yellow",
-              "black",
-              "white",
-
-              "gold",
-              "silver",
-
-              "احمر",
-              "ازرق",
-              "اخضر",
-              "وردي",
-              "اصفر",
-              "ابيض",
-              "اسود",
-
-            ];
-
-          colorList.forEach(
-            (c) => {
-
-              if (
-                combined.includes(
-                  c
-                )
-              ) {
-
-                colors.push(
-                  c
-                );
-
-              }
-
-            }
-          );
-
-          // ======================
-          // MAIN IMAGE
-          // ======================
-
-          const mainImage =
-            p.images?.[0]
-              ?.src || "";
-
-          // ======================
-          // VARIANTS
-          // ======================
-
-          const variants =
-            (
-              p.variants ||
-              []
-            ).map((v) => {
-
-              let variantImage =
-                mainImage;
-
-              if (
-                v.image_id
-              ) {
-
-                const img =
-                  p.images.find(
-                    (i) =>
-                      i.id ===
-                      v.image_id
-                  );
-
-                if (img) {
-
-                  variantImage =
-                    img.src;
-
-                }
-
-              }
-
-              return {
-
-                id: v.id,
-
-                title:
-                  v.title,
-
-                price:
-                  v.price,
-
-                image:
-                  variantImage,
-
-                option1:
-                  v.option1,
-
-                option2:
-                  v.option2,
-
-                option3:
-                  v.option3,
-
-                available:
-                  v.inventory_quantity >
-                  0,
-
-              };
-
-            });
-
-          // ======================
-          // RETURN PRODUCT
-          // ======================
-
-          return {
-
-            id: p.id,
-
-            title:
-              p.title,
-
-            description:
-              cleanHTML(
-                p.body_html
-              ),
-
-            tags:
-              p.tags,
-
-            handle:
-              p.handle,
-
-            productType,
-
-            metal,
-
-            stone,
-
-            colors,
-
-            image:
-              mainImage,
-
-            price:
-              p.variants?.[0]
-                ?.price || "",
-
-            url:
-`https://${SHOP}/products/${p.handle}`,
-
-            variants,
-
-          };
-
-        }
-      );
-
-    // ======================
-    // SAVE JSON
-    // ======================
-
-    fs.writeFileSync(
-
-      "./products.json",
-
-      JSON.stringify(
-        productsBrain,
-        null,
-        2
-      )
-
-    );
-
-    console.log(
-
-      "PRODUCT BRAIN CREATED:",
-
-      productsBrain.length
-
-    );
-
-  } catch (error) {
-
-    console.log(
-      "ERROR:",
-      error
-    );
+    requestedType =
+      "ring";
 
   }
 
-}
+  if(
+    msg.includes("necklace")
+  ){
 
-// ======================
-// RUN
-// ======================
+    requestedType =
+      "necklace";
 
-loadProducts();
+  }
+
+  if(
+    msg.includes("earring")
+  ){
+
+    requestedType =
+      "earrings";
+
+  }
+
+  if(
+    msg.includes("bracelet")
+  ){
+
+    requestedType =
+      "bracelet";
+
+  }
+
+  // ======================
+  // SCORE PRODUCTS
+  // ======================
+
+  let results =
+    productsCache.map((p)=>{
+
+      let score = 0;
+
+      // ======================
+      // HARD FILTER
+      // ======================
+
+      if(
+
+        requestedType &&
+        p.productType !==
+          requestedType
+
+      ){
+
+        return {
+
+          ...p,
+
+          matchedVariants:
+            [],
+
+          score: -999,
+
+        };
+
+      }
+
+      // ======================
+      // PRODUCT TEXT
+      // ======================
+
+      const productText = `
+
+${p.title}
+${p.description}
+${p.tags}
+${p.productType}
+${p.metal}
+${p.stone}
+${p.colors?.join(" ")}
+
+`
+      .toLowerCase();
+
+      // ======================
+      // WORD MATCH
+      // ======================
+
+      words.forEach((w)=>{
+
+        if(
+
+          w.length > 2 &&
+          productText.includes(w)
+
+        ){
+
+          score += 15;
+
+        }
+
+      });
+
+      // ======================
+      // PRODUCT TYPE BOOST
+      // ======================
+
+      if(
+
+        requested
