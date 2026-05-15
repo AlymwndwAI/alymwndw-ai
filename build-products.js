@@ -72,10 +72,7 @@ async function shopifyQuery(query) {
 
   );
 
-  const data =
-    await response.json();
-
-  return data;
+  return response.json();
 
 }
 
@@ -115,19 +112,17 @@ function generateAI(product) {
 
     materials: [],
 
-    upsells: [],
-
   };
 
   // ========================================
-  // CATEGORY
+  // PRODUCT TYPES
   // ========================================
 
   if (
     text.includes("ring")
   ) {
 
-    ai.category = "ring";
+    ai.category = "rings";
 
     ai.productType =
       "ring";
@@ -139,7 +134,7 @@ function generateAI(product) {
   ) {
 
     ai.category =
-      "necklace";
+      "necklaces";
 
     ai.productType =
       "necklace";
@@ -151,7 +146,7 @@ function generateAI(product) {
   ) {
 
     ai.category =
-      "bracelet";
+      "bracelets";
 
     ai.productType =
       "bracelet";
@@ -163,7 +158,7 @@ function generateAI(product) {
   ) {
 
     ai.category =
-      "earring";
+      "earrings";
 
     ai.productType =
       "earring";
@@ -195,7 +190,7 @@ function generateAI(product) {
 
     ai.intent.push(
       "engagement",
-      "luxury jewelry"
+      "diamond alternative"
     );
 
     ai.materials.push(
@@ -204,8 +199,7 @@ function generateAI(product) {
 
     ai.searchKeywords.push(
       "moissanite ring",
-      "gra certified",
-      "diamond alternative"
+      "gra certified"
     );
 
   }
@@ -280,8 +274,7 @@ function generateAI(product) {
   ) {
 
     ai.styles.push(
-      "celebrity",
-      "iced luxury"
+      "celebrity luxury"
     );
 
     ai.searchKeywords.push(
@@ -305,13 +298,12 @@ function generateAI(product) {
   ) {
 
     ai.intent.push(
-      "wedding",
       "bridal"
     );
 
     ai.emotionalTriggers.push(
-      "forever",
-      "love"
+      "love",
+      "forever"
     );
 
   }
@@ -331,8 +323,7 @@ function generateAI(product) {
   ) {
 
     ai.intent.push(
-      "gift jewelry",
-      "custom jewelry"
+      "gift jewelry"
     );
 
     ai.styles.push(
@@ -464,13 +455,7 @@ async function fetchProducts() {
 
                   availableForSale
 
-                  price {
-
-                    amount
-
-                    currencyCode
-
-                  }
+                  price
 
                   selectedOptions {
 
@@ -515,13 +500,11 @@ async function fetchProducts() {
       );
 
       console.log(
-
         JSON.stringify(
           data.errors,
           null,
           2
         )
-
       );
 
       process.exit(1);
@@ -537,13 +520,11 @@ async function fetchProducts() {
       );
 
       console.log(
-
         JSON.stringify(
           data,
           null,
           2
         )
-
       );
 
       process.exit(1);
@@ -558,7 +539,7 @@ async function fetchProducts() {
       data.data.products.edges;
 
     // ========================================
-    // LOOP
+    // LOOP PRODUCTS
     // ========================================
 
     for (const item of products) {
@@ -600,15 +581,15 @@ async function fetchProducts() {
               v.node.title,
 
             price:
-              `${v.node.price.amount} ${v.node.price.currencyCode}`,
+              `${v.node.price} AED`,
 
             rawPrice:
               Number(
-                v.node.price.amount
+                v.node.price
               ),
 
             currency:
-              v.node.price.currencyCode,
+              "AED",
 
             sku:
               v.node.sku,
@@ -685,8 +666,11 @@ async function fetchProducts() {
         price:
           variants?.[0]?.price || "",
 
+        rawPrice:
+          variants?.[0]?.rawPrice || 0,
+
         currency:
-          variants?.[0]?.currency || "AED",
+          "AED",
 
         reviewRating:
           4.9,
@@ -709,7 +693,7 @@ async function fetchProducts() {
         generateAI(product);
 
       // ========================================
-      // PUSH
+      // SAVE
       // ========================================
 
       allProducts.push(
@@ -758,7 +742,7 @@ async function fetchProducts() {
 }
 
 // ========================================
-// BUILD BRAIN
+// BUILD PRODUCT BRAIN
 // ========================================
 
 async function buildBrain() {
@@ -773,7 +757,7 @@ async function buildBrain() {
       await fetchProducts();
 
     // ========================================
-    // CREATE PUBLIC FOLDER
+    // CREATE PUBLIC
     // ========================================
 
     if (
@@ -811,3 +795,24 @@ async function buildBrain() {
     console.log(
       "TOTAL PRODUCTS:",
       products.length
+    );
+
+  } catch (err) {
+
+    console.log(
+      "BUILD ERROR:"
+    );
+
+    console.log(err);
+
+    process.exit(1);
+
+  }
+
+}
+
+// ========================================
+// START
+// ========================================
+
+buildBrain();
