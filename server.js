@@ -65,270 +65,33 @@ async function aiRetrieveProducts(
   products
 ) {
 
-  const msg =
-    userMessage.toLowerCase();
-
   // =========================
-  // SMART PRODUCT BRAIN FILTER
-  // =========================
-
-  let filteredProducts =
-    products.filter((p) => {
-
-      const searchable = `
-
-        ${p.title || ""}
-
-        ${p.description || ""}
-
-        ${p.type || ""}
-
-        ${p.product_type || ""}
-
-        ${p.aiFeatures?.collection || ""}
-
-        ${p.aiFeatures?.category || ""}
-
-        ${p.aiFeatures?.productType || ""}
-
-        ${p.aiFeatures?.styles || ""}
-
-        ${p.aiFeatures?.materials || ""}
-
-        ${p.aiFeatures?.searchKeywords || ""}
-
-      `
-        .toLowerCase();
-
-      // =========================
-      // RINGS
-      // =========================
-
-      if (
-
-        msg.includes("خاتم") ||
-        msg.includes("ring")
-
-      ) {
-
-        return (
-
-          searchable.includes("ring") ||
-
-          searchable.includes("wedding ring") ||
-
-          searchable.includes("engagement ring")
-
-        );
-
-      }
-
-      // =========================
-      // NECKLACES
-      // =========================
-
-      if (
-
-        msg.includes("سلسله") ||
-        msg.includes("سلسلة") ||
-        msg.includes("necklace") ||
-        msg.includes("chain") ||
-        msg.includes("pendant")
-
-      ) {
-
-        return (
-
-          searchable.includes("necklace") ||
-
-          searchable.includes("chain") ||
-
-          searchable.includes("pendant")
-
-        );
-
-      }
-
-      // =========================
-      // EARRINGS
-      // =========================
-
-      if (
-
-        msg.includes("حلق") ||
-        msg.includes("earring") ||
-        msg.includes("earrings")
-
-      ) {
-
-        return (
-
-          searchable.includes("earring") ||
-
-          searchable.includes("earrings")
-
-        );
-
-      }
-
-      // =========================
-      // BRACELETS
-      // =========================
-
-      if (
-
-        msg.includes("اسوره") ||
-        msg.includes("أسورة") ||
-        msg.includes("bracelet")
-
-      ) {
-
-        return searchable.includes(
-          "bracelet"
-        );
-
-      }
-
-      // =========================
-      // MOISSANITE
-      // =========================
-
-      if (
-
-        msg.includes("moissanite") ||
-        msg.includes("موسنايت")
-
-      ) {
-
-        return searchable.includes(
-          "moissanite"
-        );
-
-      }
-
-      // =========================
-      // DIAMOND
-      // =========================
-
-      if (
-
-        msg.includes("diamond") ||
-        msg.includes("الماس")
-
-      ) {
-
-        return searchable.includes(
-          "diamond"
-        );
-
-      }
-
-      // =========================
-      // GOLD
-      // =========================
-
-      if (
-
-        msg.includes("ذهب") ||
-        msg.includes("gold")
-
-      ) {
-
-        return searchable.includes(
-          "gold"
-        );
-
-      }
-
-      // =========================
-      // PERSONALIZED
-      // =========================
-
-      if (
-
-        msg.includes("اسم") ||
-        msg.includes("مخصص") ||
-        msg.includes("personalized") ||
-        msg.includes("custom")
-
-      ) {
-
-        return (
-
-          searchable.includes(
-            "personalized"
-          ) ||
-
-          searchable.includes(
-            "custom"
-          ) ||
-
-          searchable.includes(
-            "name necklace"
-          ) ||
-
-          searchable.includes(
-            "arabic"
-          )
-
-        );
-
-      }
-
-      // DEFAULT
-      return true;
-
-    });
-
-  // FALLBACK
-
-  if (
-    filteredProducts.length === 0
-  ) {
-
-    filteredProducts =
-      products;
-
-  }
-
-  // =========================
-  // SMALLER SMART DATASET
+  // FULL PRODUCT BRAIN
   // =========================
 
   const slimProducts =
 
-    filteredProducts
+    products.map((p) => ({
 
-      .slice(0, 120)
+      id:
+        p.id,
 
-      .map((p) => ({
+      title:
+        p.title,
 
-        title:
-          p.title,
+      handle:
+        p.handle,
 
-        handle:
-          p.handle,
+      type:
+        p.type,
 
-        type:
-          p.type,
+      description:
+        p.description?.slice(0, 80),
 
-        description:
-          p.description?.slice(
-            0,
-            120
-          ),
+      aiFeatures:
+        p.aiFeatures,
 
-        aiFeatures:
-          p.aiFeatures,
-
-        price:
-
-          p.variants?.[0]
-            ?.price ||
-
-          "N/A",
-
-      }));
+    }));
 
   // =========================
   // AI RETRIEVAL
@@ -355,19 +118,30 @@ async function aiRetrieveProducts(
 
 You are Alymwndw AI retrieval engine.
 
-Your job:
-- deeply understand customer intent
-- match correct jewelry category
-- prioritize emotional fit
-- prioritize luxury style
-- prioritize personalization requests
-- understand Arabic and English naturally
+You MUST use aiFeatures as the primary intelligence layer.
 
-IMPORTANT:
-- NEVER choose wrong category
-- necklace request = necklaces only
-- ring request = rings only
-- earrings request = earrings only
+Understand:
+- style
+- emotion
+- collection vibe
+- luxury mood
+- personalization
+- gifting
+- feminine style
+- old money
+- soft luxury
+- modern elegance
+
+Do NOT rely only on titles.
+
+Choose products by:
+- aiFeatures.styles
+- aiFeatures.intent
+- aiFeatures.emotionalTriggers
+- aiFeatures.collection
+- aiFeatures.category
+- aiFeatures.searchKeywords
+- aiFeatures.materials
 
 Return ONLY JSON:
 
@@ -412,7 +186,7 @@ ${JSON.stringify(slimProducts)}
   return data.matches
 
     .map(
-      (i) => filteredProducts[i]
+      (i) => products[i]
     )
 
     .filter(Boolean);
@@ -502,9 +276,9 @@ Keep:
 - customer preferences
 - favorite styles
 - budget
-- relationship context
 - gifting intent
 - personalization requests
+- luxury taste
 `,
             },
 
@@ -550,6 +324,25 @@ Keep:
       );
 
     // =========================
+    // NO PRODUCTS
+    // =========================
+
+    if (
+      matchedProducts.length === 0
+    ) {
+
+      return res.json({
+
+        reply:
+          "لم أجد قطعة مطابقة تماماً حالياً ✨ لكن يمكنني مساعدتك في اختيار أقرب تصميم فاخر مناسب.",
+
+        products: [],
+
+      });
+
+    }
+
+    // =========================
     // CLEAN PRODUCTS
     // =========================
 
@@ -582,9 +375,13 @@ Keep:
           p.aiFeatures
             ?.materials,
 
-        personalization:
+        intent:
           p.aiFeatures
-            ?.features,
+            ?.intent,
+
+        emotionalTriggers:
+          p.aiFeatures
+            ?.emotionalTriggers,
 
       }));
 
@@ -595,10 +392,10 @@ Keep:
     const recentConversation =
       conversations[
         sessionId
-      ].slice(-10);
+      ].slice(-8);
 
     // =========================
-    // MAIN AI
+    // MAIN AI RESPONSE
     // =========================
 
     const completion =
@@ -636,21 +433,16 @@ IMPORTANT:
 
 - Talk naturally.
 - Continue conversations naturally.
-- Remember previous messages.
 - Never sound robotic.
-- Never repeat greetings.
 - Ask smart follow-up questions.
-- Guide customer naturally.
+- Understand luxury fashion deeply.
 - Recommend jewelry naturally.
 - Mention luxury emotions naturally.
-- Keep replies concise and elegant.
-- Ask one follow-up question at a time.
-- Arabic must feel natural.
-- English must feel premium.
+- Keep replies elegant and concise.
+- Arabic must feel natural and premium.
+- English must feel premium and elegant.
 - NEVER invent products.
 - ONLY use AVAILABLE PRODUCTS.
-- Never print raw URLs.
-- Never print image links.
 - Frontend displays products separately.
 
 Customer Memory:
