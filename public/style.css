@@ -34,6 +34,8 @@ background:#111;
 
 margin-bottom:16px;
 
+transition:.3s;
+
 }
 
 .product-title{
@@ -100,6 +102,71 @@ line-height:1.6;
 
 }
 
+/* =========================
+VARIANT SWITCHER
+========================= */
+
+.variant-switcher{
+
+display:flex;
+
+flex-wrap:wrap;
+
+gap:10px;
+
+margin-top:18px;
+
+margin-bottom:18px;
+
+}
+
+.variant-btn{
+
+background:#111;
+
+border:1px solid rgba(255,255,255,.08);
+
+color:white;
+
+padding:10px 16px;
+
+border-radius:999px;
+
+cursor:pointer;
+
+font-size:13px;
+
+font-weight:600;
+
+transition:.25s;
+
+}
+
+.variant-btn:hover{
+
+background:#43ffd1;
+
+color:black;
+
+transform:translateY(-2px);
+
+}
+
+.active-variant{
+
+background:#43ffd1;
+
+color:black;
+
+box-shadow:
+0 0 15px rgba(67,255,209,.4);
+
+}
+
+/* =========================
+BUTTONS
+========================= */
+
 .product-buttons{
 
 display:flex;
@@ -160,6 +227,10 @@ cursor:pointer;
 
 transition:.2s;
 
+text-align:center;
+
+text-decoration:none;
+
 }
 
 .cart-btn:hover{
@@ -167,6 +238,10 @@ transition:.2s;
 transform:scale(1.02);
 
 }
+
+/* =========================
+AVATAR
+========================= */
 
 .deer-avatar{
 
@@ -176,6 +251,10 @@ height:55px;
 object-fit:contain;
 
 }
+
+/* =========================
+CHAT
+========================= */
 
 .message{
 
