@@ -305,11 +305,42 @@ app.post("/chat", async (req, res) => {
         description:
           p.description,
 
+        image:
+          p.image,
+
         aiFeatures:
           p.aiFeatures,
 
+        // MAIN PRICE
+        price:
+
+          p.variants?.[0]?.price ||
+
+          p.price ||
+
+          "N/A",
+
+        // VARIANTS
         variants:
-          p.variants?.slice(0, 5),
+
+          p.variants?.slice(0, 10).map((v) => ({
+
+            title:
+              v.title,
+
+            price:
+              v.price,
+
+            available:
+              v.available,
+
+            image:
+              v.image,
+
+            options:
+              v.options,
+
+          })),
 
       }));
 
@@ -342,6 +373,7 @@ IMPORTANT RULES:
 - Sound like premium jewelry consultant.
 - NEVER invent products.
 - ONLY recommend from AVAILABLE PRODUCTS.
+- Mention prices when relevant.
 - Focus on emotional luxury selling.
 - Recommend best matching pieces.
 - Mention personalization when relevant.
