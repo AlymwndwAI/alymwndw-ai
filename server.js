@@ -57,75 +57,10 @@ try {
 }
 
 // =====================================
-// SHOULD SEARCH PRODUCTS
-// =====================================
-
-function shouldSearchProducts(
-  message
-) {
-
-  const msg =
-    message.toLowerCase();
-
-  const keywords = [
-
-    // ENGLISH
-
-    "ring",
-    "necklace",
-    "bracelet",
-    "earring",
-    "diamond",
-    "gold",
-    "silver",
-    "moissanite",
-    "gift",
-    "show",
-    "recommend",
-    "suggest",
-    "collection",
-    "products",
-    "luxury",
-    "bridal",
-    "wedding",
-
-    // ARABIC
-
-    "خاتم",
-    "عقد",
-    "سلسلة",
-    "اسورة",
-    "حلق",
-    "ذهب",
-    "فضة",
-    "هديه",
-    "هدية",
-    "وريني",
-    "عاوز",
-    "عايز",
-    "منتجات",
-    "قطع",
-    "كولكشن",
-    "المزيد",
-    "شوفني",
-    "موزانيت",
-    "الماس",
-    "زواج",
-    "خطوبة",
-
-  ];
-
-  return keywords.some((w) =>
-    msg.includes(w)
-  );
-
-}
-
-// =====================================
 // NORMALIZE TEXT
 // =====================================
 
-function normalizeText(text) {
+function normalizeText(text = "") {
 
   return text
 
@@ -139,153 +74,328 @@ function normalizeText(text) {
 
     .replaceAll("ى", "ي")
 
-    .replaceAll("موزنايت", "moissanite")
-    .replaceAll("موزانيت", "moissanite")
-    .replaceAll("مويسانيت", "moissanite")
-
-    .replaceAll("الماس", "diamond")
-
     .replaceAll("خاتم", "ring")
     .replaceAll("دبله", "ring")
+    .replaceAll("محبس", "ring")
 
     .replaceAll("عقد", "necklace")
     .replaceAll("سلسله", "necklace")
 
     .replaceAll("اسوره", "bracelet")
 
-    .replaceAll("حلق", "earring");
+    .replaceAll("حلق", "earring")
+
+    .replaceAll("ذهب", "gold")
+    .replaceAll("فضه", "silver")
+
+    .replaceAll("الماس", "diamond")
+
+    .replaceAll("موزانيت", "moissanite")
+    .replaceAll("مويسانيت", "moissanite")
+    .replaceAll("موزنايت", "moissanite");
 
 }
 
 // =====================================
-// AI PRODUCT RETRIEVAL
+// SHOULD SEARCH PRODUCTS
 // =====================================
 
-async function aiRetrieveProducts(
+function shouldSearchProducts(
+  message
+) {
+
+  const msg =
+    normalizeText(message);
+
+  const keywords = [
+
+    "ring",
+    "necklace",
+    "bracelet",
+    "earring",
+
+    "diamond",
+    "gold",
+    "silver",
+    "moissanite",
+
+    "gift",
+    "luxury",
+    "bridal",
+    "wedding",
+
+    "show",
+    "recommend",
+    "suggest",
+    "products",
+
+    "خاتم",
+    "عقد",
+    "سلسله",
+    "اسوره",
+    "حلق",
+
+    "ذهب",
+    "فضه",
+    "الماس",
+    "موزانيت",
+
+    "هديه",
+    "هدية",
+
+    "عايز",
+    "عاوز",
+
+    "وريني",
+    "شوف",
+
+  ];
+
+  return keywords.some((w) =>
+    msg.includes(
+      normalizeText(w)
+    )
+  );
+
+}
+
+// =====================================
+// FAST LOCAL PRODUCT SEARCH
+// =====================================
+
+function searchProducts(
   userMessage,
   products
 ) {
 
-  const slimProducts =
+  const msg =
+    normalizeText(
+      userMessage
+    );
 
-    products.map((p, index) => ({
+  const words =
+    msg.split(" ");
 
-      index,
+  let scoredProducts =
 
-      title:
-        p.title,
+    products.map((p) => {
 
-      type:
-        p.type,
+      const text = normalizeText(`
 
-      aiFeatures:
-        p.aiFeatures,
+        ${p.title || ""}
 
-      variants:
+        ${p.description || ""}
 
-        p.variants
-          ?.slice(0, 3)
-          ?.map((v) => ({
+        ${p.type || ""}
 
-            title:
-              v.title,
+        ${
+          p.aiFeatures
+            ?.category || ""
+        }
 
-            price:
-              v.price,
+        ${
+          p.aiFeatures
+            ?.collection || ""
+        }
 
-          })),
+        ${
+          p.aiFeatures
+            ?.styles
+            ?.join(" ")
+          || ""
+        }
 
-    }));
+        ${
+          p.aiFeatures
+            ?.intent
+            ?.join(" ")
+          || ""
+        }
 
-  const completion =
+        ${
+          p.aiFeatures
+            ?.searchKeywords
+            ?.join(" ")
+          || ""
+        }
 
-    await openai.chat.completions.create({
+        ${
+          p.aiFeatures
+            ?.emotionalTriggers
+            ?.join(" ")
+          || ""
+        }
 
-      model: "gpt-4.1-mini",
+      `);
 
-      temperature: 0,
+      let score = 0;
 
-      response_format: {
-        type: "json_object",
-      },
+      // =====================================
+      // WORD MATCH
+      // =====================================
 
-      messages: [
+      words.forEach((word) => {
 
-        {
-          role: "system",
+        if (
+          text.includes(word)
+        ) {
 
-          content: `
+          score += 10;
 
-You are Alymwndw AI retrieval engine.
+        }
 
-Your ONLY job:
-choose the BEST matching jewelry products.
+      });
 
-IMPORTANT:
+      // =====================================
+      // SMART CATEGORY BOOST
+      // =====================================
 
-- Understand luxury jewelry.
-- Understand elegant feminine jewelry.
-- Understand minimal luxury.
-- Understand bridal jewelry.
-- Understand gifting.
-- Understand Arabic and English.
-- Use aiFeatures FIRST.
-- Focus on product relevance.
-- Return ONLY JSON.
+      if (
 
-Example:
+        msg.includes("ring")
 
-{
-  "matches": [1,5,8,12]
-}
+        &&
 
-PRODUCTS:
+        text.includes("ring")
 
-${JSON.stringify(slimProducts)}
+      ) {
 
-`,
-        },
+        score += 80;
 
-        {
-          role: "user",
+      }
 
-          content:
-            normalizeText(
-              userMessage
-            ),
+      if (
 
-        },
+        msg.includes("necklace")
 
-      ],
+        &&
+
+        text.includes("necklace")
+
+      ) {
+
+        score += 80;
+
+      }
+
+      if (
+
+        msg.includes("bracelet")
+
+        &&
+
+        text.includes("bracelet")
+
+      ) {
+
+        score += 80;
+
+      }
+
+      if (
+
+        msg.includes("earring")
+
+        &&
+
+        text.includes("earring")
+
+      ) {
+
+        score += 80;
+
+      }
+
+      // =====================================
+      // STONE BOOST
+      // =====================================
+
+      if (
+
+        msg.includes("moissanite")
+
+        &&
+
+        text.includes("moissanite")
+
+      ) {
+
+        score += 100;
+
+      }
+
+      if (
+
+        msg.includes("diamond")
+
+        &&
+
+        text.includes("diamond")
+
+      ) {
+
+        score += 100;
+
+      }
+
+      // =====================================
+      // METAL BOOST
+      // =====================================
+
+      if (
+
+        msg.includes("gold")
+
+        &&
+
+        text.includes("gold")
+
+      ) {
+
+        score += 50;
+
+      }
+
+      if (
+
+        msg.includes("silver")
+
+        &&
+
+        text.includes("silver")
+
+      ) {
+
+        score += 50;
+
+      }
+
+      return {
+
+        ...p,
+
+        score,
+
+      };
 
     });
 
-  try {
+  scoredProducts =
 
-    const data = JSON.parse(
+    scoredProducts
 
-      completion.choices[0]
-        .message.content
-
-    );
-
-    return data.matches
-
-      ?.map(
-        (i) => products[i]
+      .filter((p) =>
+        p.score > 0
       )
 
-      ?.filter(Boolean)
+      .sort(
+        (a, b) =>
+          b.score - a.score
+      )
 
-      ?.slice(0, 4)
+      .slice(0, 4);
 
-      || [];
-
-  } catch {
-
-    return [];
-
-  }
+  return scoredProducts;
 
 }
 
@@ -312,14 +422,14 @@ app.post("/chat", async (req, res) => {
     const userMessage =
       req.body.message || "";
 
+    const sessionId =
+      req.body.sessionId ||
+      crypto.randomUUID();
+
     const normalizedMessage =
       normalizeText(
         userMessage
       );
-
-    const sessionId =
-      req.body.sessionId ||
-      "default";
 
     // =====================================
     // INIT MEMORY
@@ -351,6 +461,28 @@ app.post("/chat", async (req, res) => {
     });
 
     // =====================================
+    // CLEANUP MEMORY
+    // =====================================
+
+    if (
+
+      conversations[
+        sessionId
+      ].length > 20
+
+    ) {
+
+      conversations[
+        sessionId
+      ] =
+
+        conversations[
+          sessionId
+        ].slice(-10);
+
+    }
+
+    // =====================================
     // MEMORY SUMMARY
     // =====================================
 
@@ -358,7 +490,7 @@ app.post("/chat", async (req, res) => {
 
       conversations[
         sessionId
-      ].length > 12
+      ].length > 10
 
     ) {
 
@@ -368,7 +500,7 @@ app.post("/chat", async (req, res) => {
 
           model: "gpt-4.1-mini",
 
-          temperature: 0.3,
+          temperature: 0.2,
 
           messages: [
 
@@ -377,15 +509,14 @@ app.post("/chat", async (req, res) => {
 
               content: `
 
-Summarize this luxury jewelry conversation.
+Summarize this luxury jewelry customer.
 
 Keep:
-- taste
-- favorite styles
+- style
+- jewelry taste
 - gifting preferences
 - luxury preferences
-- metal preferences
-- personalization requests
+- favorite materials
 
 `,
             },
@@ -413,18 +544,10 @@ Keep:
           .choices[0]
           .message.content;
 
-      conversations[
-        sessionId
-      ] =
-
-        conversations[
-          sessionId
-        ].slice(-6);
-
     }
 
     // =====================================
-    // PRODUCT SEARCH
+    // FAST LOCAL SEARCH
     // =====================================
 
     let matchedProducts = [];
@@ -439,7 +562,7 @@ Keep:
 
       matchedProducts =
 
-        await aiRetrieveProducts(
+        searchProducts(
 
           normalizedMessage,
 
@@ -450,73 +573,7 @@ Keep:
     }
 
     // =====================================
-    // FALLBACK SEARCH
-    // =====================================
-
-    if (
-
-      matchedProducts.length === 0
-
-      &&
-
-      shouldSearchProducts(
-        normalizedMessage
-      )
-
-    ) {
-
-      matchedProducts =
-
-        products.filter((p) => {
-
-          const text = normalizeText(`
-
-            ${p.title || ""}
-            ${p.description || ""}
-            ${p.type || ""}
-
-            ${
-              p.aiFeatures
-                ?.searchKeywords
-                ?.join(" ")
-              || ""
-            }
-
-            ${
-              p.aiFeatures
-                ?.styles
-                ?.join(" ")
-              || ""
-            }
-
-            ${
-              p.aiFeatures
-                ?.category
-              || ""
-            }
-
-            ${
-              p.aiFeatures
-                ?.collection
-              || ""
-            }
-
-          `);
-
-          return normalizedMessage
-            .split(" ")
-            .some((word) =>
-              text.includes(word)
-            );
-
-        })
-
-        .slice(0, 4);
-
-    }
-
-    // =====================================
-    // LIGHT PRODUCTS FOR OPENAI
+    // LIGHT PRODUCTS
     // =====================================
 
     const aiProducts =
@@ -526,18 +583,21 @@ Keep:
         title:
           p.title,
 
-        productType:
-
-          p.type ||
-
-          p.aiFeatures
-            ?.productType ||
-
-          "",
-
         category:
           p.aiFeatures
             ?.category || "",
+
+        collection:
+          p.aiFeatures
+            ?.collection || "",
+
+        styles:
+          p.aiFeatures
+            ?.styles || [],
+
+        emotionalTriggers:
+          p.aiFeatures
+            ?.emotionalTriggers || [],
 
         price:
 
@@ -551,18 +611,6 @@ Keep:
           ||
 
           "",
-
-        styles:
-          p.aiFeatures
-            ?.styles || [],
-
-        emotionalTriggers:
-          p.aiFeatures
-            ?.emotionalTriggers || [],
-
-        searchKeywords:
-          p.aiFeatures
-            ?.searchKeywords || [],
 
         variants:
 
@@ -601,26 +649,21 @@ Keep:
 
 You are Alymwndw AI.
 
-You are a luxury jewelry AI sales agent.
-
-You behave like ChatGPT,
-but specialized in jewelry.
+You are a luxury jewelry AI sales expert.
 
 IMPORTANT:
 
-- Talk naturally.
 - Sound human.
-- Be elegant.
+- Sound premium.
 - Be emotionally intelligent.
+- Be elegant.
 - Keep replies concise.
 - Arabic should sound premium.
 - English should sound premium.
-- Understand luxury deeply.
-- Recommend products naturally.
 - NEVER invent products.
-- NEVER invent variants.
 - NEVER invent prices.
-- NEVER sound robotic.
+- NEVER invent variants.
+- Recommend products naturally.
 
 Frontend already shows products separately.
 
@@ -637,7 +680,7 @@ ${JSON.stringify(aiProducts)}
 
           ...conversations[
             sessionId
-          ].slice(-8),
+          ].slice(-6),
 
         ],
 
@@ -674,6 +717,8 @@ ${JSON.stringify(aiProducts)}
 
       products:
         matchedProducts,
+
+      sessionId,
 
     });
 
