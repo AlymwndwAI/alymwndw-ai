@@ -127,6 +127,51 @@ typing.remove();
 }
 
 // =====================
+// SWITCH VARIANT IMAGE
+// =====================
+
+function switchVariantImage(
+
+imageId,
+newImage,
+button
+
+){
+
+const image =
+document.getElementById(
+imageId
+);
+
+if(image){
+
+image.src = newImage;
+
+}
+
+// REMOVE ACTIVE
+
+document
+.querySelectorAll(
+".variant-btn"
+)
+.forEach((btn)=>{
+
+btn.classList.remove(
+"active-variant"
+);
+
+});
+
+// ACTIVE BUTTON
+
+button.classList.add(
+"active-variant"
+);
+
+}
+
+// =====================
 // PRODUCT CARD
 // =====================
 
@@ -134,12 +179,14 @@ function renderProducts(products){
 
 products.forEach((product)=>{
 
-const variant =
+const firstVariant =
 product.variants?.[0] || {};
 
 const image =
 
-variant.image ||
+firstVariant.mappedImage ||
+
+firstVariant.image ||
 
 product.image ||
 
@@ -147,7 +194,7 @@ product.image ||
 
 const price =
 
-variant.price ||
+firstVariant.price ||
 
 product.price ||
 
@@ -171,6 +218,53 @@ product.url ||
 
 `https://alymwndw.com/products/${product.handle}`;
 
+// =====================
+// VARIANT BUTTONS
+// =====================
+
+const variantButtons =
+
+product.variants?.map(
+(v,index)=>{
+
+const variantName =
+
+v.metal ||
+
+v.title ||
+
+"Variant";
+
+return `
+
+<button
+
+class="variant-btn ${index === 0 ? "active-variant" : ""}"
+
+onclick="switchVariantImage(
+
+'product-image-${product.id}',
+
+'${v.mappedImage || v.image}',
+
+this
+
+)"
+
+>
+
+${variantName}
+
+</button>
+
+`;
+
+}).join("") || "";
+
+// =====================
+// CARD
+// =====================
+
 const card =
 document.createElement("div");
 
@@ -180,8 +274,13 @@ card.className =
 card.innerHTML = `
 
 <img
+
+id="product-image-${product.id}"
+
 src="${image}"
+
 class="product-image"
+
 />
 
 <div class="product-title">
@@ -194,6 +293,12 @@ ${price}
 
 <div class="product-rating">
 ⭐ ${rating} (${reviews} reviews)
+</div>
+
+<div class="variant-switcher">
+
+${variantButtons}
+
 </div>
 
 <div class="product-buttons">
