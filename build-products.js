@@ -4,446 +4,191 @@ import fetch from "node-fetch";
 
 dotenv.config();
 
-// ======================
-// SHOPIFY
-// ======================
+const SHOP = process.env.SHOPIFY_STORE;
+const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
-const SHOP =
-  process.env.SHOPIFY_STORE;
-
-const TOKEN =
-  process.env.SHOPIFY_ACCESS_TOKEN;
-
-// ======================
-// CLEAN HTML
-// ======================
+const PRODUCTS_URL = `https://${SHOP}/admin/api/2024-01/products.json?limit=250`;
 
 function cleanHTML(html) {
-
-  if (!html) return "";
-
   return html
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
+    ?.replace(/<[^>]*>/g, "")
+    ?.replace(/\s+/g, " ")
+    ?.trim() || "";
 }
 
-// ======================
-// NORMALIZE
-// ======================
+function detectType(product) {
+  const text = `
+    ${product.title}
+    ${product.product_type}
+    ${product.tags}
+  `.toLowerCase();
 
-function normalize(text = "") {
-
-  return text
-    .toLowerCase()
-
-    // Arabic normalize
-    .replaceAll("أ", "ا")
-    .replaceAll("إ", "ا")
-    .replaceAll("آ", "ا")
-    .replaceAll("ة", "ه")
-    .replaceAll("ى", "ي")
-
-    // English normalize
-    .replaceAll("-", " ")
-    .replaceAll("/", " ")
-
-    .trim();
-
+  if (text.includes("ring")) return "ring";
+  if (text.includes("necklace")) return "necklace";
+  if (text.includes("earring")) return "earring";
+  if (text.includes("bracelet")) return "bracelet";
+  if (text.includes("tennis")) return "tennis";
+  return "jewelry";
 }
 
-// ======================
-// DETECT PRODUCT TYPE
-// ======================
+function detectMaterials(product) {
+  const text = `
+    ${product.title}
+    ${product.body_html}
+    ${product.tags}
+  `.toLowerCase();
 
-function detectProductType(text) {
+  const materials = [];
 
-  if (
-    text.includes("ring") ||
-    text.includes("خاتم") ||
-    text.includes("دبله") ||
-    text.includes("محبس")
-  ) {
+  if (text.includes("gold")) materials.push("gold");
+  if (text.includes("silver")) materials.push("silver");
+  if (text.includes("platinum")) materials.push("platinum");
 
-    return "ring";
-
-  }
-
-  if (
-    text.includes("necklace") ||
-    text.includes("سلسله") ||
-    text.includes("عقد") ||
-    text.includes("قلاده")
-  ) {
-
-    return "necklace";
-
-  }
-
-  if (
-    text.includes("earring") ||
-    text.includes("حلق")
-  ) {
-
-    return "earring";
-
-  }
-
-  if (
-    text.includes("bracelet") ||
-    text.includes("اسوره")
-  ) {
-
-    return "bracelet";
-
-  }
-
-  return "other";
-
+  return materials;
 }
 
-// ======================
-// DETECT METAL
-// ======================
+function detectStones(product) {
+  const text = `
+    ${product.title}
+    ${product.body_html}
+    ${product.tags}
+  `.toLowerCase();
 
-function detectMetal(text) {
+  const stones = [];
 
-  if (
-    text.includes("gold") ||
-    text.includes("ذهب") ||
-    text.includes("18k") ||
-    text.includes("21k") ||
-    text.includes("22k")
-  ) {
+  if (text.includes("moissanite"))
+    stones.push("moissanite");
 
-    return "gold";
+  if (text.includes("diamond"))
+    stones.push("diamond");
 
-  }
+  if (text.includes("ruby"))
+    stones.push("ruby");
 
-  if (
-    text.includes("silver") ||
-    text.includes("فضه") ||
-    text.includes("925")
-  ) {
+  if (text.includes("emerald"))
+    stones.push("emerald");
 
-    return "silver";
+  if (text.includes("sapphire"))
+    stones.push("sapphire");
 
-  }
-
-  if (
-    text.includes("platinum")
-  ) {
-
-    return "platinum";
-
-  }
-
-  return "";
-
+  return stones;
 }
 
-// ======================
-// DETECT STONE
-// ======================
+function detectColors(product) {
+  const text = `
+    ${product.title}
+    ${product.body_html}
+    ${product.tags}
+  `.toLowerCase();
 
-function detectStone(text) {
+  const colors = [];
 
-  if (
-    text.includes("moissanite") ||
-    text.includes("موزنايت") ||
-    text.includes("مويسانيت")
-  ) {
+  if (text.includes("red")) colors.push("red");
+  if (text.includes("blue")) colors.push("blue");
+  if (text.includes("green")) colors.push("green");
+  if (text.includes("yellow")) colors.push("yellow");
+  if (text.includes("white")) colors.push("white");
+  if (text.includes("black")) colors.push("black");
+  if (text.includes("rose gold"))
+    colors.push("rose gold");
 
-    return "moissanite";
-
-  }
-
-  if (
-    text.includes("diamond") ||
-    text.includes("الماس")
-  ) {
-
-    return "diamond";
-
-  }
-
-  if (
-    text.includes("ruby") ||
-    text.includes("ياقوت") ||
-    text.includes("احمر")
-  ) {
-
-    return "ruby";
-
-  }
-
-  if (
-    text.includes("emerald")
-  ) {
-
-    return "emerald";
-
-  }
-
-  return "";
-
+  return colors;
 }
 
-// ======================
-// LOAD PRODUCTS
-// ======================
-
-async function buildProducts() {
-
+async function buildProductBrain() {
   try {
+    console.log("LOADING PRODUCTS...");
 
-    let allProducts = [];
+    const response = await fetch(PRODUCTS_URL, {
+      headers: {
+        "X-Shopify-Access-Token": TOKEN,
+      },
+    });
 
-    let since_id = 0;
+    const data = await response.json();
 
-    let keepLoading = true;
+    const products = data.products || [];
 
-    while (keepLoading) {
+    console.log(
+      `FOUND ${products.length} PRODUCTS`
+    );
 
-      console.log(
-        "Loading after:",
-        since_id
+    const brain = products.map((product) => {
+      const variants = product.variants.map(
+        (variant) => ({
+          id: variant.id,
+          title: variant.title,
+          price: variant.price,
+          sku: variant.sku,
+          option1: variant.option1,
+          option2: variant.option2,
+          option3: variant.option3,
+        })
       );
 
-      const response = await fetch(
+      return {
+        id: product.id,
 
-        `https://${SHOP}/admin/api/2025-01/products.json?limit=250&since_id=${since_id}`,
+        title: product.title,
 
-        {
+        description: cleanHTML(
+          product.body_html
+        ),
 
-          headers: {
+        type: detectType(product),
 
-            "X-Shopify-Access-Token":
-              TOKEN,
+        materials: detectMaterials(product),
 
-            "Content-Type":
-              "application/json",
+        stones: detectStones(product),
 
-          },
+        colors: detectColors(product),
 
-        }
+        tags: product.tags
+          ?.split(",")
+          ?.map((t) => t.trim().toLowerCase()),
 
-      );
+        handle: product.handle,
 
-      const data =
-        await response.json();
+        url: `https://${SHOP}/products/${product.handle}`,
 
-      const products =
-        data.products || [];
+        image:
+          product.images?.[0]?.src || "",
 
-      console.log(
-        "Loaded:",
-        products.length
-      );
+        images:
+          product.images?.map(
+            (img) => img.src
+          ) || [],
 
-      if (
-        products.length === 0
-      ) {
+        price:
+          product.variants?.[0]?.price || 0,
 
-        keepLoading = false;
+        variants,
 
-        break;
+        options: product.options || [],
 
-      }
+        vendor: product.vendor,
 
-      allProducts.push(...products);
+        product_type: product.product_type,
 
-      since_id =
-        products[
-          products.length - 1
-        ].id;
-
-      if (
-        products.length < 250
-      ) {
-
-        keepLoading = false;
-
-      }
-
-    }
-
-    // ======================
-    // BUILD PRODUCT BRAIN
-    // ======================
-
-    const productBrain =
-      allProducts.map((p) => {
-
-        const rawText = `
-
-          ${p.title}
-          ${cleanHTML(p.body_html)}
-          ${p.tags}
-          ${p.product_type}
-
-        `;
-
-        const text =
-          normalize(rawText);
-
-        const productType =
-          detectProductType(text);
-
-        const metal =
-          detectMetal(text);
-
-        const stone =
-          detectStone(text);
-
-        // ======================
-        // VARIANTS
-        // ======================
-
-        const variants =
-          (p.variants || []).map(
-            (v) => {
-
-              const variantText =
-                normalize(`
-
-                  ${v.title}
-                  ${v.option1}
-                  ${v.option2}
-                  ${v.option3}
-
-                `);
-
-              let variantImage =
-                p.images?.[0]?.src || "";
-
-              // ======================
-              // IMAGE ID
-              // ======================
-
-              if (
-                v.image_id
-              ) {
-
-                const img =
-                  p.images.find(
-                    (i) =>
-                      i.id ===
-                      v.image_id
-                  );
-
-                if (img) {
-
-                  variantImage =
-                    img.src;
-
-                }
-
-              }
-
-              return {
-
-                id: v.id,
-
-                title:
-                  v.title || "",
-
-                price:
-                  v.price || "",
-
-                image:
-                  variantImage,
-
-                available:
-                  v.inventory_quantity > 0,
-
-                option1:
-                  v.option1 || "",
-
-                option2:
-                  v.option2 || "",
-
-                option3:
-                  v.option3 || "",
-
-                searchText:
-                  variantText,
-
-              };
-
-            }
-          );
-
-        return {
-
-          id: p.id,
-
-          title:
-            p.title || "",
-
-          description:
-            cleanHTML(
-              p.body_html
-            ),
-
-          handle:
-            p.handle || "",
-
-          tags:
-            p.tags || "",
-
-          productType,
-
-          metal,
-
-          stone,
-
-          image:
-            p.images?.[0]?.src || "",
-
-          url:
-            `https://${SHOP}/products/${p.handle}`,
-
-          variants,
-
-          searchText:
-            text,
-
-        };
-
-      });
-
-    // ======================
-    // SAVE
-    // ======================
+        created_at: product.created_at,
+      };
+    });
 
     fs.writeFileSync(
-
-      "products.json",
-
-      JSON.stringify(
-        productBrain,
-        null,
-        2
-      )
-
+      "./public/products-brain.json",
+      JSON.stringify(brain, null, 2)
     );
 
+    console.log("PRODUCT BRAIN BUILT ✅");
     console.log(
-      "PRODUCT BRAIN CREATED:",
-      productBrain.length
+      `TOTAL PRODUCTS: ${brain.length}`
     );
-
-  } catch (error) {
-
-    console.log(
-      "BUILD ERROR",
-      error
+  } catch (err) {
+    console.error(
+      "ERROR BUILDING PRODUCT BRAIN",
+      err
     );
-
   }
-
 }
 
-buildProducts();
+buildProductBrain();
