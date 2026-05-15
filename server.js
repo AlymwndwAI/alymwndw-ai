@@ -23,6 +23,12 @@ const openai = new OpenAI({
 });
 
 // =========================
+// MEMORY
+// =========================
+
+let conversations = {};
+
+// =========================
 // LOAD PRODUCT BRAIN
 // =========================
 
@@ -50,121 +56,106 @@ try {
 }
 
 // =========================
-// AI SEARCH
+// AI PRODUCT RETRIEVAL
 // =========================
 
-function searchProducts(intent, products) {
+async function aiRetrieveProducts(
+  userMessage,
+  products
+) {
 
-  const searchTerms = [
+  // SMALLER AI DATA
+  const slimProducts =
+    products.slice(0, 200).map((p) => ({
 
-    ...(intent.searchTerms || []),
+      title:
+        p.title,
 
-    intent.productType,
-    intent.category,
-    intent.stone,
-    intent.metal,
-    intent.style,
+      handle:
+        p.handle,
 
-  ]
-    .filter(Boolean)
-    .map((t) =>
-      String(t).toLowerCase()
-    );
+      type:
+        p.type,
 
-  const scoredProducts =
-    products.map((p) => {
+      description:
+        p.description?.slice(0, 300),
 
-      const ai =
-        p.aiFeatures || {};
+      aiFeatures:
+        p.aiFeatures,
 
-      const searchable = `
-        ${p.title || ""}
-        ${p.description || ""}
-        ${p.type || ""}
-        ${p.tags?.join(" ") || ""}
-        ${JSON.stringify(ai)}
-      `.toLowerCase();
+      variants:
+        p.variants?.slice(0, 5),
 
-      let score = 0;
+      image:
+        p.image,
 
-      searchTerms.forEach((term) => {
+    }));
 
-        if (!term) return;
+  // AI RETRIEVAL
+  const completion =
+    await openai.chat.completions.create({
 
-        // TITLE MATCH
-        if (
-          p.title
-            ?.toLowerCase()
-            .includes(term)
-        ) {
+      model: "gpt-4o-mini",
 
-          score += 15;
+      temperature: 0,
 
-        }
+      response_format: {
+        type: "json_object",
+      },
 
-        // TYPE MATCH
-        if (
-          p.type
-            ?.toLowerCase()
-            .includes(term)
-        ) {
+      messages: [
 
-          score += 10;
+        {
+          role: "system",
 
-        }
+          content: `
 
-        // AI FEATURES
-        if (
-          searchable.includes(term)
-        ) {
+You are Alymwndw AI retrieval engine.
 
-          score += 5;
+Your job:
+- deeply understand customer request
+- select BEST matching luxury jewelry
+- prioritize emotional fit
+- prioritize luxury style
+- understand Arabic and English naturally
+- understand gifting
+- understand romance
+- understand personalization
+- understand jewelry fashion
 
-        }
+Return ONLY JSON:
 
-      });
+{
+  "matches": [0,1,2,3]
+}
 
-      // PERSONALIZATION BOOST
-      if (
-        intent.personalization &&
-        searchable.includes(
-          "personalized"
-        )
-      ) {
+Indexes represent product positions.
 
-        score += 20;
+PRODUCTS:
 
-      }
+${JSON.stringify(slimProducts)}
 
-      // ROMANTIC BOOST
-      if (
-        intent.romantic
-      ) {
+`,
+        },
 
-        score += 3;
+        {
+          role: "user",
+          content: userMessage,
+        },
 
-      }
-
-      // GIFT BOOST
-      if (
-        intent.gifting
-      ) {
-
-        score += 3;
-
-      }
-
-      return {
-        ...p,
-        score,
-      };
+      ],
 
     });
 
-  return scoredProducts
-    .filter((p) => p.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 4);
+  const data = JSON.parse(
+    completion.choices[0]
+      .message.content
+  );
+
+  // RETURN REAL PRODUCTS
+  return data.matches
+    .map((i) => products[i])
+    .filter(Boolean);
 
 }
 
@@ -191,160 +182,48 @@ app.post("/chat", async (req, res) => {
     const userMessage =
       req.body.message || "";
 
-    // =========================
-    // AI INTENT ANALYZER
-    // =========================
-
-    const completion =
-      await openai.chat.completions.create({
-
-        model: "gpt-4o-mini",
-
-        temperature: 0.2,
-
-        response_format: {
-          type: "json_object",
-        },
-
-        messages: [
-
-          {
-            role: "system",
-
-            content: `
-
-You are Alymwndw AI intent analyzer.
-
-Understand customer intent deeply.
-
-Classify message into:
-
-- greeting
-- shopping
-- recommendation
-- question
-- customization
-- luxury advice
-
-Detect:
-- language
-- mood
-- jewelry category
-- product type
-- style
-- metal
-- stone
-- personalization
-- luxury level
-- romantic intent
-- gifting intent
-
-Return ONLY JSON.
-
-Example:
-
-{
-  "intentType": "shopping",
-  "language": "arabic",
-  "category": "moissanite",
-  "productType": "ring",
-  "style": "luxury",
-  "stone": "moissanite",
-  "metal": "gold",
-  "personalization": false,
-  "romantic": true,
-  "gifting": true,
-  "searchTerms": [
-    "moissanite ring",
-    "gold",
-    "luxury"
-  ]
-}
-
-`,
-          },
-
-          {
-            role: "user",
-            content: userMessage,
-          },
-
-        ],
-
-      });
-
-    const intent = JSON.parse(
-      completion.choices[0]
-        .message.content
-    );
-
-    console.log(
-      "AI INTENT:",
-      intent
-    );
+    const sessionId =
+      req.body.sessionId ||
+      "default";
 
     // =========================
-    // GREETING MODE
+    // MEMORY INIT
     // =========================
 
     if (
-      intent.intentType ===
-      "greeting"
+      !conversations[sessionId]
     ) {
 
-      const greetingReply =
-        intent.language ===
-        "arabic"
-
-          ? "أهلاً بك في Alymwndw ✨ كيف أستطيع مساعدتك في اختيار قطعة فاخرة اليوم؟"
-
-          : "Welcome to Alymwndw ✨ How may I help you discover the perfect luxury piece today?";
-
-      return res.json({
-
-        reply:
-          greetingReply,
-
-        products: [],
-
-      });
+      conversations[
+        sessionId
+      ] = [];
 
     }
 
     // =========================
-    // SEARCH PRODUCTS
+    // SAVE USER MESSAGE
+    // =========================
+
+    conversations[
+      sessionId
+    ].push({
+
+      role: "user",
+
+      content:
+        userMessage,
+
+    });
+
+    // =========================
+    // AI RETRIEVE PRODUCTS
     // =========================
 
     const matchedProducts =
-      searchProducts(
-        intent,
+      await aiRetrieveProducts(
+        userMessage,
         products
       );
-
-    // =========================
-    // NO PRODUCTS
-    // =========================
-
-    if (
-      matchedProducts.length === 0
-    ) {
-
-      return res.json({
-
-        reply:
-
-          intent.language ===
-          "arabic"
-
-            ? "لم أجد قطعة مطابقة حالياً ✨"
-
-            : "No matching luxury jewellery found ✨",
-
-        products: [],
-
-      });
-
-    }
 
     // =========================
     // CLEAN PRODUCTS
@@ -353,8 +232,15 @@ Example:
     const cleanProducts =
       matchedProducts.map((p) => ({
 
+        // BASIC
         title:
           p.title,
+
+        handle:
+          p.handle,
+
+        url:
+          `https://alymwndw.com/products/${p.handle}`,
 
         type:
           p.type,
@@ -365,52 +251,87 @@ Example:
         image:
           p.image,
 
-        aiFeatures:
-          p.aiFeatures,
+        // AI FEATURES
+        collection:
+          p.aiFeatures
+            ?.collection,
+
+        category:
+          p.aiFeatures
+            ?.category,
+
+        productType:
+          p.aiFeatures
+            ?.productType,
+
+        materials:
+          p.aiFeatures
+            ?.materials,
+
+        styles:
+          p.aiFeatures
+            ?.styles,
+
+        intent:
+          p.aiFeatures
+            ?.intent,
+
+        emotionalTriggers:
+          p.aiFeatures
+            ?.emotionalTriggers,
+
+        searchKeywords:
+          p.aiFeatures
+            ?.searchKeywords,
+
+        supportedLanguages:
+          p.aiFeatures
+            ?.supportedLanguages,
 
         // PRICE
         price:
 
-          p.variants?.[0]?.price ||
-
-          p.price ||
+          p.variants?.[0]
+            ?.price ||
 
           "N/A",
 
         // VARIANTS
         variants:
 
-          p.variants?.slice(0, 10).map((v) => ({
+          p.variants?.map(
+            (v) => ({
 
-            title:
-              v.title,
+              title:
+                v.title,
 
-            price:
-              v.price,
+              price:
+                v.price,
 
-            available:
-              v.available,
+              available:
+                v.available,
 
-            image:
-              v.image,
+              image:
+                v.image,
 
-            options:
-              v.options,
+              options:
+                v.options,
 
-          })),
+            })
+          ),
 
       }));
 
     // =========================
-    // AI SALES RESPONSE
+    // MAIN AI RESPONSE
     // =========================
 
-    const salesCompletion =
+    const completion =
       await openai.chat.completions.create({
 
         model: "gpt-4o-mini",
 
-        temperature: 0.7,
+        temperature: 0.9,
 
         messages: [
 
@@ -419,23 +340,58 @@ Example:
 
             content: `
 
-You are Alymwndw AI,
-a luxury jewelry sales assistant.
+You are Alymwndw AI.
 
-IMPORTANT RULES:
+You are a highly intelligent luxury jewelry advisor.
 
-- Speak SAME language as customer.
-- Arabic customer = Arabic only.
-- English customer = English only.
-- Sound luxurious and elegant.
-- Sound like premium jewelry consultant.
-- NEVER invent products.
-- ONLY recommend from AVAILABLE PRODUCTS.
-- Mention prices naturally.
-- Focus on emotional luxury selling.
-- Recommend best matching pieces.
-- Mention personalization when relevant.
-- Keep response concise.
+You speak naturally like ChatGPT,
+but specialized in luxury jewelry.
+
+You are:
+- conversational
+- emotionally intelligent
+- elegant
+- persuasive
+- warm
+- premium
+- fashionable
+- human-like
+
+You understand:
+- emotions
+- gifting
+- romance
+- luxury fashion
+- personalization
+- jewelry trends
+- relationships
+- special occasions
+
+IMPORTANT BEHAVIOR:
+
+- Talk naturally.
+- Continue conversations naturally.
+- Remember previous messages.
+- Never sound robotic.
+- Never repeat generic greetings.
+- Ask smart follow-up questions.
+- Guide customer like real luxury consultant.
+- Recommend products naturally inside conversation.
+- Explain WHY pieces fit customer.
+- Mention emotions and luxury feeling.
+- Arabic must feel natural and premium.
+- English must feel premium and elegant.
+- Never invent products.
+- ONLY use AVAILABLE PRODUCTS.
+
+You can:
+- compare products
+- recommend gifts
+- suggest matching jewelry
+- upsell elegantly
+- explain materials
+- explain luxury styling
+- help choose between products
 
 AVAILABLE PRODUCTS:
 
@@ -444,18 +400,32 @@ ${JSON.stringify(cleanProducts)}
 `,
           },
 
-          {
-            role: "user",
-            content: userMessage,
-          },
+          ...conversations[
+            sessionId
+          ],
 
         ],
 
       });
 
     const aiReply =
-      salesCompletion.choices[0]
+      completion.choices[0]
         .message.content;
+
+    // =========================
+    // SAVE AI RESPONSE
+    // =========================
+
+    conversations[
+      sessionId
+    ].push({
+
+      role: "assistant",
+
+      content:
+        aiReply,
+
+    });
 
     // =========================
     // RESPONSE
@@ -463,12 +433,11 @@ ${JSON.stringify(cleanProducts)}
 
     res.json({
 
-      reply: aiReply,
+      reply:
+        aiReply,
 
       products:
         matchedProducts,
-
-      intent,
 
     });
 
