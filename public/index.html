@@ -298,6 +298,55 @@ font-size:15px;
 
 }
 
+/* ===================== */
+/* VARIANT BUTTONS */
+/* ===================== */
+
+.variant-switcher{
+
+display:flex;
+flex-wrap:wrap;
+gap:10px;
+margin-bottom:20px;
+
+}
+
+.variant-btn{
+
+padding:10px 18px;
+
+border-radius:30px;
+
+border:1px solid rgba(255,255,255,.15);
+
+background:#141414;
+
+color:white;
+
+font-size:14px;
+
+cursor:pointer;
+
+transition:all .2s;
+
+}
+
+.variant-btn:hover{
+
+border-color:#44f1cf;
+color:#44f1cf;
+
+}
+
+.variant-btn.active-variant{
+
+background:#44f1cf;
+color:black;
+font-weight:700;
+border-color:#44f1cf;
+
+}
+
 .product-description{
 
 opacity:.72;
@@ -633,6 +682,8 @@ onclick="sendMessage()"
 const chatBox =
 document.getElementById("chat-box");
 
+let sessionId = null;
+
 // =====================
 // TYPE MESSAGE
 // =====================
@@ -726,16 +777,43 @@ chatBox.scrollHeight;
 }
 
 // =====================
-// ENTER
+// SWITCH VARIANT IMAGE
 // =====================
 
-function handleKey(event){
+function switchVariantImage(
+imageId,
+newImage,
+priceId,
+newPrice,
+button
+){
 
-if(event.key === "Enter"){
+const image =
+document.getElementById(imageId);
 
-sendMessage();
-
+if(image && newImage){
+image.src = newImage;
 }
+
+const priceEl =
+document.getElementById(priceId);
+
+if(priceEl && newPrice){
+priceEl.innerText = newPrice;
+}
+
+const card =
+button.closest(".product-card");
+
+if(card){
+card
+.querySelectorAll(".variant-btn")
+.forEach((btn)=>{
+btn.classList.remove("active-variant");
+});
+}
+
+button.classList.add("active-variant");
 
 }
 
@@ -747,33 +825,79 @@ function renderProducts(products){
 
 products.forEach((product)=>{
 
-const variant =
+const firstVariant =
 product.variants?.[0] || {};
 
 const image =
 
-variant.image ||
-
+firstVariant.mappedImage ||
+firstVariant.image ||
 product.image ||
-
 "https://via.placeholder.com/500";
 
 const cleanPrice =
 
 String(
-variant.price ||
+firstVariant.price ||
 product.price ||
 ""
 )
-
 .replace("AED","")
 .trim();
 
 const url =
 
 product.url ||
-
 `https://alymwndw.com/products/${product.handle}`;
+
+const imageId =
+`img-${product.handle}`;
+
+const priceId =
+`price-${product.handle}`;
+
+// =====================
+// VARIANT BUTTONS
+// =====================
+
+const variantButtons =
+
+(product.variants || [])
+.map((v, index)=>{
+
+const variantImage =
+v.mappedImage ||
+v.image ||
+image;
+
+const variantPrice =
+String(v.price || "")
+.replace("AED","")
+.trim();
+
+const variantName =
+v.metal ||
+v.stoneColor ||
+v.shape ||
+v.title ||
+"Variant";
+
+return `<button
+class="variant-btn ${index === 0 ? "active-variant" : ""}"
+onclick="switchVariantImage(
+'${imageId}',
+'${variantImage}',
+'${priceId}',
+'${variantPrice} AED',
+this
+)"
+>${variantName}</button>`;
+
+}).join("");
+
+// =====================
+// CARD
+// =====================
 
 const card =
 document.createElement("div");
@@ -784,8 +908,10 @@ card.className =
 card.innerHTML = `
 
 <img
+id="${imageId}"
 src="${image}"
 class="product-image"
+onerror="this.src='https://via.placeholder.com/500'"
 />
 
 <div class="product-content">
@@ -794,7 +920,10 @@ class="product-image"
 ${product.title}
 </div>
 
-<div class="product-price">
+<div
+id="${priceId}"
+class="product-price"
+>
 ${cleanPrice} AED
 </div>
 
@@ -803,56 +932,45 @@ ${cleanPrice} AED
 (${product.reviewCount || 120} reviews)
 </div>
 
+<div class="variant-switcher">
+${variantButtons}
+</div>
+
 <div class="variant-box">
 
 <div class="product-info">
-💎 Variant:
-${variant.title || "Luxury Edition"}
+💎 Variant: ${firstVariant.title || "Luxury Edition"}
 </div>
 
 <div class="product-info">
 📦 ${
-variant.available !== false
+firstVariant.available !== false
 ? "In Stock"
-: "Out OfStock"
+: "Out Of Stock"
 }
 </div>
 
 </div>
 
 <div class="product-description">
-
-${(product.description || "")
-.slice(0,140)}...
-
+${(product.description || "").slice(0,140)}...
 </div>
 
 <div class="product-buttons">
 
 <a
-
 href="${url}"
-
 target="_blank"
-
 class="view-btn"
-
 >
-
 View Product
-
 </a>
 
 <button
-
 class="cart-btn"
-
 onclick="window.open('${url}','_blank')"
-
 >
-
 Add To Cart
-
 </button>
 
 </div>
@@ -867,6 +985,20 @@ chatBox.appendChild(card);
 
 chatBox.scrollTop =
 chatBox.scrollHeight;
+
+}
+
+// =====================
+// ENTER
+// =====================
+
+function handleKey(event){
+
+if(event.key === "Enter"){
+
+sendMessage();
+
+}
 
 }
 
@@ -937,13 +1069,18 @@ headers:{
 },
 
 body:JSON.stringify({
-message
+message,
+sessionId,
 })
 
 });
 
 const data =
 await response.json();
+
+if(data.sessionId){
+sessionId = data.sessionId;
+}
 
 loader.remove();
 
