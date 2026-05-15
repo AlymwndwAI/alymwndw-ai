@@ -173,191 +173,7 @@ function shouldSearchProducts(
 }
 
 // =====================================
-// SMART COLLECTION INTELLIGENCE
-// =====================================
-
-const INTELLIGENCE = {
-
-  // =====================================
-  // SOFT LUXURY
-  // =====================================
-
-  "soft luxury": {
-
-    triggers: [
-
-      "soft luxury",
-      "minimal",
-      "simple",
-      "elegant",
-      "classy",
-      "feminine",
-
-      "ناعم",
-      "ناعمه",
-      "رقيق",
-      "راقي",
-      "شيك",
-
-    ],
-
-    boosts: [
-
-      "minimal",
-      "luxury",
-      "elegance",
-      "timeless beauty",
-
-    ],
-
-  },
-
-  // =====================================
-  // OLD MONEY
-  // =====================================
-
-  "old money": {
-
-    triggers: [
-
-      "old money",
-      "classic luxury",
-      "timeless",
-
-      "كلاسيك",
-      "فخم",
-
-    ],
-
-    boosts: [
-
-      "classic",
-      "luxury",
-      "diamond",
-      "white gold",
-      "pearl",
-
-    ],
-
-  },
-
-  // =====================================
-  // GIFT
-  // =====================================
-
-  "gift jewelry": {
-
-    triggers: [
-
-      "gift",
-      "birthday",
-      "anniversary",
-
-      "هديه",
-      "هدية",
-
-    ],
-
-    boosts: [
-
-      "gift jewelry",
-      "personalized",
-      "minimal",
-      "feminine",
-
-    ],
-
-  },
-
-  // =====================================
-  // NAME NECKLACES
-  // =====================================
-
-  "name necklace": {
-
-    triggers: [
-
-      "name necklace",
-      "initial necklace",
-      "custom jewelry",
-
-      "سلسله اسم",
-      "سلسلة اسم",
-      "سلسله حرف",
-      "سلسلة حرف",
-
-    ],
-
-    boosts: [
-
-      "personalized",
-      "alpha gold",
-      "custom jewelry",
-      "initial necklace",
-
-    ],
-
-  },
-
-  // =====================================
-  // BRIDAL
-  // =====================================
-
-  "bridal": {
-
-    triggers: [
-
-      "engagement",
-      "wedding",
-      "bridal",
-
-      "خطوبه",
-      "زواج",
-
-    ],
-
-    boosts: [
-
-      "bridal",
-      "engagement",
-      "diamond ring",
-      "wedding ring",
-
-    ],
-
-  },
-
-  // =====================================
-  // MOISSANITE
-  // =====================================
-
-  "moissanite": {
-
-    triggers: [
-
-      "moissanite",
-      "gra certified",
-
-      "موزانيت",
-      "مويسانيت",
-
-    ],
-
-    boosts: [
-
-      "moissanite",
-      "gra certified",
-      "diamond alternative",
-      "high brilliance",
-
-    ],
-
-  },
-
-};
-
-// =====================================
-// SMART PRODUCT SEARCH
+// SEARCH PRODUCTS
 // =====================================
 
 function searchProducts(
@@ -416,19 +232,12 @@ function searchProducts(
           || ""
         }
 
-        ${
-          p.aiFeatures
-            ?.emotionalTriggers
-            ?.join(" ")
-          || ""
-        }
-
       `);
 
       let score = 0;
 
       // =====================================
-      // BASIC WORD MATCH
+      // WORD MATCH
       // =====================================
 
       words.forEach((word) => {
@@ -444,57 +253,13 @@ function searchProducts(
       });
 
       // =====================================
-      // SMART INTELLIGENCE ENGINE
-      // =====================================
-
-      Object.values(INTELLIGENCE)
-
-      .forEach((intent) => {
-
-        const triggered =
-
-          intent.triggers.some((t) =>
-
-            msg.includes(
-              normalizeText(t)
-            )
-
-          );
-
-        if (triggered) {
-
-          intent.boosts.forEach((b) => {
-
-            if (
-
-              text.includes(
-                normalizeText(b)
-              )
-
-            ) {
-
-              score += 150;
-
-            }
-
-          });
-
-        }
-
-      });
-
-      // =====================================
       // CATEGORY BOOST
       // =====================================
 
       if (
-
         msg.includes("ring")
-
         &&
-
         text.includes("ring")
-
       ) {
 
         score += 80;
@@ -502,13 +267,9 @@ function searchProducts(
       }
 
       if (
-
         msg.includes("necklace")
-
         &&
-
         text.includes("necklace")
-
       ) {
 
         score += 80;
@@ -516,13 +277,9 @@ function searchProducts(
       }
 
       if (
-
         msg.includes("bracelet")
-
         &&
-
         text.includes("bracelet")
-
       ) {
 
         score += 80;
@@ -530,16 +287,40 @@ function searchProducts(
       }
 
       if (
-
         msg.includes("earring")
-
         &&
-
         text.includes("earring")
-
       ) {
 
         score += 80;
+
+      }
+
+      // =====================================
+      // MOISSANITE
+      // =====================================
+
+      if (
+        msg.includes("moissanite")
+        &&
+        text.includes("moissanite")
+      ) {
+
+        score += 150;
+
+      }
+
+      // =====================================
+      // DIAMOND
+      // =====================================
+
+      if (
+        msg.includes("diamond")
+        &&
+        text.includes("diamond")
+      ) {
+
+        score += 120;
 
       }
 
@@ -634,7 +415,7 @@ app.post("/chat", async (req, res) => {
     });
 
     // =====================================
-    // CLEANUP MEMORY
+    // CLEAN MEMORY
     // =====================================
 
     if (
@@ -720,7 +501,7 @@ Keep:
     }
 
     // =====================================
-    // FAST LOCAL SEARCH
+    // PRODUCT SEARCH
     // =====================================
 
     let matchedProducts = [];
@@ -746,63 +527,93 @@ Keep:
     }
 
     // =====================================
-    // LIGHT PRODUCTS
+    // AI PRODUCTS
     // =====================================
 
     const aiProducts =
 
-      matchedProducts.map((p) => ({
+    matchedProducts.map((p) => ({
 
-        title:
-          p.title,
+      title:
+        p.title,
 
-        category:
-          p.aiFeatures
-            ?.category || "",
+      handle:
+        p.handle,
 
-        collection:
-          p.aiFeatures
-            ?.collection || "",
+      description:
+        p.description,
 
-        styles:
-          p.aiFeatures
-            ?.styles || [],
+      image:
+        p.image,
 
-        emotionalTriggers:
-          p.aiFeatures
-            ?.emotionalTriggers || [],
+      url:
+        p.url,
 
-        price:
+      reviewRating:
+        p.reviewRating || 4.9,
 
-          p.variants?.[0]
-            ?.price
+      reviewCount:
+        p.reviewCount || 120,
 
-          ||
+      category:
+        p.aiFeatures
+          ?.category || "",
 
-          p.price
+      collection:
+        p.aiFeatures
+          ?.collection || "",
 
-          ||
+      styles:
+        p.aiFeatures
+          ?.styles || [],
 
-          "",
+      emotionalTriggers:
+        p.aiFeatures
+          ?.emotionalTriggers || [],
 
-        variants:
+      price:
 
-          p.variants
-            ?.slice(0, 3)
-            ?.map((v) => ({
+        p.variants?.[0]
+          ?.price
 
-              title:
-                v.title,
+        ||
 
-              price:
-                v.price,
+        p.price
 
-            })),
+        ||
 
-      }));
+        "",
+
+      variants:
+
+        p.variants
+          ?.slice(0, 5)
+          ?.map((v) => ({
+
+            id:
+              v.id,
+
+            title:
+              v.title,
+
+            price:
+              v.price,
+
+            image:
+              v.image,
+
+            available:
+              v.available,
+
+            options:
+              v.options || [],
+
+          })),
+
+    }));
 
     // =====================================
-    // MAIN AI CHAT
+    // AI CHAT
     // =====================================
 
     const completion =
@@ -889,7 +700,7 @@ ${JSON.stringify(aiProducts)}
         aiReply,
 
       products:
-        matchedProducts,
+        aiProducts,
 
       sessionId,
 
