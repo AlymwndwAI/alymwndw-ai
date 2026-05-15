@@ -4,6 +4,10 @@ import fetch from "node-fetch";
 
 dotenv.config();
 
+// ======================
+// SHOPIFY
+// ======================
+
 const SHOP =
 process.env.SHOPIFY_STORE;
 
@@ -14,74 +18,213 @@ process.env.SHOPIFY_ACCESS_TOKEN;
 // CLEAN HTML
 // ======================
 
-function cleanHTML(html = "") {
+function cleanHTML(html){
+
+  if(!html) return "";
 
   return html
-    .replace(/<[^>]+>/g, "")
-    .replace(/\s+/g, " ")
+    .replace(/<[^>]*>/g," ")
+    .replace(/\s+/g," ")
     .trim();
 
 }
 
 // ======================
+// SYNONYMS
+// ======================
+
+const synonyms = {
+
+  // PRODUCT TYPES
+
+  ring: [
+
+    "ring",
+    "rings",
+
+    "خاتم",
+    "خواتم",
+
+    "دبلة",
+    "محبس",
+
+    "solitaire",
+    "engagement ring",
+    "wedding band",
+    "bridal ring",
+
+  ],
+
+  necklace: [
+
+    "necklace",
+    "necklaces",
+
+    "chain",
+    "pendant",
+
+    "سلسلة",
+    "عقد",
+    "قلادة",
+
+  ],
+
+  earrings: [
+
+    "earring",
+    "earrings",
+
+    "حلق",
+    "اقراط",
+    "أقراط",
+
+  ],
+
+  bracelet: [
+
+    "bracelet",
+    "bangle",
+
+    "اسورة",
+    "سوار",
+
+  ],
+
+  // STONES
+
+  diamond: [
+
+    "diamond",
+    "lab diamond",
+
+    "الماس",
+    "دايموند",
+
+  ],
+
+  moissanite: [
+
+    "moissanite",
+
+    "موزانيت",
+    "مويسانيت",
+
+  ],
+
+  ruby: [
+
+    "ruby",
+    "red stone",
+    "red gemstone",
+
+    "ياقوت",
+    "حجر احمر",
+    "حجر أحمر",
+
+  ],
+
+  sapphire: [
+
+    "sapphire",
+    "blue stone",
+
+    "ياقوت ازرق",
+
+  ],
+
+  emerald: [
+
+    "emerald",
+    "green stone",
+
+    "زمرد",
+
+  ],
+
+  // METALS
+
+  gold: [
+
+    "gold",
+    "18k",
+    "21k",
+    "22k",
+
+    "ذهب",
+
+  ],
+
+  silver: [
+
+    "silver",
+    "925 silver",
+
+    "فضة",
+
+  ],
+
+  platinum: [
+
+    "platinum",
+
+  ],
+
+};
+
+// ======================
 // DETECT PRODUCT TYPE
 // ======================
 
-function detectProductType(text) {
+function detectProductType(text){
 
-  text = text.toLowerCase();
+  text =
+  text.toLowerCase();
 
-  const map = {
+  if(
 
-    ring: [
-      "ring",
-      "rings",
-      "solitaire",
-      "engagement",
-      "wedding band",
-      "eternity ring",
-      "bridal ring",
-    ],
+    synonyms.ring.some(
+      w => text.includes(w)
+    )
 
-    necklace: [
-      "necklace",
-      "chain",
-      "initial necklace",
-      "name necklace",
-      "pendant necklace",
-    ],
+  ){
 
-    earrings: [
-      "earring",
-      "earrings",
-      "stud earrings",
-      "hoop earrings",
-    ],
+    return "ring";
 
-    bracelet: [
-      "bracelet",
-      "bangle",
-      "cuff",
-    ],
+  }
 
-    pendant: [
-      "pendant",
-      "pendants",
-    ],
+  if(
 
-  };
+    synonyms.necklace.some(
+      w => text.includes(w)
+    )
 
-  for (const type in map) {
+  ){
 
-    if (
-      map[type].some((w) =>
-        text.includes(w)
-      )
-    ) {
+    return "necklace";
 
-      return type;
+  }
 
-    }
+  if(
+
+    synonyms.earrings.some(
+      w => text.includes(w)
+    )
+
+  ){
+
+    return "earrings";
+
+  }
+
+  if(
+
+    synonyms.bracelet.some(
+      w => text.includes(w)
+    )
+
+  ){
+
+    return "bracelet";
 
   }
 
@@ -93,49 +236,42 @@ function detectProductType(text) {
 // DETECT METAL
 // ======================
 
-function detectMetal(text) {
+function detectMetal(text){
 
-  text = text.toLowerCase();
+  text =
+  text.toLowerCase();
 
-  if (
-    text.includes("18k") ||
-    text.includes("21k") ||
-    text.includes("22k") ||
-    text.includes("gold")
-  ) {
+  if(
 
-    if (
-      text.includes("white gold")
-    ) {
+    synonyms.gold.some(
+      w => text.includes(w)
+    )
 
-      return "white gold";
+  ){
 
-    }
-
-    if (
-      text.includes("rose gold")
-    ) {
-
-      return "rose gold";
-
-    }
-
-    return "yellow gold";
+    return "gold";
 
   }
 
-  if (
-    text.includes("silver") ||
-    text.includes("925")
-  ) {
+  if(
+
+    synonyms.silver.some(
+      w => text.includes(w)
+    )
+
+  ){
 
     return "silver";
 
   }
 
-  if (
-    text.includes("platinum")
-  ) {
+  if(
+
+    synonyms.platinum.some(
+      w => text.includes(w)
+    )
+
+  ){
 
     return "platinum";
 
@@ -149,31 +285,68 @@ function detectMetal(text) {
 // DETECT STONE
 // ======================
 
-function detectStone(text) {
+function detectStone(text){
 
-  text = text.toLowerCase();
+  text =
+  text.toLowerCase();
 
-  const stones = [
+  if(
 
-    "moissanite",
-    "diamond",
-    "ruby",
-    "emerald",
-    "sapphire",
-    "opal",
-    "topaz",
+    synonyms.moissanite.some(
+      w => text.includes(w)
+    )
 
-  ];
+  ){
 
-  for (const stone of stones) {
+    return "moissanite";
 
-    if (
-      text.includes(stone)
-    ) {
+  }
 
-      return stone;
+  if(
 
-    }
+    synonyms.diamond.some(
+      w => text.includes(w)
+    )
+
+  ){
+
+    return "diamond";
+
+  }
+
+  if(
+
+    synonyms.ruby.some(
+      w => text.includes(w)
+    )
+
+  ){
+
+    return "ruby";
+
+  }
+
+  if(
+
+    synonyms.sapphire.some(
+      w => text.includes(w)
+    )
+
+  ){
+
+    return "sapphire";
+
+  }
+
+  if(
+
+    synonyms.emerald.some(
+      w => text.includes(w)
+    )
+
+  ){
+
+    return "emerald";
 
   }
 
@@ -185,83 +358,104 @@ function detectStone(text) {
 // COLORS
 // ======================
 
-function detectColors(text) {
+function detectColors(text){
 
-  text = text.toLowerCase();
+  text =
+  text.toLowerCase();
 
-  const colors = [
+  const colors = [];
 
+  const colorList = [
+
+    "red",
+    "blue",
+    "green",
+    "pink",
     "yellow",
     "white",
     "black",
-    "blue",
-    "green",
-    "red",
-    "pink",
-    "purple",
+
     "rose gold",
     "yellow gold",
     "white gold",
 
   ];
 
-  return colors.filter((c) =>
-    text.includes(c)
-  );
+  colorList.forEach((c)=>{
+
+    if(
+      text.includes(c)
+    ){
+
+      colors.push(c);
+
+    }
+
+  });
+
+  return colors;
 
 }
 
 // ======================
-// BUILD PRODUCTS
+// LOAD PRODUCTS
 // ======================
 
-async function buildProducts() {
+async function loadProducts(){
 
   let allProducts = [];
 
   let since_id = 0;
 
-  let keepLoading = true;
+  let keepLoading =
+  true;
 
-  while (keepLoading) {
+  while(keepLoading){
 
     console.log(
-      "Loading products:",
+      "Loading after:",
       since_id
     );
 
     const response =
-      await fetch(
+    await fetch(
 
-        `https://${SHOP}/admin/api/2025-01/products.json?limit=250&since_id=${since_id}`,
+      `https://${SHOP}/admin/api/2025-01/products.json?limit=250&since_id=${since_id}`,
 
-        {
+      {
 
-          headers: {
+        headers: {
 
-            "X-Shopify-Access-Token":
-              TOKEN,
+          "X-Shopify-Access-Token":
+          TOKEN,
 
-            "Content-Type":
-              "application/json",
+          "Content-Type":
+          "application/json",
 
-          },
+        },
 
-        }
+      }
 
-      );
+    );
 
     const data =
-      await response.json();
+    await response.json();
 
     const products =
-      data.products || [];
+    data.products || [];
 
-    if (
+    console.log(
+      "Loaded:",
+      products.length
+    );
+
+    if(
       products.length === 0
-    ) {
+    ){
 
-      keepLoading = false;
+      keepLoading =
+      false;
+
       break;
 
     }
@@ -271,152 +465,104 @@ async function buildProducts() {
     );
 
     since_id =
-      products[
-        products.length - 1
-      ].id;
+    products[
+      products.length - 1
+    ].id;
 
-    if (
+    if(
       products.length < 250
-    ) {
+    ){
 
-      keepLoading = false;
+      keepLoading =
+      false;
 
     }
 
   }
 
-  console.log(
-    "TOTAL PRODUCTS:",
-    allProducts.length
-  );
+  return allProducts;
 
-  // ======================
-  // PRODUCT BRAIN
-  // ======================
+}
 
-  const brain =
-    allProducts.map((p) => {
+// ======================
+// BUILD PRODUCTS
+// ======================
 
-      const rawText = `
+async function build(){
 
-        ${p.title}
-        ${cleanHTML(p.body_html)}
-        ${p.tags}
-        ${p.product_type}
-        ${p.handle}
+  const products =
+  await loadProducts();
 
-      `;
+  const finalProducts =
+  products.map((p)=>{
 
-      const productType =
-        detectProductType(
-          rawText
-        );
+    const description =
+    cleanHTML(
+      p.body_html
+    );
 
-      const metal =
-        detectMetal(
-          rawText
-        );
+    const baseText = `
 
-      const stone =
-        detectStone(
-          rawText
-        );
+      ${p.title}
 
-      const colors =
-        detectColors(
-          rawText
-        );
+      ${description}
 
-      // ======================
-      // VARIANTS
-      // ======================
+      ${p.tags}
 
-      const variants =
-        (p.variants || []).map(
-          (v) => {
+      ${p.product_type}
 
-            let image =
-              p.images?.[0]?.src || "";
+      ${p.handle}
 
-            if (
-              v.image_id
-            ) {
+    `.toLowerCase();
 
-              const img =
-                p.images.find(
-                  (i) =>
-                    i.id ===
-                    v.image_id
-                );
+    // ======================
+    // DETECT
+    // ======================
 
-              if (img) {
+    const productType =
+    detectProductType(
+      baseText
+    );
 
-                image =
-                  img.src;
+    const metal =
+    detectMetal(
+      baseText
+    );
 
-              }
+    const stone =
+    detectStone(
+      baseText
+    );
 
-            }
+    const colors =
+    detectColors(
+      baseText
+    );
 
-            const variantText = `
+    // ======================
+    // IMAGES
+    // ======================
 
-              ${v.title}
-              ${v.option1}
-              ${v.option2}
-              ${v.option3}
-              ${metal}
-              ${stone}
+    const mainImage =
+    p.images?.[0]?.src || "";
 
-            `;
+    // ======================
+    // VARIANTS
+    // ======================
 
-            return {
+    const variants =
+    (p.variants || [])
+    .map((v)=>{
 
-              id: v.id,
+      const variantText = `
 
-              title:
-                v.title,
+        ${v.title}
 
-              price:
-                v.price,
+        ${v.option1}
 
-              available:
-                v.inventory_quantity > 0,
+        ${v.option2}
 
-              image,
-
-              option1:
-                v.option1,
-
-              option2:
-                v.option2,
-
-              option3:
-                v.option3,
-
-              semanticText:
-                variantText
-                  .toLowerCase(),
-
-            };
-
-          }
-        );
-
-      // ======================
-      // SEMANTIC TEXT
-      // ======================
-
-      const semanticText = `
-
-        ${p.title}
-
-        ${cleanHTML(
-          p.body_html
-        )}
-
-        ${p.tags}
-
-        ${productType}
+        ${v.option3}
 
         ${metal}
 
@@ -424,60 +570,139 @@ async function buildProducts() {
 
         ${colors.join(" ")}
 
-        luxury jewelry
+      `.toLowerCase();
 
-        fine jewelry
+      let variantImage =
+      mainImage;
 
-      `
-        .replace(/\s+/g, " ")
-        .trim()
-        .toLowerCase();
+      if(v.image_id){
+
+        const img =
+        p.images.find(
+          i => i.id === v.image_id
+        );
+
+        if(img){
+
+          variantImage =
+          img.src;
+
+        }
+
+      }
 
       return {
 
-        id: p.id,
+        id:
+        v.id,
 
-        title: p.title,
+        title:
+        v.title,
 
-        description:
-          cleanHTML(
-            p.body_html
-          ),
+        price:
+        v.price,
 
-        handle:
-          p.handle,
+        available:
+        v.inventory_quantity > 0,
 
-        productType,
+        option1:
+        v.option1,
 
-        metal,
+        option2:
+        v.option2,
 
-        stone,
-
-        colors,
-
-        tags:
-          p.tags
-            ?.split(",")
-            .map((t) =>
-              t.trim()
-            ) || [],
+        option3:
+        v.option3,
 
         image:
-          p.images?.[0]?.src || "",
+        variantImage,
 
-        url:
-          `https://${SHOP}/products/${p.handle}`,
-
-        semanticText,
-
-        variants,
+        semanticText:
+        variantText,
 
       };
 
     });
 
+    // ======================
+    // SEMANTIC TEXT
+    // ======================
+
+    const semanticText = `
+
+      ${p.title}
+
+      ${description}
+
+      ${p.tags}
+
+      ${productType}
+
+      ${metal}
+
+      ${stone}
+
+      ${colors.join(" ")}
+
+      ${synonyms[productType]?.join(" ") || ""}
+
+      ${synonyms[metal]?.join(" ") || ""}
+
+      ${synonyms[stone]?.join(" ") || ""}
+
+      ${(variants || [])
+        .map(v => v.semanticText)
+        .join(" ")}
+
+    `
+    .toLowerCase()
+    .replace(/\s+/g," ")
+    .trim();
+
+    // ======================
+    // FINAL
+    // ======================
+
+    return {
+
+      id:
+      p.id,
+
+      title:
+      p.title,
+
+      description,
+
+      tags:
+      p.tags,
+
+      handle:
+      p.handle,
+
+      productType,
+
+      metal,
+
+      stone,
+
+      colors,
+
+      image:
+      mainImage,
+
+      semanticText,
+
+      url:
+      `https://${SHOP}/products/${p.handle}`,
+
+      variants,
+
+    };
+
+  });
+
   // ======================
-  // SAVE JSON
+  // SAVE
   // ======================
 
   fs.writeFileSync(
@@ -485,7 +710,7 @@ async function buildProducts() {
     "./products.json",
 
     JSON.stringify(
-      brain,
+      finalProducts,
       null,
       2
     )
@@ -493,9 +718,14 @@ async function buildProducts() {
   );
 
   console.log(
-    "PRODUCT BRAIN BUILT SUCCESSFULLY"
+    "PRODUCT BRAIN BUILT:",
+    finalProducts.length
   );
 
 }
 
-buildProducts();
+// ======================
+// START
+// ======================
+
+build();
