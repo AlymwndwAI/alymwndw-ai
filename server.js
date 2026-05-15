@@ -14,13 +14,17 @@ app.use(express.static("public"));
 
 const PORT = process.env.PORT || 10000;
 
+// =========================
+// OPENAI
+// =========================
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// ==============================
-// LOAD PRODUCT BRAIN
-// ==============================
+// =========================
+// LOAD PRODUCTS BRAIN
+// =========================
 
 let products = [];
 
@@ -36,17 +40,22 @@ try {
     `PRODUCT BRAIN LOADED: ${products.length}`
   );
 } catch (err) {
-  console.log("NO PRODUCT BRAIN FOUND");
+  console.log("NO PRODUCTS BRAIN FOUND");
 }
 
-// ==============================
-// SEARCH PRODUCTS
-// ==============================
+// =========================
+// SMART SEARCH
+// =========================
 
 function searchProducts(message, products) {
   const msg = message.toLowerCase();
 
-  return products.filter((p) => {
+  const keywords = msg
+    .split(" ")
+    .map((w) => w.trim())
+    .filter((w) => w.length > 1);
+
+  const scoredProducts = products.map((p) => {
     const searchable = `
       ${p.title || ""}
       ${p.description || ""}
@@ -58,28 +67,53 @@ function searchProducts(message, products) {
       ${p.colors?.join(" ") || ""}
     `.toLowerCase();
 
-    const words = msg
-      .split(" ")
-      .map((w) => w.trim())
-      .filter((w) => w.length > 1);
+    let score = 0;
 
-    return words.some((word) =>
-      searchable.includes(word)
-    );
+    keywords.forEach((word) => {
+      // TYPE MATCH
+      if (
+        p.type &&
+        p.type.toLowerCase().includes(word)
+      ) {
+        score += 10;
+      }
+
+      // TITLE MATCH
+      if (
+        p.title &&
+        p.title.toLowerCase().includes(word)
+      ) {
+        score += 8;
+      }
+
+      // GENERAL MATCH
+      if (searchable.includes(word)) {
+        score += 3;
+      }
+    });
+
+    return {
+      ...p,
+      score,
+    };
   });
+
+  return scoredProducts
+    .filter((p) => p.score > 0)
+    .sort((a, b) => b.score - a.score);
 }
 
-// ==============================
+// =========================
 // HOME
-// ==============================
+// =========================
 
 app.get("/", (req, res) => {
   res.send("ALYMWNDW AI RUNNING");
 });
 
-// ==============================
+// =========================
 // CHAT API
-// ==============================
+// =========================
 
 app.post("/chat", async (req, res) => {
   try {
@@ -91,26 +125,26 @@ app.post("/chat", async (req, res) => {
       searchProducts(
         userMessage,
         products
-      ).slice(0, 6);
+      ).slice(0, 4);
 
     // NO PRODUCTS
     if (matchedProducts.length === 0) {
       return res.json({
         reply:
-          "No matching products found",
+          "No matching luxury jewellery found ✨",
         products: [],
       });
     }
 
-    // SHORT PRODUCT DATA FOR AI
+    // CLEAN PRODUCTS FOR AI
     const cleanProducts =
       matchedProducts.map((p) => ({
         title: p.title,
-        price: p.price,
         type: p.type,
         materials: p.materials,
         stones: p.stones,
         colors: p.colors,
+        price: p.price,
       }));
 
     // AI RESPONSE
@@ -129,10 +163,11 @@ You are Alymwndw Jewellery AI.
 RULES:
 - Speak same language as customer.
 - Keep replies short.
-- Be luxurious and elegant.
-- Never invent products.
-- Only recommend available products.
+- Sound luxurious and elegant.
+- NEVER invent products.
+- ONLY recommend products from AVAILABLE PRODUCTS.
 - Maximum 2 short sentences.
+- Focus on selling luxury jewellery.
 
 AVAILABLE PRODUCTS:
 ${JSON.stringify(cleanProducts)}
@@ -149,7 +184,7 @@ ${JSON.stringify(cleanProducts)}
     const aiReply =
       completion.choices[0].message.content;
 
-    // RETURN
+    // RETURN RESPONSE
     res.json({
       reply: aiReply,
       products: matchedProducts,
@@ -159,16 +194,17 @@ ${JSON.stringify(cleanProducts)}
 
     res.status(500).json({
       reply: "Server error",
+      products: [],
     });
   }
 });
 
-// ==============================
+// =========================
 // START SERVER
-// ==============================
+// =========================
 
 app.listen(PORT, () => {
   console.log(
-    `ALYMWNDW AI RUNNING ON ${PORT}`
+    `ALYMWNDW AI RUNNING ON PORT ${PORT}`
   );
 });
