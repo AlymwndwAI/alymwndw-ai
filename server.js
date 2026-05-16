@@ -225,9 +225,7 @@ function roughFilter(userMessage, intent, products) {
   let scoredProducts = products.map((p) => {
     const collectionText = ((p.aiFeatures && p.aiFeatures.collections) || []).join(" ").toLowerCase();
     const text = normalizeText(
-      (p.title || "") + " " +
-      (p.description || "") + " " +
-      (p.type || "") + " " +
+      (p.title || "") + " " + (p.description || "") + " " + (p.type || "") + " " +
       ((p.tags && p.tags.join(" ")) || "") + " " +
       ((p.aiFeatures && p.aiFeatures.category) || "") + " " +
       ((p.aiFeatures && p.aiFeatures.collection) || "") + " " +
@@ -267,8 +265,7 @@ function roughFilter(userMessage, intent, products) {
 async function aiSelectProducts(userMessage, intent, candidates) {
   try {
     const candidateList = candidates.map((p, i) => ({
-      index: i,
-      title: p.title,
+      index: i, title: p.title,
       category: (p.aiFeatures && p.aiFeatures.category) || "",
       collections: ((p.aiFeatures && p.aiFeatures.collections) || []).slice(0, 5),
       productType: (p.aiFeatures && p.aiFeatures.productType) || "",
@@ -284,7 +281,7 @@ async function aiSelectProducts(userMessage, intent, candidates) {
       model: "gpt-4.1-mini",
       temperature: 0,
       messages: [
-        { role: "system", content: "You are a luxury jewelry product selector. Choose the 8 most relevant AND DIVERSE products. CATEGORY IS MANDATORY: if customer wants ring return ONLY rings. Return ONLY a JSON array of index numbers. No extra text." },
+        { role: "system", content: "You are a luxury jewelry product selector. Choose the 8 most relevant AND DIVERSE products. CATEGORY IS MANDATORY. Return ONLY a JSON array of index numbers. No extra text." },
         { role: "user", content: "Customer: \"" + userMessage + "\"\nIntent: " + JSON.stringify(intent) + "\nProducts:\n" + JSON.stringify(candidateList, null, 2) + "\nReturn 8 diverse best index numbers as JSON array." },
       ],
     });
@@ -293,7 +290,6 @@ async function aiSelectProducts(userMessage, intent, candidates) {
     const indices = JSON.parse(raw);
     return indices.filter((i) => i >= 0 && i < candidates.length).slice(0, 8).map((i) => candidates[i]);
   } catch (err) {
-    console.log("AI SELECTION FAILED: " + err.message);
     return candidates.slice(0, 8);
   }
 }
@@ -319,14 +315,9 @@ function buildProductDetails(p) {
 function buildProductForFrontend(p) {
   const resolvedImage = p.image || "";
   return {
-    id: p.id || "",
-    title: p.title || "",
-    handle: p.handle || "",
-    description: p.description || "",
-    type: p.type || "",
-    vendor: p.vendor || "",
-    image: resolvedImage,
-    images: p.images || [],
+    id: p.id || "", title: p.title || "", handle: p.handle || "",
+    description: p.description || "", type: p.type || "", vendor: p.vendor || "",
+    image: resolvedImage, images: p.images || [],
     url: p.url || "https://alymwndw.com/products/" + p.handle,
     reviewRating: p.reviewRating != null ? p.reviewRating : 4.9,
     reviewCount: p.reviewCount != null ? p.reviewCount : 120,
@@ -340,20 +331,12 @@ function buildProductForFrontend(p) {
     variants: (p.variants || []).slice(0, 20).map((v) => {
       const variantImage = v.mappedImage || v.image || resolvedImage || "";
       return {
-        id: v.id || "",
-        title: v.title || "",
-        sku: v.sku || "",
+        id: v.id || "", title: v.title || "", sku: v.sku || "",
         available: v.available != null ? v.available : true,
-        price: v.price || "",
-        rawPrice: v.rawPrice || 0,
-        currency: v.currency || "AED",
-        image: variantImage,
-        mappedImage: variantImage,
-        metal: v.metal || "",
-        stoneColor: v.stoneColor || "",
-        shape: v.shape || "",
-        stoneSize: v.stoneSize || "",
-        options: v.options || [],
+        price: v.price || "", rawPrice: v.rawPrice || 0, currency: v.currency || "AED",
+        image: variantImage, mappedImage: variantImage,
+        metal: v.metal || "", stoneColor: v.stoneColor || "",
+        shape: v.shape || "", stoneSize: v.stoneSize || "", options: v.options || [],
       };
     }),
   };
@@ -391,15 +374,18 @@ app.post("/customize-product", async (req, res) => {
     const prompt = "Luxury jewelry product photography. Piece: " + productHandle.replace(/-/g, " ") + ". Customization: " + englishDesc + ". Style: ultra-realistic, professional studio lighting, white background, 8K quality, photorealistic, highly detailed gemstones and metal finish.";
 
     const response = await openai.images.generate({
-      model: "dall-e-2",
+      model: "gpt-image-1",
       prompt: prompt,
       n: 1,
-      size: "512x512",
+      size: "1024x1024",
     });
 
     sessionImageCount[sessionId]++;
+
+    const imageUrl = response.data[0].url || ("data:image/png;base64," + response.data[0].b64_json);
+
     res.json({
-      imageUrl: response.data[0].url,
+      imageUrl: imageUrl,
       count: sessionImageCount[sessionId],
       remaining: Math.max(0, 3 - sessionImageCount[sessionId]),
     });
@@ -434,15 +420,18 @@ app.post("/generate-image", async (req, res) => {
     const prompt = "Luxury jewelry product photo. " + productTitle + ". " + productDescription.slice(0, 100) + ". White background. Professional studio lighting. Ultra detailed.";
 
     const response = await openai.images.generate({
-      model: "dall-e-2",
+      model: "gpt-image-1",
       prompt: prompt,
       n: 1,
-      size: "512x512",
+      size: "1024x1024",
     });
 
     sessionImageCount[sessionId]++;
+
+    const imageUrl = response.data[0].url || ("data:image/png;base64," + response.data[0].b64_json);
+
     res.json({
-      imageUrl: response.data[0].url,
+      imageUrl: imageUrl,
       count: sessionImageCount[sessionId],
       remaining: Math.max(0, 3 - sessionImageCount[sessionId]),
     });
@@ -529,9 +518,8 @@ app.post("/chat", async (req, res) => {
     systemPrompt += "PERSONALITY: Warm, elegant, passionate. Max 4 sentences per response.\n";
     systemPrompt += languageInstruction + "\n";
     systemPrompt += "STRICT RULES:\n- NEVER invent products, metals, stones, prices\n- NEVER mention price unless from CURRENT PRODUCT startingPrice\n- NEVER use markdown\n- NEVER mix Arabic and English\n";
-
     if (isGreeting) {
-      systemPrompt += "GREETING MODE: Welcome customer warmly. Ask what they are looking for. Short, warm, luxurious. No products or prices.\n";
+      systemPrompt += "GREETING MODE: Welcome customer warmly. Ask what they are looking for. Short, warm, luxurious.\n";
     } else if (!aiProductDetails) {
       systemPrompt += "NO PRODUCT MODE: No product available. Ask customer questions to understand their preference better.\n";
     } else {
@@ -539,7 +527,6 @@ app.post("/chat", async (req, res) => {
       systemPrompt += "1. Emotional hook\n2. Metals available\n3. Stones/shapes\n4. Price EXACTLY: " + aiProductDetails.startingPrice + "\n5. One question\n";
       if (hasMore) systemPrompt += "End with: ask if they want to see another piece.\n";
     }
-
     if (discountContext) systemPrompt += "DISCOUNT INFO: " + discountContext + "\n";
     systemPrompt += "Customer Memory: " + (summaries[sessionId] || "New customer.");
 
