@@ -169,9 +169,8 @@ function shouldSearchProducts(message) {
     "gift", "luxury", "bridal", "wedding", "engagement",
     "show", "recommend", "suggest", "products",
     "romantic", "elegant", "minimal", "classic",
-    "anniversary", "birthday", "love", "forever",
-    "رومانسي", "هديه", "ذكري", "عيد", "جميل",
-    "انيق", "فاخر", "كلاسيك",
+    "anniversary", "birthday", "love",
+    "هديه", "ذكري", "عيد", "جميل", "انيق", "فاخر",
 
   ];
 
@@ -182,12 +181,99 @@ function shouldSearchProducts(message) {
 }
 
 // =====================================
-// EXTRACT SEARCH INTENT VIA OPENAI
+// STEP 1: ROUGH FILTER - TOP 30
 // =====================================
 
-async function extractSearchIntent(userMessage) {
+function roughFilter(userMessage, products) {
+
+  const msg = normalizeText(userMessage);
+
+  const words = msg.split(" ");
+
+  let scoredProducts = products.map((p) => {
+
+    const text = normalizeText(`
+
+      ${p.title || ""}
+      ${p.description || ""}
+      ${p.type || ""}
+      ${p.tags?.join(" ") || ""}
+      ${p.aiFeatures?.category || ""}
+      ${p.aiFeatures?.collection || ""}
+      ${p.aiFeatures?.productType || ""}
+      ${p.aiFeatures?.styles?.join(" ") || ""}
+      ${p.aiFeatures?.intent?.join(" ") || ""}
+      ${p.aiFeatures?.searchKeywords?.join(" ") || ""}
+      ${p.aiFeatures?.emotionalTriggers?.join(" ") || ""}
+      ${p.aiFeatures?.materials?.join(" ") || ""}
+      ${p.aiFeatures?.variantMetalColors?.join(" ") || ""}
+
+    `);
+
+    let score = 0;
+
+    words.forEach((word) => {
+      if (word.length > 2 && text.includes(word)) {
+        score += 10;
+      }
+    });
+
+    if (msg.includes("ring") && text.includes("ring")) score += 80;
+    if (msg.includes("necklace") && text.includes("necklace")) score += 80;
+    if (msg.includes("bracelet") && text.includes("bracelet")) score += 80;
+    if (msg.includes("earring") && text.includes("earring")) score += 80;
+
+    if (msg.includes("rose gold") && text.includes("rose gold")) score += 150;
+    if (msg.includes("yellow gold") && text.includes("yellow gold")) score += 150;
+    if (msg.includes("white gold") && text.includes("white gold")) score += 150;
+    if (msg.includes("platinum") && text.includes("platinum")) score += 150;
+
+    if (msg.includes("moissanite") && text.includes("moissanite")) score += 200;
+    if (msg.includes("diamond") && text.includes("diamond")) score += 150;
+    if (msg.includes("pearl") && text.includes("pearl")) score += 150;
+
+    if (msg.includes("wedding") && text.includes("wedding")) score += 120;
+    if (msg.includes("engagement") && text.includes("engagement")) score += 120;
+
+    // =====================================
+    // CATEGORY PENALTY
+    // =====================================
+
+    if (msg.includes("ring") && !text.includes("ring")) score -= 150;
+    if (msg.includes("necklace") && !text.includes("necklace")) score -= 150;
+    if (msg.includes("bracelet") && !text.includes("bracelet")) score -= 150;
+    if (msg.includes("earring") && !text.includes("earring")) score -= 150;
+
+    return { ...p, score };
+
+  });
+
+  return scoredProducts
+    .filter((p) => p.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 30);
+
+}
+
+// =====================================
+// STEP 2: AI SELECTS BEST 4
+// =====================================
+
+async function aiSelectProducts(userMessage, candidates) {
 
   try {
+
+    const candidateList = candidates.map((p, i) => ({
+      index: i,
+      id: p.handle,
+      title: p.title,
+      category: p.aiFeatures?.category || "",
+      collection: p.aiFeatures?.collection || "",
+      metal: p.aiFeatures?.variantMetalColors?.join(", ") || "",
+      styles: p.aiFeatures?.styles?.join(", ") || "",
+      intent: p.aiFeatures?.intent?.join(", ") || "",
+      price: p.variants?.[0]?.price || p.price || "",
+    }));
 
     const completion = await openai.chat.completions.create({
 
@@ -200,32 +286,30 @@ async function extractSearchIntent(userMessage) {
         {
           role: "system",
           content: `
-You are a luxury jewelry search assistant.
+You are a luxury jewelry product selector.
 
-The user is looking for jewelry. Extract their intent and convert it to search keywords.
-
-Return ONLY a JSON object like this:
-{
-  "keywords": ["rose gold", "ring", "romantic", "engagement"],
-  "category": "ring",
-  "metal": "rose gold",
-  "style": "romantic",
-  "intent": "engagement",
-  "occasion": "anniversary"
-}
+The customer is looking for jewelry. Choose the 4 most relevant products from the list.
 
 Rules:
-- keywords must be in English only
-- category must be one of: ring, necklace, bracelet, earring, or empty
-- metal must be one of: rose gold, yellow gold, white gold, silver, platinum, or empty
-- Keep it simple and accurate
-- Return ONLY the JSON, no extra text
+- Match category EXACTLY (if customer wants ring, only pick rings)
+- Match metal if mentioned
+- Match style and occasion if mentioned
+- Pick DIFFERENT products (no duplicates)
+- Return ONLY a JSON array of 4 index numbers like: [2, 7, 15, 23]
+- No extra text, just the JSON array
           `,
         },
 
         {
           role: "user",
-          content: userMessage,
+          content: `
+Customer request: "${userMessage}"
+
+Available products:
+${JSON.stringify(candidateList, null, 2)}
+
+Return the 4 best index numbers as JSON array.
+          `,
         },
 
       ],
@@ -237,153 +321,21 @@ Rules:
         .replace(/```json|```/g, "")
         .trim();
 
-    return JSON.parse(raw);
+    const indices = JSON.parse(raw);
+
+    return indices
+      .filter((i) => i >= 0 && i < candidates.length)
+      .slice(0, 4)
+      .map((i) => candidates[i]);
 
   } catch (err) {
 
-    console.log("INTENT EXTRACTION FAILED:", err.message);
-    return null;
+    console.log("AI SELECTION FAILED:", err.message);
+
+    // fallback: return top 4 from candidates
+    return candidates.slice(0, 4);
 
   }
-
-}
-
-// =====================================
-// SEARCH PRODUCTS
-// =====================================
-
-function searchProducts(userMessage, products, intent = null) {
-
-  const msg = normalizeText(userMessage);
-
-  const words = msg.split(" ");
-
-  // =====================================
-  // INTENT KEYWORDS
-  // =====================================
-
-  const intentKeywords =
-    intent?.keywords?.map((k) =>
-      normalizeText(k)
-    ) || [];
-
-  const intentCategory =
-    normalizeText(intent?.category || "");
-
-  const intentMetal =
-    normalizeText(intent?.metal || "");
-
-  const intentStyle =
-    normalizeText(intent?.style || "");
-
-  const intentOccasion =
-    normalizeText(intent?.occasion || "");
-
-  let scoredProducts = products.map((p) => {
-
-    const text = normalizeText(`
-
-      ${p.title || ""}
-      ${p.description || ""}
-      ${p.type || ""}
-      ${p.tags?.join(" ") || ""}
-
-      ${p.aiFeatures?.category || ""}
-      ${p.aiFeatures?.collection || ""}
-      ${p.aiFeatures?.productType || ""}
-      ${p.aiFeatures?.styles?.join(" ") || ""}
-      ${p.aiFeatures?.intent?.join(" ") || ""}
-      ${p.aiFeatures?.searchKeywords?.join(" ") || ""}
-      ${p.aiFeatures?.emotionalTriggers?.join(" ") || ""}
-      ${p.aiFeatures?.materials?.join(" ") || ""}
-      ${p.aiFeatures?.variantMetalColors?.join(" ") || ""}
-      ${p.aiFeatures?.variantStoneColors?.join(" ") || ""}
-      ${p.aiFeatures?.diamondShapes?.join(" ") || ""}
-
-    `);
-
-    let score = 0;
-
-    // =====================================
-    // WORD MATCH
-    // =====================================
-
-    words.forEach((word) => {
-      if (word.length > 2 && text.includes(word)) {
-        score += 10;
-      }
-    });
-
-    // =====================================
-    // INTENT KEYWORDS BOOST
-    // =====================================
-
-    intentKeywords.forEach((keyword) => {
-      if (keyword.length > 2 && text.includes(keyword)) {
-        score += 40;
-      }
-    });
-
-    // =====================================
-    // CATEGORY BOOST
-    // =====================================
-
-    if (msg.includes("ring") && text.includes("ring")) score += 80;
-    if (msg.includes("necklace") && text.includes("necklace")) score += 80;
-    if (msg.includes("bracelet") && text.includes("bracelet")) score += 80;
-    if (msg.includes("earring") && text.includes("earring")) score += 80;
-
-    if (intentCategory && text.includes(intentCategory)) score += 120;
-
-    // =====================================
-    // METAL BOOST
-    // =====================================
-
-    if (msg.includes("rose gold") && text.includes("rose gold")) score += 200;
-    if (msg.includes("yellow gold") && text.includes("yellow gold")) score += 200;
-    if (msg.includes("white gold") && text.includes("white gold")) score += 200;
-    if (msg.includes("platinum") && text.includes("platinum")) score += 220;
-
-    if (intentMetal && text.includes(intentMetal)) score += 180;
-
-    // =====================================
-    // STONE BOOST
-    // =====================================
-
-    if (msg.includes("moissanite") && text.includes("moissanite")) score += 250;
-    if (msg.includes("diamond") && text.includes("diamond")) score += 200;
-    if (msg.includes("pearl") && text.includes("pearl")) score += 200;
-
-    // =====================================
-    // STYLE & OCCASION BOOST
-    // =====================================
-
-    if (intentStyle && text.includes(intentStyle)) score += 100;
-    if (intentOccasion && text.includes(intentOccasion)) score += 100;
-
-    // =====================================
-    // COLLECTION BOOST
-    // =====================================
-
-    if (msg.includes("wedding") && text.includes("wedding")) score += 150;
-    if (msg.includes("engagement") && text.includes("engagement")) score += 150;
-
-    return { ...p, score };
-
-  });
-
-  // =====================================
-  // SHUFFLE TOP RESULTS FOR VARIETY
-  // =====================================
-
-  scoredProducts = scoredProducts
-    .filter((p) => p.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 10)
-    .sort(() => Math.random() - 0.5)
-    .slice(0, 4);
-
-  return scoredProducts;
 
 }
 
@@ -414,10 +366,6 @@ app.post("/generate-image", async (req, res) => {
 
     const count = sessionImageCount[sessionId];
 
-    // =====================================
-    // REQUIRE EMAIL AFTER 2
-    // =====================================
-
     if (count >= 2 && !sessionEmails[sessionId]) {
 
       return res.json({
@@ -431,10 +379,6 @@ app.post("/generate-image", async (req, res) => {
       sessionEmails[sessionId] = email;
     }
 
-    // =====================================
-    // BLOCK AFTER 3
-    // =====================================
-
     if (count >= 3) {
 
       return res.json({
@@ -443,10 +387,6 @@ app.post("/generate-image", async (req, res) => {
       });
 
     }
-
-    // =====================================
-    // BUILD PROMPT
-    // =====================================
 
     const prompt = `
       Luxury jewelry product photo.
@@ -457,10 +397,6 @@ app.post("/generate-image", async (req, res) => {
       Professional studio lighting.
       Ultra detailed. 8K quality.
     `;
-
-    // =====================================
-    // GENERATE
-    // =====================================
 
     const response = await openai.images.generate({
       model: "dall-e-3",
@@ -587,18 +523,15 @@ Be concise.
 
     if (shouldSearchProducts(normalizedMessage)) {
 
-      // =====================================
-      // EXTRACT INTENT
-      // =====================================
+      // STEP 1: rough filter top 30
+      const candidates =
+        roughFilter(normalizedMessage, products);
 
-      const intent =
-        await extractSearchIntent(userMessage);
-
-      matchedProducts = searchProducts(
-        normalizedMessage,
-        products,
-        intent
-      );
+      // STEP 2: AI picks best 4
+      if (candidates.length > 0) {
+        matchedProducts =
+          await aiSelectProducts(userMessage, candidates);
+      }
 
     }
 
@@ -609,29 +542,19 @@ Be concise.
     const aiProductsForPrompt =
       matchedProducts.map((p) => ({
 
-        title:
-          p.title,
+        title: p.title,
+        category: p.aiFeatures?.category || "",
+        collection: p.aiFeatures?.collection || "",
+        price: p.variants?.[0]?.price || p.price || "",
 
-        category:
-          p.aiFeatures?.category || "",
-
-        collection:
-          p.aiFeatures?.collection || "",
-
-        price:
-          p.variants?.[0]?.price ||
-          p.price ||
-          "",
-
-        variants:
-          p.variants?.slice(0, 3)?.map((v) => ({
-            title: v.title,
-            price: v.price,
-            available: v.available ?? true,
-            metal: v.metal || "",
-            shape: v.shape || "",
-            stoneColor: v.stoneColor || "",
-          })) || [],
+        variants: p.variants?.slice(0, 3)?.map((v) => ({
+          title: v.title,
+          price: v.price,
+          available: v.available ?? true,
+          metal: v.metal || "",
+          shape: v.shape || "",
+          stoneColor: v.stoneColor || "",
+        })) || [],
 
       }));
 
@@ -642,8 +565,7 @@ Be concise.
     const aiProductsForFrontend =
       matchedProducts.map((p) => {
 
-        const resolvedImage =
-          p.image || "";
+        const resolvedImage = p.image || "";
 
         return {
 
@@ -668,33 +590,29 @@ Be concise.
           rawPrice: p.variants?.[0]?.rawPrice || p.rawPrice || 0,
           currency: p.currency || "AED",
 
-          variants:
-            p.variants?.slice(0, 20)?.map((v) => {
+          variants: p.variants?.slice(0, 20)?.map((v) => {
 
-              const variantImage =
-                v.mappedImage ||
-                v.image ||
-                resolvedImage ||
-                "";
+            const variantImage =
+              v.mappedImage || v.image || resolvedImage || "";
 
-              return {
-                id: v.id || "",
-                title: v.title || "",
-                sku: v.sku || "",
-                available: v.available ?? true,
-                price: v.price || "",
-                rawPrice: v.rawPrice || 0,
-                currency: v.currency || "AED",
-                image: variantImage,
-                mappedImage: variantImage,
-                metal: v.metal || "",
-                stoneColor: v.stoneColor || "",
-                shape: v.shape || "",
-                stoneSize: v.stoneSize || "",
-                options: v.options || [],
-              };
+            return {
+              id: v.id || "",
+              title: v.title || "",
+              sku: v.sku || "",
+              available: v.available ?? true,
+              price: v.price || "",
+              rawPrice: v.rawPrice || 0,
+              currency: v.currency || "AED",
+              image: variantImage,
+              mappedImage: variantImage,
+              metal: v.metal || "",
+              stoneColor: v.stoneColor || "",
+              shape: v.shape || "",
+              stoneSize: v.stoneSize || "",
+              options: v.options || [],
+            };
 
-            }) || [],
+          }) || [],
 
         };
 
