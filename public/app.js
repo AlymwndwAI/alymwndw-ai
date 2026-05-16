@@ -157,6 +157,115 @@ function switchVariantImage(
 }
 
 // =====================
+// AI CUSTOMIZE IMAGE
+// =====================
+
+async function generateCustomImage(handle, imageId, descId, resultId, btnId) {
+
+  const descInput = document.getElementById(descId);
+  const resultDiv = document.getElementById(resultId);
+  const btn = document.getElementById(btnId);
+  const productImage = document.getElementById(imageId);
+
+  const userDesc = descInput.value.trim();
+  if (!userDesc) {
+    descInput.placeholder = "✍️ اكتب وصفك أولاً...";
+    descInput.focus();
+    return;
+  }
+
+  // LOADING STATE
+  btn.disabled = true;
+  btn.innerHTML = `<span class="ai-btn-spinner"></span> جاري التوليد...`;
+  resultDiv.innerHTML = `
+    <div class="ai-generating">
+      <div class="ai-gen-dots">
+        <span></span><span></span><span></span>
+      </div>
+      <p>✨ الذكاء الاصطناعي يرسم قطعتك...</p>
+    </div>
+  `;
+  resultDiv.style.display = "block";
+
+  try {
+
+    const response = await fetch("/customize-product", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        productHandle: handle,
+        productImage: productImage ? productImage.src : "",
+        userDescription: userDesc,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.requireEmail) {
+      resultDiv.innerHTML = `
+        <div class="ai-email-gate">
+          <p>📧 أدخل إيميلك للاستمرار</p>
+          <input type="email" id="email-gate-${handle}" placeholder="example@email.com" class="ai-email-input"/>
+          <button class="ai-gen-btn" onclick="submitEmailAndGenerate('${handle}','${imageId}','${descId}','${resultId}','${btnId}')">
+            متابعة
+          </button>
+        </div>
+      `;
+      btn.disabled = false;
+      btn.innerHTML = `✨ توليد بالذكاء الاصطناعي`;
+      return;
+    }
+
+    if (data.blocked) {
+      resultDiv.innerHTML = `<p class="ai-limit-msg">⚠️ وصلت للحد الأقصى من الصور لهذه الجلسة.</p>`;
+      btn.disabled = true;
+      btn.innerHTML = `✨ توليد بالذكاء الاصطناعي`;
+      return;
+    }
+
+    if (data.imageUrl) {
+      resultDiv.innerHTML = `
+        <div class="ai-result-wrap">
+          <p class="ai-result-label">✨ تصميمك بالذكاء الاصطناعي</p>
+          <img src="${data.imageUrl}" class="ai-result-img" alt="AI Generated"/>
+          <p class="ai-result-remaining">متبقي ${data.remaining} توليد</p>
+          <a href="${data.imageUrl}" download="alymwndw-custom.jpg" class="ai-download-btn">⬇️ تحميل الصورة</a>
+        </div>
+      `;
+    } else {
+      resultDiv.innerHTML = `<p class="ai-limit-msg">حدث خطأ. حاول مرة أخرى.</p>`;
+    }
+
+  } catch (err) {
+    resultDiv.innerHTML = `<p class="ai-limit-msg">حدث خطأ في الاتصال.</p>`;
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = `✨ توليد بالذكاء الاصطناعي`;
+  chatBox.scrollTop = chatBox.scrollHeight;
+
+}
+
+// =====================
+// EMAIL GATE SUBMIT
+// =====================
+
+async function submitEmailAndGenerate(handle, imageId, descId, resultId, btnId) {
+  const emailInput = document.getElementById(`email-gate-${handle}`);
+  const email = emailInput ? emailInput.value.trim() : "";
+  if (!email) return;
+
+  await fetch("/save-email", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId, email }),
+  });
+
+  generateCustomImage(handle, imageId, descId, resultId, btnId);
+}
+
+// =====================
 // PRODUCT CARD
 // =====================
 
@@ -197,6 +306,14 @@ function renderProducts(products) {
 
     const imageId =
       `product-image-${product.handle}`;
+
+    // =====================
+    // AI CUSTOMIZER IDs
+    // =====================
+
+    const descId   = `ai-desc-${product.handle}`;
+    const resultId = `ai-result-${product.handle}`;
+    const btnId    = `ai-btn-${product.handle}`;
 
     // =====================
     // VARIANT BUTTONS
@@ -292,6 +409,40 @@ function renderProducts(products) {
         >
           Shop
         </a>
+
+      </div>
+
+      <!-- ===================== -->
+      <!-- AI CUSTOMIZER SECTION -->
+      <!-- ===================== -->
+
+      <div class="ai-customizer">
+
+        <div class="ai-customizer-header">
+          <span class="ai-customizer-icon">✨</span>
+          <span class="ai-customizer-title">خصّص قطعتك بالذكاء الاصطناعي</span>
+        </div>
+
+        <p class="ai-customizer-hint">
+          صف التعديل اللي تريده — مثال: "عايز الحجر في النص أحمر والجانبين أصفر مع نقش اسم أحمد"
+        </p>
+
+        <textarea
+          id="${descId}"
+          class="ai-desc-input"
+          placeholder="اكتب هنا بالعربي أو الإنجليزي..."
+          rows="3"
+        ></textarea>
+
+        <button
+          id="${btnId}"
+          class="ai-gen-btn"
+          onclick="generateCustomImage('${product.handle}','${imageId}','${descId}','${resultId}','${btnId}')"
+        >
+          ✨ توليد بالذكاء الاصطناعي
+        </button>
+
+        <div id="${resultId}" class="ai-result" style="display:none;"></div>
 
       </div>
 
