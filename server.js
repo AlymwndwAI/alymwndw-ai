@@ -652,10 +652,33 @@ app.post("/chat", async (req, res) => {
     const isNextRequest = shouldShowNext(userMessage);
     const isNewSearch = !isGreeting && shouldSearchProducts(normalizedMessage) && !isNextRequest;
 
-    if (isNextRequest && sessionProducts[sessionId].queue.length > 0) {
+    if (isNextRequest) {
 
-      // POP NEXT FROM QUEUE
-      currentProduct = sessionProducts[sessionId].queue.shift();
+      if (sessionProducts[sessionId].queue.length > 0) {
+
+        // POP NEXT FROM QUEUE
+        currentProduct = sessionProducts[sessionId].queue.shift();
+
+      } else if (sessionProducts[sessionId].lastSearch) {
+
+        // QUEUE EMPTY - RE-SEARCH WITH SAME INTENT
+        const candidates = roughFilter(
+          sessionProducts[sessionId].lastSearch,
+          sessionProducts[sessionId].lastIntent,
+          products
+        );
+
+        if (candidates.length > 0) {
+          const selected = await aiSelectProducts(
+            sessionProducts[sessionId].lastSearch,
+            sessionProducts[sessionId].lastIntent,
+            candidates
+          );
+          sessionProducts[sessionId].queue = selected;
+          currentProduct = sessionProducts[sessionId].queue.shift();
+        }
+
+      }
 
     } else if (isNewSearch) {
 
