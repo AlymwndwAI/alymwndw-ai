@@ -270,3 +270,39 @@ height:100vh;
 border-radius:0;
 
 }
+
+/* =========================
+AI CUSTOMIZER
+========================= */
+
+.ai-customizer{margin-top:18px;padding:16px;background:#1a1a1a;border:1px solid rgba(67,255,209,.15);border-radius:18px;}
+.ai-customizer-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.ai-customizer-icon{font-size:18px;}
+.ai-customizer-title{font-size:15px;font-weight:700;color:#43ffd1;}
+.ai-customizer-hint{font-size:13px;color:#d7d7d7;opacity:.75;margin-bottom:12px;line-height:1.6;direction:rtl;}
+.ai-desc-input{width:100%;background:#111;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 14px;color:white;font-size:14px;resize:none;outline:none;font-family:inherit;margin-bottom:12px;transition:border-color .25s;direction:rtl;line-height:1.6;}
+.ai-desc-input:focus{border-color:rgba(67,255,209,.45);}
+.ai-desc-input::placeholder{color:rgba(255,255,255,.3);}
+.ai-gen-btn{width:100%;padding:15px;background:#43ffd1;border:none;border-radius:16px;color:black;font-size:14px;font-weight:bold;cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:8px;}
+.ai-gen-btn:hover{transform:scale(1.02);opacity:.95;}
+.ai-gen-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+.ai-btn-spinner{width:14px;height:14px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;display:inline-block;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.ai-result{margin-top:14px;}
+.ai-generating{text-align:center;padding:20px;color:rgba(255,255,255,.5);font-size:14px;}
+.ai-gen-dots{display:flex;justify-content:center;gap:6px;margin-bottom:10px;}
+.ai-gen-dots span{width:8px;height:8px;background:#43ffd1;border-radius:50%;animation:bounce 1.2s infinite;}
+.ai-gen-dots span:nth-child(2){animation-delay:.2s;}
+.ai-gen-dots span:nth-child(3){animation-delay:.4s;}
+@keyframes bounce{0%,80%,100%{transform:scale(.6);opacity:.4;}40%{transform:scale(1);opacity:1;}}
+.ai-result-wrap{text-align:center;}
+.ai-result-label{font-size:13px;color:#43ffd1;margin-bottom:10px;font-weight:600;}
+.ai-result-img{width:100%;border-radius:20px;background:#f8f8f8;padding:10px;object-fit:contain;margin-bottom:10px;box-shadow:0 0 25px rgba(0,0,0,.35);}
+.ai-result-remaining{font-size:12px;color:rgba(255,255,255,.4);margin-bottom:10px;}
+.ai-download-btn{display:inline-block;padding:12px 24px;background:white;border-radius:16px;color:black;font-size:13px;font-weight:bold;text-decoration:none;transition:.2s;}
+.ai-download-btn:hover{transform:scale(1.02);}
+.ai-limit-msg{font-size:13px;color:rgba(255,100,100,.8);text-align:center;padding:10px;}
+.ai-email-gate{text-align:center;padding:8px 0;}
+.ai-email-gate p{font-size:14px;color:#d7d7d7;margin-bottom:10px;}
+.ai-email-input{width:100%;padding:12px 14px;background:#111;border:1px solid rgba(255,255,255,.08);border-radius:14px;color:white;font-size:14px;outline:none;margin-bottom:12px;font-family:inherit;transition:border-color .25s;}
+.ai-email-input:focus{border-color:rgba(67,255,209,.45);}
