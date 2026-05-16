@@ -57,10 +57,12 @@ function parseVariant(v, images) {
     metal = "yellow gold";
   } else if (optionText.includes("white gold")) {
     metal = "white gold";
-  } else if (optionText.includes("silver")) {
-    metal = "silver";
-  } else if (optionText.includes("platinum")) {
+  } else if (optionText.includes("platinum 950") || optionText.includes("platinum")) {
     metal = "platinum";
+  } else if (optionText.includes("gold 18k") || optionText.includes("gold 750") || optionText.includes("gold 18")) {
+    metal = "gold";
+  } else if (optionText.includes("silver 925") || optionText.includes("silver")) {
+    metal = "silver";
   } else if (optionText.includes("gold")) {
     metal = "gold";
   }
@@ -71,7 +73,21 @@ function parseVariant(v, images) {
 
   let stoneColor = "";
 
-  if (
+  if (optionText.includes("royal purple") || optionText.includes("purple")) {
+    stoneColor = "purple";
+  } else if (optionText.includes("red") || optionText.includes("ruby")) {
+    stoneColor = "red";
+  } else if (
+    optionText.includes("rose") &&
+    !optionText.includes("rose gold")
+  ) {
+    stoneColor = "rose";
+  } else if (
+    optionText.includes("pink") &&
+    !optionText.includes("pink gold")
+  ) {
+    stoneColor = "pink";
+  } else if (
     optionText.includes("yellow") &&
     !optionText.includes("yellow gold")
   ) {
@@ -81,15 +97,14 @@ function parseVariant(v, images) {
     !optionText.includes("white gold")
   ) {
     stoneColor = "white";
-  } else if (
-    optionText.includes("pink") &&
-    !optionText.includes("pink gold")
-  ) {
-    stoneColor = "pink";
-  } else if (optionText.includes("blue")) {
+  } else if (optionText.includes("blue") || optionText.includes("sapphire")) {
     stoneColor = "blue";
-  } else if (optionText.includes("green")) {
+  } else if (optionText.includes("green") || optionText.includes("emerald")) {
     stoneColor = "green";
+  } else if (optionText.includes("black")) {
+    stoneColor = "black";
+  } else if (optionText.includes("orange")) {
+    stoneColor = "orange";
   }
 
   // ========================================
