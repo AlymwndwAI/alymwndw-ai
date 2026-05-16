@@ -684,11 +684,8 @@ window.addEventListener("load", async () => {
     });
 
     const data = await response.json();
-
     removeTypingLoader();
-
     if (data.sessionId) sessionId = data.sessionId;
-
     await typeMessage(data.reply);
 
   } catch (err) {
@@ -729,33 +726,49 @@ chatBox.scrollTop = chatBox.scrollHeight;
 
 function removeTypingLoader(){
 const loader = document.getElementById("typing-loader");
-if (loader) loader.remove();
+if(loader) loader.remove();
 }
 
 // =====================
-// TYPE MESSAGE
+// TYPE MESSAGE - FASTER
 // =====================
 
 async function typeMessage(text){
+
 const row = document.createElement("div");
 row.className = "message-row";
+
 const avatar = document.createElement("img");
 avatar.src = "deer.png";
 avatar.className = "ai-avatar";
+
 const bubble = document.createElement("div");
 bubble.className = "message ai-message";
+
 row.appendChild(avatar);
 row.appendChild(bubble);
 chatBox.appendChild(row);
 chatBox.scrollTop = chatBox.scrollHeight;
-let current = "";
+
+// Split into chunks of 3 words for faster feel
 const words = text.split(" ");
-for(let i=0;i<words.length;i++){
-current += words[i] + " ";
-bubble.innerText = current;
-chatBox.scrollTop = chatBox.scrollHeight;
-await new Promise((r)=>setTimeout(r,35));
+const chunkSize = 3;
+let current = "";
+
+for(let i = 0; i < words.length; i += chunkSize){
+
+  const chunk = words.slice(i, i + chunkSize).join(" ");
+  current += (current ? " " : "") + chunk;
+  bubble.innerText = current;
+  chatBox.scrollTop = chatBox.scrollHeight;
+  await new Promise((r) => setTimeout(r, 18));
+
 }
+
+// Make sure full text is shown
+bubble.innerText = text;
+chatBox.scrollTop = chatBox.scrollHeight;
+
 }
 
 // =====================
@@ -797,18 +810,22 @@ button.classList.add("active-variant");
 
 function renderProducts(products){
 products.forEach((product)=>{
+
 const firstVariant = product.variants?.[0] || {};
 const image =
 firstVariant.mappedImage ||
 firstVariant.image ||
 product.image ||
 "https://via.placeholder.com/500";
+
 const cleanPrice =
 String(firstVariant.price || product.price || "")
 .replace("AED","").trim();
+
 const url =
 product.url ||
 `https://alymwndw.com/products/${product.handle}`;
+
 const imageId = `img-${product.handle}`;
 const priceId = `price-${product.handle}`;
 
@@ -849,6 +866,7 @@ card.innerHTML = `
 </div>
 `;
 chatBox.appendChild(card);
+
 });
 chatBox.scrollTop = chatBox.scrollHeight;
 }
@@ -866,13 +884,13 @@ if(event.key==="Enter"){ sendMessage(); }
 // =====================
 
 async function sendMessage(){
+
 const input = document.getElementById("message");
 const message = input.value.trim();
 if(!message) return;
 
 addUserMessage(message);
 input.value = "";
-
 showTypingLoader();
 
 try {
