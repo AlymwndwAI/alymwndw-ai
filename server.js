@@ -49,7 +49,7 @@ let products = [];
 try {
   const raw = fs.readFileSync("./public/products-brain.json", "utf8");
   products = JSON.parse(raw);
-  console.log(`PRODUCT BRAIN LOADED: ${products.length}`);
+  console.log("PRODUCT BRAIN LOADED: " + products.length);
 } catch (err) {
   console.log("NO PRODUCTS BRAIN FOUND");
 }
@@ -57,7 +57,7 @@ try {
 async function shopifyQuery(query) {
   try {
     const response = await fetch(
-      `https://${SHOP}/admin/api/2025-01/graphql.json`,
+      "https://" + SHOP + "/admin/api/2025-01/graphql.json",
       {
         method: "POST",
         headers: {
@@ -109,20 +109,21 @@ async function getActiveDiscounts() {
         }
       }
     `);
-    if (!data?.data?.discountNodes?.edges) return [];
+    if (!data || !data.data || !data.data.discountNodes || !data.data.discountNodes.edges) return [];
     return data.data.discountNodes.edges
       .map((e) => e.node.discount)
-      .filter((d) => d?.status === "ACTIVE");
+      .filter((d) => d && d.status === "ACTIVE");
   } catch (err) {
     return [];
   }
 }
 
-function normalizeText(text = "") {
+function normalizeText(text) {
+  if (!text) return "";
   return text
     .toLowerCase()
-    .replaceAll("أ", "ا").replaceAll("إ", "ا").replaceAll("آ", "ا")
-    .replaceAll("ة", "ه").replaceAll("ى", "ي")
+    .replaceAll("\u0623", "\u0627").replaceAll("\u0625", "\u0627").replaceAll("\u0622", "\u0627")
+    .replaceAll("\u0629", "\u0647").replaceAll("\u0649", "\u064a")
     .replaceAll("خاتم خطوبه", "engagement ring")
     .replaceAll("خاتم خطوبة", "engagement ring")
     .replaceAll("سلسله اسم", "name necklace")
@@ -163,24 +164,7 @@ async function extractIntent(userMessage) {
       messages: [
         {
           role: "system",
-          content: `
-You are a jewelry search intent extractor.
-Extract the customer's jewelry search intent and return ONLY a JSON object.
-
-Return format:
-{
-  "category": "ring|necklace|bracelet|earring|pendant|chain|",
-  "metal": "rose gold|yellow gold|white gold|silver|platinum|",
-  "stone": "moissanite|diamond|pearl|",
-  "shape": "oval|pear|round|emerald|princess|radiant|marquise|cushion|heart|asscher|",
-  "occasion": "wedding|engagement|gift|anniversary|birthday|",
-  "style": "men|kids|couple|custom|name|initial|tennis|",
-  "keywords": ["keyword1", "keyword2"]
-}
-
-Only fill fields that are clearly mentioned. Leave others empty.
-Return ONLY the JSON, no extra text.
-          `,
+          content: "You are a jewelry search intent extractor. Extract the customer jewelry search intent and return ONLY a JSON object. Format: {\"category\": \"ring|necklace|bracelet|earring|pendant|chain|\", \"metal\": \"rose gold|yellow gold|white gold|silver|platinum|\", \"stone\": \"moissanite|diamond|pearl|\", \"shape\": \"oval|pear|round|emerald|princess|radiant|marquise|cushion|heart|asscher|\", \"occasion\": \"wedding|engagement|gift|anniversary|birthday|\", \"style\": \"men|kids|couple|custom|name|initial|tennis|\", \"keywords\": []}. Only fill fields clearly mentioned. Return ONLY the JSON.",
         },
         { role: "user", content: userMessage },
       ],
@@ -229,31 +213,44 @@ function roughFilter(userMessage, intent, products) {
   const msg = normalizeText(userMessage);
   const words = msg.split(" ").filter((w) => w.length > 2);
   const intentWords = [
-    intent?.category, intent?.metal, intent?.stone, intent?.shape,
-    intent?.occasion, intent?.style, ...(intent?.keywords || []),
+    intent && intent.category,
+    intent && intent.metal,
+    intent && intent.stone,
+    intent && intent.shape,
+    intent && intent.occasion,
+    intent && intent.style,
+    ...((intent && intent.keywords) || []),
   ].filter(Boolean).map((w) => normalizeText(w));
 
   let scoredProducts = products.map((p) => {
-    const collectionText = (p.aiFeatures?.collections || []).join(" ").toLowerCase();
-    const text = normalizeText(`
-      ${p.title || ""} ${p.description || ""} ${p.type || ""}
-      ${p.tags?.join(" ") || ""} ${p.aiFeatures?.category || ""}
-      ${p.aiFeatures?.collection || ""} ${p.aiFeatures?.productType || ""}
-      ${p.aiFeatures?.styles?.join(" ") || ""} ${p.aiFeatures?.intent?.join(" ") || ""}
-      ${p.aiFeatures?.searchKeywords?.join(" ") || ""} ${p.aiFeatures?.materials?.join(" ") || ""}
-      ${p.aiFeatures?.variantMetalColors?.join(" ") || ""} ${p.aiFeatures?.diamondShapes?.join(" ") || ""}
-      ${collectionText}
-    `);
+    const collectionText = ((p.aiFeatures && p.aiFeatures.collections) || []).join(" ").toLowerCase();
+    const text = normalizeText(
+      (p.title || "") + " " +
+      (p.description || "") + " " +
+      (p.type || "") + " " +
+      ((p.tags && p.tags.join(" ")) || "") + " " +
+      ((p.aiFeatures && p.aiFeatures.category) || "") + " " +
+      ((p.aiFeatures && p.aiFeatures.collection) || "") + " " +
+      ((p.aiFeatures && p.aiFeatures.productType) || "") + " " +
+      ((p.aiFeatures && p.aiFeatures.styles && p.aiFeatures.styles.join(" ")) || "") + " " +
+      ((p.aiFeatures && p.aiFeatures.intent && p.aiFeatures.intent.join(" ")) || "") + " " +
+      ((p.aiFeatures && p.aiFeatures.searchKeywords && p.aiFeatures.searchKeywords.join(" ")) || "") + " " +
+      ((p.aiFeatures && p.aiFeatures.materials && p.aiFeatures.materials.join(" ")) || "") + " " +
+      ((p.aiFeatures && p.aiFeatures.variantMetalColors && p.aiFeatures.variantMetalColors.join(" ")) || "") + " " +
+      ((p.aiFeatures && p.aiFeatures.diamondShapes && p.aiFeatures.diamondShapes.join(" ")) || "") + " " +
+      collectionText
+    );
+
     let score = 0;
     words.forEach((word) => { if (text.includes(word)) score += 10; });
     intentWords.forEach((word) => { if (word && text.includes(word)) score += 40; });
-    if (intent?.category && text.includes(intent.category)) score += 100;
-    if (intent?.metal && text.includes(intent.metal)) score += 150;
-    if (intent?.stone && text.includes(intent.stone)) score += 200;
-    if (intent?.shape && text.includes(intent.shape)) score += 150;
-    if (intent?.occasion && text.includes(intent.occasion)) score += 120;
-    if (intent?.style && text.includes(intent.style)) score += 100;
-    if (intent?.category) {
+    if (intent && intent.category && text.includes(intent.category)) score += 100;
+    if (intent && intent.metal && text.includes(intent.metal)) score += 150;
+    if (intent && intent.stone && text.includes(intent.stone)) score += 200;
+    if (intent && intent.shape && text.includes(intent.shape)) score += 150;
+    if (intent && intent.occasion && text.includes(intent.occasion)) score += 120;
+    if (intent && intent.style && text.includes(intent.style)) score += 100;
+    if (intent && intent.category) {
       if (!text.includes(intent.category)) score -= 200;
     } else {
       if (msg.includes("ring") && !text.includes("ring")) score -= 150;
@@ -261,7 +258,7 @@ function roughFilter(userMessage, intent, products) {
       if (msg.includes("bracelet") && !text.includes("bracelet")) score -= 150;
       if (msg.includes("earring") && !text.includes("earring")) score -= 150;
     }
-    return { ...p, score };
+    return Object.assign({}, p, { score: score });
   });
 
   return scoredProducts.filter((p) => p.score > 0).sort((a, b) => b.score - a.score).slice(0, 30);
@@ -270,23 +267,25 @@ function roughFilter(userMessage, intent, products) {
 async function aiSelectProducts(userMessage, intent, candidates) {
   try {
     const candidateList = candidates.map((p, i) => ({
-      index: i, title: p.title,
-      category: p.aiFeatures?.category || "",
-      collections: (p.aiFeatures?.collections || []).slice(0, 5),
-      productType: p.aiFeatures?.productType || "",
-      metals: p.aiFeatures?.variantMetalColors?.join(", ") || "",
-      shapes: p.aiFeatures?.diamondShapes?.join(", ") || "",
-      stones: p.aiFeatures?.variantStoneColors?.join(", ") || "",
-      styles: p.aiFeatures?.styles?.join(", ") || "",
-      intent: p.aiFeatures?.intent?.join(", ") || "",
-      price: p.variants?.[0]?.price || p.price || "",
+      index: i,
+      title: p.title,
+      category: (p.aiFeatures && p.aiFeatures.category) || "",
+      collections: ((p.aiFeatures && p.aiFeatures.collections) || []).slice(0, 5),
+      productType: (p.aiFeatures && p.aiFeatures.productType) || "",
+      metals: ((p.aiFeatures && p.aiFeatures.variantMetalColors) || []).join(", "),
+      shapes: ((p.aiFeatures && p.aiFeatures.diamondShapes) || []).join(", "),
+      stones: ((p.aiFeatures && p.aiFeatures.variantStoneColors) || []).join(", "),
+      styles: ((p.aiFeatures && p.aiFeatures.styles) || []).join(", "),
+      intent: ((p.aiFeatures && p.aiFeatures.intent) || []).join(", "),
+      price: (p.variants && p.variants[0] && p.variants[0].price) || p.price || "",
     }));
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4.1-mini", temperature: 0,
+      model: "gpt-4.1-mini",
+      temperature: 0,
       messages: [
-        { role: "system", content: `You are a luxury jewelry product selector. Choose the 8 most relevant AND DIVERSE products. CATEGORY IS MANDATORY. Return ONLY a JSON array of index numbers.` },
-        { role: "user", content: `Customer: "${userMessage}"\nIntent: ${JSON.stringify(intent)}\nProducts:\n${JSON.stringify(candidateList, null, 2)}\nReturn 8 diverse best index numbers as JSON array.` },
+        { role: "system", content: "You are a luxury jewelry product selector. Choose the 8 most relevant AND DIVERSE products. CATEGORY IS MANDATORY: if customer wants ring return ONLY rings. Return ONLY a JSON array of index numbers. No extra text." },
+        { role: "user", content: "Customer: \"" + userMessage + "\"\nIntent: " + JSON.stringify(intent) + "\nProducts:\n" + JSON.stringify(candidateList, null, 2) + "\nReturn 8 diverse best index numbers as JSON array." },
       ],
     });
 
@@ -294,8 +293,279 @@ async function aiSelectProducts(userMessage, intent, candidates) {
     const indices = JSON.parse(raw);
     return indices.filter((i) => i >= 0 && i < candidates.length).slice(0, 8).map((i) => candidates[i]);
   } catch (err) {
+    console.log("AI SELECTION FAILED: " + err.message);
     return candidates.slice(0, 8);
   }
 }
 
-function​​​​​​​​​​​​​​​​
+function buildProductDetails(p) {
+  const rawPrices = (p.variants || []).map((v) => v.rawPrice).filter(Boolean).sort((a, b) => a - b);
+  return {
+    title: p.title,
+    category: (p.aiFeatures && p.aiFeatures.category) || "",
+    collections: ((p.aiFeatures && p.aiFeatures.collections) || []).slice(0, 5),
+    metals: (p.aiFeatures && p.aiFeatures.variantMetalColors) || [],
+    shapes: (p.aiFeatures && p.aiFeatures.diamondShapes) || [],
+    stoneSizes: (p.aiFeatures && p.aiFeatures.variantStoneSizes) || [],
+    stoneColors: (p.aiFeatures && p.aiFeatures.variantStoneColors) || [],
+    certifications: (p.aiFeatures && p.aiFeatures.certifications) || [],
+    startingPrice: rawPrices.length > 0 ? rawPrices[0] + " AED" : p.price || "",
+    styles: (p.aiFeatures && p.aiFeatures.styles) || [],
+    emotionalTriggers: (p.aiFeatures && p.aiFeatures.emotionalTriggers) || [],
+    description: (p.description || "").slice(0, 200),
+  };
+}
+
+function buildProductForFrontend(p) {
+  const resolvedImage = p.image || "";
+  return {
+    id: p.id || "",
+    title: p.title || "",
+    handle: p.handle || "",
+    description: p.description || "",
+    type: p.type || "",
+    vendor: p.vendor || "",
+    image: resolvedImage,
+    images: p.images || [],
+    url: p.url || "https://alymwndw.com/products/" + p.handle,
+    reviewRating: p.reviewRating != null ? p.reviewRating : 4.9,
+    reviewCount: p.reviewCount != null ? p.reviewCount : 120,
+    category: (p.aiFeatures && p.aiFeatures.category) || "",
+    collection: (p.aiFeatures && p.aiFeatures.collection) || "",
+    styles: (p.aiFeatures && p.aiFeatures.styles) || [],
+    emotionalTriggers: (p.aiFeatures && p.aiFeatures.emotionalTriggers) || [],
+    price: (p.variants && p.variants[0] && p.variants[0].price) || p.price || "",
+    rawPrice: (p.variants && p.variants[0] && p.variants[0].rawPrice) || p.rawPrice || 0,
+    currency: p.currency || "AED",
+    variants: (p.variants || []).slice(0, 20).map((v) => {
+      const variantImage = v.mappedImage || v.image || resolvedImage || "";
+      return {
+        id: v.id || "",
+        title: v.title || "",
+        sku: v.sku || "",
+        available: v.available != null ? v.available : true,
+        price: v.price || "",
+        rawPrice: v.rawPrice || 0,
+        currency: v.currency || "AED",
+        image: variantImage,
+        mappedImage: variantImage,
+        metal: v.metal || "",
+        stoneColor: v.stoneColor || "",
+        shape: v.shape || "",
+        stoneSize: v.stoneSize || "",
+        options: v.options || [],
+      };
+    }),
+  };
+}
+
+app.get("/", (req, res) => { res.send("ALYMWNDW AI RUNNING"); });
+
+app.post("/customize-product", async (req, res) => {
+  try {
+    const sessionId = req.body.sessionId || "";
+    const productHandle = req.body.productHandle || "";
+    const userDesc = req.body.userDescription || "";
+
+    if (!sessionImageCount[sessionId]) sessionImageCount[sessionId] = 0;
+    const count = sessionImageCount[sessionId];
+
+    if (count >= 2 && !sessionEmails[sessionId]) return res.json({ requireEmail: true });
+    if (count >= 3) return res.json({ blocked: true });
+
+    let englishDesc = userDesc;
+    if (/[\u0600-\u06FF]/.test(userDesc)) {
+      try {
+        const translation = await openai.chat.completions.create({
+          model: "gpt-4.1-mini",
+          temperature: 0,
+          messages: [
+            { role: "system", content: "Translate the following Arabic jewelry customization request to English. Return only the translated text." },
+            { role: "user", content: userDesc },
+          ],
+        });
+        englishDesc = translation.choices[0].message.content.trim();
+      } catch (e) { englishDesc = userDesc; }
+    }
+
+    const prompt = "Luxury jewelry product photography. Piece: " + productHandle.replace(/-/g, " ") + ". Customization: " + englishDesc + ". Style: ultra-realistic, professional studio lighting, white background, 8K quality, photorealistic, highly detailed gemstones and metal finish.";
+
+    const response = await openai.images.generate({
+      model: "dall-e-2",
+      prompt: prompt,
+      n: 1,
+      size: "512x512",
+    });
+
+    sessionImageCount[sessionId]++;
+    res.json({
+      imageUrl: response.data[0].url,
+      count: sessionImageCount[sessionId],
+      remaining: Math.max(0, 3 - sessionImageCount[sessionId]),
+    });
+
+  } catch (err) {
+    console.log("CUSTOMIZE ERROR: " + err.message);
+    res.status(500).json({ error: "Image generation failed." });
+  }
+});
+
+app.post("/save-email", async (req, res) => {
+  const sessionId = req.body.sessionId;
+  const email = req.body.email;
+  if (sessionId && email) sessionEmails[sessionId] = email;
+  res.json({ ok: true });
+});
+
+app.post("/generate-image", async (req, res) => {
+  try {
+    const sessionId = req.body.sessionId || "";
+    const productTitle = req.body.productTitle || "";
+    const productDescription = req.body.productDescription || "";
+    const email = req.body.email || "";
+
+    if (!sessionImageCount[sessionId]) sessionImageCount[sessionId] = 0;
+    const count = sessionImageCount[sessionId];
+
+    if (count >= 2 && !sessionEmails[sessionId]) return res.json({ requireEmail: true });
+    if (email) sessionEmails[sessionId] = email;
+    if (count >= 3) return res.json({ blocked: true });
+
+    const prompt = "Luxury jewelry product photo. " + productTitle + ". " + productDescription.slice(0, 100) + ". White background. Professional studio lighting. Ultra detailed.";
+
+    const response = await openai.images.generate({
+      model: "dall-e-2",
+      prompt: prompt,
+      n: 1,
+      size: "512x512",
+    });
+
+    sessionImageCount[sessionId]++;
+    res.json({
+      imageUrl: response.data[0].url,
+      count: sessionImageCount[sessionId],
+      remaining: Math.max(0, 3 - sessionImageCount[sessionId]),
+    });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: "Image generation failed." });
+  }
+});
+
+app.post("/chat", async (req, res) => {
+  try {
+    const userMessage = req.body.message || "";
+    const sessionId = req.body.sessionId || crypto.randomUUID();
+    const normalizedMessage = normalizeText(userMessage);
+    const language = detectLanguage(userMessage);
+
+    if (!conversations[sessionId]) conversations[sessionId] = [];
+    if (!sessionProducts[sessionId]) {
+      sessionProducts[sessionId] = { queue: [], lastSearch: "", lastIntent: null };
+    }
+    sessionTimestamps[sessionId] = Date.now();
+
+    const isGreeting = userMessage === "__greeting__";
+    if (!isGreeting) conversations[sessionId].push({ role: "user", content: userMessage });
+    if (conversations[sessionId].length > 20) conversations[sessionId] = conversations[sessionId].slice(-10);
+
+    if (conversations[sessionId].length > 10) {
+      const summaryCompletion = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        temperature: 0.2,
+        messages: [
+          { role: "system", content: "Summarize this luxury jewelry customer profile. Keep: style, taste, materials, budget. Be concise." },
+          { role: "user", content: JSON.stringify(conversations[sessionId]) },
+        ],
+      });
+      summaries[sessionId] = summaryCompletion.choices[0].message.content;
+    }
+
+    let discountContext = "";
+    if (shouldAskDiscount(userMessage)) {
+      const discounts = await getActiveDiscounts();
+      discountContext = discounts.length > 0
+        ? "ACTIVE DISCOUNTS: " + JSON.stringify(discounts, null, 2)
+        : "No active discounts right now.";
+    }
+
+    let currentProduct = null;
+    const isNextRequest = shouldShowNext(userMessage);
+    const isNewSearch = !isGreeting && shouldSearchProducts(normalizedMessage) && !isNextRequest;
+
+    if (isNextRequest) {
+      if (sessionProducts[sessionId].queue.length > 0) {
+        currentProduct = sessionProducts[sessionId].queue.shift();
+      } else if (sessionProducts[sessionId].lastSearch) {
+        const candidates = roughFilter(sessionProducts[sessionId].lastSearch, sessionProducts[sessionId].lastIntent, products);
+        if (candidates.length > 0) {
+          const selected = await aiSelectProducts(sessionProducts[sessionId].lastSearch, sessionProducts[sessionId].lastIntent, candidates);
+          sessionProducts[sessionId].queue = selected;
+          currentProduct = sessionProducts[sessionId].queue.shift();
+        }
+      }
+    } else if (isNewSearch) {
+      const intent = await extractIntent(userMessage);
+      sessionProducts[sessionId].lastIntent = intent;
+      const candidates = roughFilter(normalizedMessage, intent, products);
+      if (candidates.length > 0) {
+        const selected = await aiSelectProducts(userMessage, intent, candidates);
+        sessionProducts[sessionId].queue = selected;
+        sessionProducts[sessionId].lastSearch = normalizedMessage;
+        currentProduct = sessionProducts[sessionId].queue.shift();
+      }
+    }
+
+    const hasMore = sessionProducts[sessionId].queue.length > 0;
+    const aiProductForFrontend = currentProduct ? buildProductForFrontend(currentProduct) : null;
+    const aiProductDetails = currentProduct ? buildProductDetails(currentProduct) : null;
+
+    const languageInstruction = language === "arabic"
+      ? "CRITICAL: Respond ENTIRELY in Arabic only. Zero English words."
+      : "CRITICAL: Respond ENTIRELY in English only. Zero Arabic words.";
+
+    let systemPrompt = "You are Alymwndw AI — elite luxury jewelry sales concierge for Alymwndw Jewellery UAE.\n";
+    systemPrompt += "PERSONALITY: Warm, elegant, passionate. Max 4 sentences per response.\n";
+    systemPrompt += languageInstruction + "\n";
+    systemPrompt += "STRICT RULES:\n- NEVER invent products, metals, stones, prices\n- NEVER mention price unless from CURRENT PRODUCT startingPrice\n- NEVER use markdown\n- NEVER mix Arabic and English\n";
+
+    if (isGreeting) {
+      systemPrompt += "GREETING MODE: Welcome customer warmly. Ask what they are looking for. Short, warm, luxurious. No products or prices.\n";
+    } else if (!aiProductDetails) {
+      systemPrompt += "NO PRODUCT MODE: No product available. Ask customer questions to understand their preference better.\n";
+    } else {
+      systemPrompt += "SELLING MODE - Current product:\n" + JSON.stringify(aiProductDetails, null, 2) + "\n";
+      systemPrompt += "1. Emotional hook\n2. Metals available\n3. Stones/shapes\n4. Price EXACTLY: " + aiProductDetails.startingPrice + "\n5. One question\n";
+      if (hasMore) systemPrompt += "End with: ask if they want to see another piece.\n";
+    }
+
+    if (discountContext) systemPrompt += "DISCOUNT INFO: " + discountContext + "\n";
+    systemPrompt += "Customer Memory: " + (summaries[sessionId] || "New customer.");
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      temperature: 0.4,
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...(isGreeting ? [{ role: "user", content: "greeting" }] : conversations[sessionId].slice(-8)),
+      ],
+    });
+
+    const aiReply = completion.choices[0].message.content;
+    if (!isGreeting) conversations[sessionId].push({ role: "assistant", content: aiReply });
+
+    res.json({
+      reply: aiReply,
+      products: aiProductForFrontend ? [aiProductForFrontend] : [],
+      hasMore: hasMore,
+      sessionId: sessionId,
+    });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ reply: "Server error", products: [] });
+  }
+});
+
+app.listen(PORT, () => { console.log("ALYMWNDW AI RUNNING ON PORT " + PORT); });
