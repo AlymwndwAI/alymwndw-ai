@@ -186,19 +186,6 @@ margin-bottom:18px;
 font-size:18px;
 }
 
-.variant-box{
-background:#141414;
-padding:18px;
-border-radius:20px;
-margin-bottom:20px;
-}
-
-.product-info{
-margin-bottom:10px;
-opacity:.9;
-font-size:15px;
-}
-
 .variant-switcher{
 display:flex;
 flex-wrap:wrap;
@@ -668,7 +655,7 @@ const chatBox = document.getElementById("chat-box");
 let sessionId = null;
 
 // =====================
-// AUTO GREETING ON LOAD
+// AUTO GREETING
 // =====================
 
 window.addEventListener("load", async () => {
@@ -676,18 +663,15 @@ window.addEventListener("load", async () => {
   showTypingLoader();
 
   try {
-
     const response = await fetch("/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: "__greeting__", sessionId: null }),
     });
-
     const data = await response.json();
     removeTypingLoader();
     if (data.sessionId) sessionId = data.sessionId;
     await typeMessage(data.reply);
-
   } catch (err) {
     removeTypingLoader();
   }
@@ -703,10 +687,6 @@ function closeDrawer(){
 document.getElementById("drawer").classList.remove("open");
 document.getElementById("drawer-overlay").classList.remove("open");
 }
-
-// =====================
-// TYPING LOADER
-// =====================
 
 function showTypingLoader(){
 const loader = document.createElement("div");
@@ -729,51 +709,31 @@ const loader = document.getElementById("typing-loader");
 if(loader) loader.remove();
 }
 
-// =====================
-// TYPE MESSAGE - FASTER
-// =====================
-
 async function typeMessage(text){
-
 const row = document.createElement("div");
 row.className = "message-row";
-
 const avatar = document.createElement("img");
 avatar.src = "deer.png";
 avatar.className = "ai-avatar";
-
 const bubble = document.createElement("div");
 bubble.className = "message ai-message";
-
 row.appendChild(avatar);
 row.appendChild(bubble);
 chatBox.appendChild(row);
 chatBox.scrollTop = chatBox.scrollHeight;
-
-// Split into chunks of 3 words for faster feel
 const words = text.split(" ");
 const chunkSize = 3;
 let current = "";
-
 for(let i = 0; i < words.length; i += chunkSize){
-
-  const chunk = words.slice(i, i + chunkSize).join(" ");
-  current += (current ? " " : "") + chunk;
-  bubble.innerText = current;
-  chatBox.scrollTop = chatBox.scrollHeight;
-  await new Promise((r) => setTimeout(r, 18));
-
+const chunk = words.slice(i, i + chunkSize).join(" ");
+current += (current ? " " : "") + chunk;
+bubble.innerText = current;
+chatBox.scrollTop = chatBox.scrollHeight;
+await new Promise((r) => setTimeout(r, 18));
 }
-
-// Make sure full text is shown
 bubble.innerText = text;
 chatBox.scrollTop = chatBox.scrollHeight;
-
 }
-
-// =====================
-// USER MESSAGE
-// =====================
 
 function addUserMessage(text){
 const row = document.createElement("div");
@@ -785,10 +745,6 @@ row.appendChild(bubble);
 chatBox.appendChild(row);
 chatBox.scrollTop = chatBox.scrollHeight;
 }
-
-// =====================
-// SWITCH VARIANT
-// =====================
 
 function switchVariantImage(imageId,newImage,priceId,newPrice,button){
 const image = document.getElementById(imageId);
@@ -803,10 +759,6 @@ btn.classList.remove("active-variant");
 }
 button.classList.add("active-variant");
 }
-
-// =====================
-// RENDER PRODUCTS
-// =====================
 
 function renderProducts(products){
 products.forEach((product)=>{
@@ -847,6 +799,7 @@ onclick="switchVariantImage('${imageId}','${variantImage}','${priceId}','${varia
 
 const card = document.createElement("div");
 card.className = "product-card";
+
 card.innerHTML = `
 <img id="${imageId}" src="${image}" class="product-image" onerror="this.src='https://via.placeholder.com/500'"/>
 <div class="product-content">
@@ -854,10 +807,6 @@ card.innerHTML = `
 <div id="${priceId}" class="product-price">${cleanPrice} AED</div>
 <div class="product-rating">⭐ ${product.reviewRating||4.9} (${product.reviewCount||120} reviews)</div>
 <div class="variant-switcher">${variantButtons}</div>
-<div class="variant-box">
-<div class="product-info">💎 ${firstVariant.title||"Luxury Edition"}</div>
-<div class="product-info">📦 ${firstVariant.available!==false?"In Stock":"Out Of Stock"}</div>
-</div>
 <div class="product-description">${(product.description||"").slice(0,140)}...</div>
 <div class="product-buttons">
 <a href="${url}" target="_blank" class="view-btn">View Product</a>
@@ -865,57 +814,41 @@ card.innerHTML = `
 </div>
 </div>
 `;
+
 chatBox.appendChild(card);
 
 });
 chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// =====================
-// HANDLE ENTER
-// =====================
-
 function handleKey(event){
 if(event.key==="Enter"){ sendMessage(); }
 }
 
-// =====================
-// SEND MESSAGE
-// =====================
-
 async function sendMessage(){
-
 const input = document.getElementById("message");
 const message = input.value.trim();
 if(!message) return;
-
 addUserMessage(message);
 input.value = "";
 showTypingLoader();
-
 try {
-
 const response = await fetch("/chat",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify({message,sessionId})
 });
-
 const data = await response.json();
 if(data.sessionId){ sessionId = data.sessionId; }
-
 removeTypingLoader();
 await typeMessage(data.reply);
-
 if(data.products && data.products.length){
 setTimeout(()=>{ renderProducts(data.products); },300);
 }
-
 } catch(err) {
 removeTypingLoader();
 await typeMessage("Something went wrong, please try again.");
 }
-
 }
 
 </script>
