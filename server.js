@@ -290,7 +290,6 @@ function roughFilter(userMessage, intent, products) {
   const msg = normalizeText(userMessage);
   const words = msg.split(" ").filter((w) => w.length > 2);
 
-  // Intent keywords
   const intentWords = [
     intent?.category,
     intent?.metal,
@@ -324,35 +323,21 @@ function roughFilter(userMessage, intent, products) {
 
     let score = 0;
 
-    // Word matching
     words.forEach((word) => {
       if (text.includes(word)) score += 10;
     });
 
-    // Intent matching - higher boost
     intentWords.forEach((word) => {
       if (word && text.includes(word)) score += 40;
     });
 
-    // Category exact match
     if (intent?.category && text.includes(intent.category)) score += 100;
-
-    // Metal exact match
     if (intent?.metal && text.includes(intent.metal)) score += 150;
-
-    // Stone match
     if (intent?.stone && text.includes(intent.stone)) score += 200;
-
-    // Shape match
     if (intent?.shape && text.includes(intent.shape)) score += 150;
-
-    // Occasion match
     if (intent?.occasion && text.includes(intent.occasion)) score += 120;
-
-    // Style match
     if (intent?.style && text.includes(intent.style)) score += 100;
 
-    // Category penalties
     if (intent?.category) {
       if (!text.includes(intent.category)) score -= 200;
     } else {
@@ -406,13 +391,13 @@ You are a luxury jewelry product selector.
 Choose the 8 most relevant AND DIVERSE products from the list.
 
 Rules:
-- CATEGORY IS MANDATORY: if customer wants "ring", return ONLY rings. NEVER earrings, necklaces, or bracelets.
+- CATEGORY IS MANDATORY: if customer wants "ring", return ONLY rings.
 - Match collection/type keywords precisely
 - Match metal if mentioned
 - Match shape if mentioned
 - Pick DIFFERENT products - no similar duplicates
 - Ensure VARIETY in the selection
-- If less than 8 matching products exist, return fewer - NEVER compromise on category
+- If less than 8 matching products exist, return fewer
 - Return ONLY a JSON array of index numbers
 - No extra text
           `,
@@ -534,7 +519,110 @@ app.get("/", (req, res) => {
 });
 
 // =====================================
-// GENERATE IMAGE API
+// CUSTOMIZE PRODUCT - AI IMAGE
+// =====================================
+
+app.post("/customize-product", async (req, res) => {
+
+  try {
+
+    const sessionId     = req.body.sessionId || "";
+    const productHandle = req.body.productHandle || "";
+    const productImage  = req.body.productImage || "";
+    const userDesc      = req.body.userDescription || "";
+
+    if (!sessionImageCount[sessionId]) sessionImageCount[sessionId] = 0;
+
+    const count = sessionImageCount[sessionId];
+
+    // GATE: after 2 images ask for email
+    if (count >= 2 && !sessionEmails[sessionId]) {
+      return res.json({ requireEmail: true });
+    }
+
+    // GATE: after 3 images block
+    if (count >= 3) {
+      return res.json({ blocked: true });
+    }
+
+    // =====================================
+    // TRANSLATE ARABIC DESC TO ENGLISH
+    // =====================================
+
+    let englishDesc = userDesc;
+
+    if (/[\u0600-\u06FF]/.test(userDesc)) {
+      try {
+        const translation = await openai.chat.completions.create({
+          model: "gpt-4.1-mini",
+          temperature: 0,
+          messages: [
+            {
+              role: "system",
+              content: "Translate the following Arabic jewelry customization request to English. Return only the translated text, nothing else.",
+            },
+            { role: "user", content: userDesc },
+          ],
+        });
+        englishDesc = translation.choices[0].message.content.trim();
+      } catch (e) {
+        englishDesc = userDesc;
+      }
+    }
+
+    // =====================================
+    // BUILD DALL-E PROMPT
+    // =====================================
+
+    const prompt = `
+Luxury jewelry product photography.
+Piece: ${productHandle.replace(/-/g, " ")}.
+Customization: ${englishDesc}.
+Style: ultra-realistic, professional studio lighting, white background, 8K quality, photorealistic, highly detailed gemstones and metal finish.
+The jewelry piece should reflect exactly the customization described.
+    `.trim();
+
+    // =====================================
+    // GENERATE IMAGE
+    // =====================================
+
+    const response = await openai.images.generate({
+      model: "dall-e-3",
+      prompt,
+      n: 1,
+      size: "1024x1024",
+      quality: "standard",
+    });
+
+    sessionImageCount[sessionId]++;
+
+    res.json({
+      imageUrl:  response.data[0].url,
+      count:     sessionImageCount[sessionId],
+      remaining: Math.max(0, 3 - sessionImageCount[sessionId]),
+    });
+
+  } catch (err) {
+    console.log("CUSTOMIZE ERROR:", err.message);
+    res.status(500).json({ error: "Image generation failed." });
+  }
+
+});
+
+// =====================================
+// SAVE EMAIL (EMAIL GATE)
+// =====================================
+
+app.post("/save-email", async (req, res) => {
+  const { sessionId, email } = req.body;
+  if (sessionId && email) {
+    sessionEmails[sessionId] = email;
+  }
+  res.json({ ok: true });
+});
+
+// =====================================
+// GENERATE IMAGE API (ORIGINAL)
 // =====================================
 
 app.post("/generate-image", async (req, res) => {
@@ -598,7 +686,6 @@ app.post("/chat", async (req, res) => {
     const normalizedMessage = normalizeText(userMessage);
     const language = detectLanguage(userMessage);
 
-    // INIT
     if (!conversations[sessionId]) conversations[sessionId] = [];
     if (!sessionProducts[sessionId]) {
       sessionProducts[sessionId] = {
@@ -619,7 +706,6 @@ app.post("/chat", async (req, res) => {
       conversations[sessionId] = conversations[sessionId].slice(-10);
     }
 
-    // MEMORY SUMMARY
     if (conversations[sessionId].length > 10) {
       const summaryCompletion = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
@@ -632,10 +718,6 @@ app.post("/chat", async (req, res) => {
       summaries[sessionId] = summaryCompletion.choices[0].message.content;
     }
 
-    // =====================================
-    // SHOPIFY REAL-TIME DISCOUNTS
-    // =====================================
-
     let discountContext = "";
 
     if (shouldAskDiscount(userMessage)) {
@@ -645,10 +727,6 @@ app.post("/chat", async (req, res) => {
         : "No active discounts right now.";
     }
 
-    // =====================================
-    // PRODUCT LOGIC
-    // =====================================
-
     let currentProduct = null;
     const isNextRequest = shouldShowNext(userMessage);
     const isNewSearch = !isGreeting && shouldSearchProducts(normalizedMessage) && !isNextRequest;
@@ -656,19 +734,13 @@ app.post("/chat", async (req, res) => {
     if (isNextRequest) {
 
       if (sessionProducts[sessionId].queue.length > 0) {
-
-        // POP NEXT FROM QUEUE
         currentProduct = sessionProducts[sessionId].queue.shift();
-
       } else if (sessionProducts[sessionId].lastSearch) {
-
-        // QUEUE EMPTY - RE-SEARCH WITH SAME INTENT
         const candidates = roughFilter(
           sessionProducts[sessionId].lastSearch,
           sessionProducts[sessionId].lastIntent,
           products
         );
-
         if (candidates.length > 0) {
           const selected = await aiSelectProducts(
             sessionProducts[sessionId].lastSearch,
@@ -678,27 +750,20 @@ app.post("/chat", async (req, res) => {
           sessionProducts[sessionId].queue = selected;
           currentProduct = sessionProducts[sessionId].queue.shift();
         }
-
       }
 
     } else if (isNewSearch) {
 
-      // EXTRACT INTENT FIRST
       const intent = await extractIntent(userMessage);
       sessionProducts[sessionId].lastIntent = intent;
 
-      // ROUGH FILTER
       const candidates = roughFilter(normalizedMessage, intent, products);
 
       if (candidates.length > 0) {
-
-        // AI SELECTS BEST 8
         const selected = await aiSelectProducts(userMessage, intent, candidates);
-
         sessionProducts[sessionId].queue = selected;
         sessionProducts[sessionId].lastSearch = normalizedMessage;
         currentProduct = sessionProducts[sessionId].queue.shift();
-
       }
 
     }
@@ -706,10 +771,6 @@ app.post("/chat", async (req, res) => {
     const hasMore = sessionProducts[sessionId].queue.length > 0;
     const aiProductForFrontend = currentProduct ? buildProductForFrontend(currentProduct) : null;
     const aiProductDetails = currentProduct ? buildProductDetails(currentProduct) : null;
-
-    // =====================================
-    // AI CHAT
-    // =====================================
 
     const languageInstruction = language === "arabic"
       ? "CRITICAL: Respond ENTIRELY in Arabic only. Zero English words."
