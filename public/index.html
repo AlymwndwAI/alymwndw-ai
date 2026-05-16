@@ -188,9 +188,7 @@ display:block;
 background:#111;
 }
 
-.product-content{
-padding:24px;
-}
+.product-content{ padding:24px; }
 
 .product-title{
 font-size:24px;
@@ -243,10 +241,7 @@ cursor:pointer;
 transition:all .2s;
 }
 
-.variant-btn:hover{
-border-color:#44f1cf;
-color:#44f1cf;
-}
+.variant-btn:hover{ border-color:#44f1cf; color:#44f1cf; }
 
 .variant-btn.active-variant{
 background:#44f1cf;
@@ -262,10 +257,7 @@ font-size:15px;
 margin-bottom:24px;
 }
 
-.product-buttons{
-display:flex;
-gap:14px;
-}
+.product-buttons{ display:flex; gap:14px; }
 
 .view-btn{
 flex:1;
@@ -368,8 +360,8 @@ to{ opacity:1; transform:translateY(0); }
 }
 
 @keyframes pulse-glow{
-0%,100%{ box-shadow:0 0 30px rgba(68,241,207,.25), 0 0 60px rgba(68,241,207,.1); }
-50%{ box-shadow:0 0 50px rgba(68,241,207,.45), 0 0 100px rgba(68,241,207,.2); }
+0%,100%{ box-shadow:0 0 25px rgba(68,241,207,.2), 0 0 50px rgba(68,241,207,.08); }
+50%{ box-shadow:0 0 40px rgba(68,241,207,.4), 0 0 80px rgba(68,241,207,.15); }
 }
 
 /* ===================== */
@@ -401,14 +393,14 @@ pointer-events:all;
 .drawer{
 position:fixed;
 top:0;
-right:0;
+left:0;
 width:80%;
 max-width:320px;
 height:100vh;
 background:#0a0a0a;
-border-left:1px solid rgba(255,255,255,.08);
+border-right:1px solid rgba(255,255,255,.08);
 z-index:101;
-transform:translateX(100%);
+transform:translateX(-100%);
 transition:transform .3s ease;
 display:flex;
 flex-direction:column;
@@ -490,7 +482,6 @@ white-space:nowrap;
 /* ===================== */
 
 @media(max-width:900px){
-
 .sidebar{ width:120px; padding:20px 10px; }
 .brand{ font-size:14px; }
 .brand-sub{ font-size:11px; }
@@ -499,7 +490,6 @@ white-space:nowrap;
 .product-card{ margin-left:0; }
 .product-title{ font-size:18px; }
 .input{ font-size:18px; }
-
 }
 
 /* ===================== */
@@ -535,27 +525,27 @@ overflow-y:auto;
 
 .drawer-overlay{ display:block; }
 
-/* PULL TAB */
+/* PULL TAB - على الشمال */
 
 .pull-tab{
 display:flex;
 align-items:center;
 justify-content:center;
 position:fixed;
-right:0;
+left:0;
 top:50%;
 transform:translateY(-50%);
 width:22px;
 height:64px;
 background:#44f1cf;
-border-radius:8px 0 0 8px;
+border-radius:0 8px 8px 0;
 z-index:99;
 cursor:pointer;
 transition:width .2s;
 }
 
 .pull-tab::after{
-content:"‹";
+content:"›";
 color:black;
 font-size:20px;
 font-weight:900;
@@ -563,76 +553,47 @@ font-weight:900;
 
 .pull-tab:hover{ width:28px; }
 
-/* MOBILE HEADER - LUXURY */
+/* MOBILE HEADER */
 
 .mobile-header{
-
 display:flex;
 flex-direction:column;
 align-items:center;
 justify-content:center;
-
-padding:20px 20px 16px;
-
+padding:16px 20px 12px;
 background:#060606;
-
-border-bottom:
-1px solid rgba(68,241,207,.12);
-
+border-bottom:1px solid rgba(68,241,207,.12);
 flex-shrink:0;
-
-position:relative;
-
 }
 
 .mobile-header-logo{
-
-width:66px;
-height:66px;
-
+width:56px;
+height:56px;
 border-radius:50%;
-
-background:
-radial-gradient(
-circle at 40% 35%,
-#1a1a1a,
-#080808
-);
-
+background:radial-gradient(circle at 40% 35%, #1a1a1a, #080808);
 display:flex;
 align-items:center;
 justify-content:center;
-
-border:
-1.5px solid rgba(68,241,207,.3);
-
+border:1.5px solid rgba(68,241,207,.3);
 animation:pulse-glow 3s ease-in-out infinite;
-
-margin-bottom:10px;
-
+margin-bottom:8px;
 overflow:hidden;
-
 }
 
 .mobile-header-logo img{
-width:42px;
-height:42px;
+width:36px;
+height:36px;
 object-fit:contain;
 }
 
 .mobile-header-name{
-
-font-size:17px;
+font-size:16px;
 font-weight:700;
-
 letter-spacing:.5px;
-
 display:flex;
 align-items:center;
 gap:8px;
-
-margin-bottom:4px;
-
+margin-bottom:3px;
 }
 
 .mobile-header-dots{
@@ -642,8 +603,8 @@ align-items:center;
 }
 
 .mobile-header-dots span{
-width:5px;
-height:5px;
+width:4px;
+height:4px;
 border-radius:50%;
 background:#44f1cf;
 animation:bounce 1s infinite;
@@ -653,9 +614,9 @@ animation:bounce 1s infinite;
 .mobile-header-dots span:nth-child(3){ animation-delay:.3s; }
 
 .mobile-header-sub{
-font-size:11px;
-opacity:.45;
-letter-spacing:1px;
+font-size:10px;
+opacity:.4;
+letter-spacing:1.5px;
 text-transform:uppercase;
 }
 
@@ -692,7 +653,7 @@ id="drawer-overlay"
 onclick="closeDrawer()"
 ></div>
 
-<!-- DRAWER -->
+<!-- DRAWER - من الشمال -->
 
 <div class="drawer" id="drawer">
 
@@ -728,20 +689,14 @@ onclick="closeDrawer()"
 
 <!-- PULL TAB -->
 
-<div
-class="pull-tab"
-id="pull-tab"
-onclick="openDrawer()"
-></div>
+<div class="pull-tab" id="pull-tab" onclick="openDrawer()"></div>
 
 <div class="app">
 
 <!-- SIDEBAR -->
 
 <div class="sidebar">
-<div class="sidebar-logo">
-<img src="deer.png"/>
-</div>
+<div class="sidebar-logo"><img src="deer.png"/></div>
 <div class="brand">Alymwndw AI</div>
 <div class="brand-sub">Luxury Jewelry Concierge</div>
 </div>
@@ -753,24 +708,14 @@ onclick="openDrawer()"
 <!-- MOBILE HEADER -->
 
 <div class="mobile-header">
-
-<div class="mobile-header-logo">
-<img src="deer.png"/>
-</div>
-
+<div class="mobile-header-logo"><img src="deer.png"/></div>
 <div class="mobile-header-name">
 Alymwndw AI
 <div class="mobile-header-dots">
-<span></span>
-<span></span>
-<span></span>
+<span></span><span></span><span></span>
 </div>
 </div>
-
-<div class="mobile-header-sub">
-Luxury Jewelry Concierge
-</div>
-
+<div class="mobile-header-sub">Luxury Jewelry Concierge</div>
 </div>
 
 <div class="chat-box" id="chat-box"></div>
@@ -807,108 +752,80 @@ document.getElementById("drawer-overlay").classList.remove("open");
 }
 
 async function typeMessage(text){
-
 const row = document.createElement("div");
 row.className = "message-row";
-
 const avatar = document.createElement("img");
 avatar.src = "deer.png";
 avatar.className = "ai-avatar";
-
 const bubble = document.createElement("div");
 bubble.className = "message ai-message";
-
 row.appendChild(avatar);
 row.appendChild(bubble);
 chatBox.appendChild(row);
 chatBox.scrollTop = chatBox.scrollHeight;
-
 let current = "";
 const words = text.split(" ");
-
 for(let i=0;i<words.length;i++){
 current += words[i] + " ";
 bubble.innerText = current;
 chatBox.scrollTop = chatBox.scrollHeight;
 await new Promise((r)=>setTimeout(r,35));
 }
-
 }
 
 function addUserMessage(text){
-
 const row = document.createElement("div");
 row.className = "user-row";
-
 const bubble = document.createElement("div");
 bubble.className = "message user-message";
 bubble.innerText = text;
-
 row.appendChild(bubble);
 chatBox.appendChild(row);
 chatBox.scrollTop = chatBox.scrollHeight;
-
 }
 
 function switchVariantImage(imageId,newImage,priceId,newPrice,button){
-
 const image = document.getElementById(imageId);
 if(image && newImage){ image.src = newImage; }
-
 const priceEl = document.getElementById(priceId);
 if(priceEl && newPrice){ priceEl.innerText = newPrice; }
-
 const card = button.closest(".product-card");
 if(card){
 card.querySelectorAll(".variant-btn").forEach((btn)=>{
 btn.classList.remove("active-variant");
 });
 }
-
 button.classList.add("active-variant");
-
 }
 
 function renderProducts(products){
-
 products.forEach((product)=>{
-
 const firstVariant = product.variants?.[0] || {};
-
 const image =
 firstVariant.mappedImage ||
 firstVariant.image ||
 product.image ||
 "https://via.placeholder.com/500";
-
 const cleanPrice =
 String(firstVariant.price || product.price || "")
 .replace("AED","").trim();
-
 const url =
 product.url ||
 `https://alymwndw.com/products/${product.handle}`;
-
 const imageId = `img-${product.handle}`;
 const priceId = `price-${product.handle}`;
-
 const variantButtons =
 (product.variants || []).map((v,index)=>{
-
 const variantImage = v.mappedImage || v.image || image;
 const variantPrice = String(v.price || "").replace("AED","").trim();
 const variantName = v.metal || v.stoneColor || v.shape || v.title || "Variant";
-
 return `<button
 class="variant-btn ${index===0?"active-variant":""}"
 onclick="switchVariantImage('${imageId}','${variantImage}','${priceId}','${variantPrice} AED',this)"
 >${variantName}</button>`;
-
 }).join("");
-
 const card = document.createElement("div");
 card.className = "product-card";
-
 card.innerHTML = `
 <img id="${imageId}" src="${image}" class="product-image" onerror="this.src='https://via.placeholder.com/500'"/>
 <div class="product-content">
@@ -927,13 +844,9 @@ card.innerHTML = `
 </div>
 </div>
 `;
-
 chatBox.appendChild(card);
-
 });
-
 chatBox.scrollTop = chatBox.scrollHeight;
-
 }
 
 function handleKey(event){
@@ -941,14 +854,11 @@ if(event.key==="Enter"){ sendMessage(); }
 }
 
 async function sendMessage(){
-
 const input = document.getElementById("message");
 const message = input.value.trim();
 if(!message) return;
-
 addUserMessage(message);
 input.value = "";
-
 const loader = document.createElement("div");
 loader.className = "typing-loader";
 loader.innerHTML = `
@@ -959,26 +869,20 @@ loader.innerHTML = `
 </div>
 </div>
 `;
-
 chatBox.appendChild(loader);
 chatBox.scrollTop = chatBox.scrollHeight;
-
 const response = await fetch("/chat",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify({message,sessionId})
 });
-
 const data = await response.json();
 if(data.sessionId){ sessionId = data.sessionId; }
-
 loader.remove();
 await typeMessage(data.reply);
-
 if(data.products && data.products.length){
 setTimeout(()=>{ renderProducts(data.products); },300);
 }
-
 }
 
 </script>
