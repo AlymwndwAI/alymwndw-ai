@@ -31,11 +31,6 @@ const conversations = {};
 const summaries = {};
 const sessionTimestamps = {};
 const sessionProducts = {};
-
-// =====================================
-// IMAGE GENERATION TRACKING
-// =====================================
-
 const sessionImageCount = {};
 const sessionEmails = {};
 
@@ -44,24 +39,17 @@ const sessionEmails = {};
 // =====================================
 
 setInterval(() => {
-
   const now = Date.now();
-
   Object.keys(sessionTimestamps).forEach((id) => {
-
     if (now - sessionTimestamps[id] > 3600000) {
-
       delete conversations[id];
       delete summaries[id];
       delete sessionTimestamps[id];
       delete sessionImageCount[id];
       delete sessionEmails[id];
       delete sessionProducts[id];
-
     }
-
   });
-
 }, 3600000);
 
 // =====================================
@@ -71,22 +59,11 @@ setInterval(() => {
 let products = [];
 
 try {
-
-  const raw = fs.readFileSync(
-    "./public/products-brain.json",
-    "utf8"
-  );
-
+  const raw = fs.readFileSync("./public/products-brain.json", "utf8");
   products = JSON.parse(raw);
-
-  console.log(
-    `PRODUCT BRAIN LOADED: ${products.length}`
-  );
-
+  console.log(`PRODUCT BRAIN LOADED: ${products.length}`);
 } catch (err) {
-
   console.log("NO PRODUCTS BRAIN FOUND");
-
 }
 
 // =====================================
@@ -94,14 +71,10 @@ try {
 // =====================================
 
 function normalizeText(text = "") {
-
   return text
     .toLowerCase()
-    .replaceAll("أ", "ا")
-    .replaceAll("إ", "ا")
-    .replaceAll("آ", "ا")
-    .replaceAll("ة", "ه")
-    .replaceAll("ى", "ي")
+    .replaceAll("أ", "ا").replaceAll("إ", "ا").replaceAll("آ", "ا")
+    .replaceAll("ة", "ه").replaceAll("ى", "ي")
     .replaceAll("خاتم خطوبه", "engagement ring")
     .replaceAll("خاتم خطوبة", "engagement ring")
     .replaceAll("سلسله اسم", "name necklace")
@@ -109,30 +82,29 @@ function normalizeText(text = "") {
     .replaceAll("سلسله حرف", "initial necklace")
     .replaceAll("سلسلة حرف", "initial necklace")
     .replaceAll("روز جولد", "rose gold")
-    .replaceAll("خاتم", "ring")
-    .replaceAll("دبله", "ring")
-    .replaceAll("محبس", "ring")
-    .replaceAll("عقد", "necklace")
-    .replaceAll("سلسله", "necklace")
-    .replaceAll("سلسلة", "necklace")
-    .replaceAll("اسوره", "bracelet")
-    .replaceAll("أسوارة", "bracelet")
-    .replaceAll("حلق", "earring")
-    .replaceAll("حلقان", "earring")
-    .replaceAll("ذهب", "gold")
-    .replaceAll("فضه", "silver")
-    .replaceAll("فضة", "silver")
+    .replaceAll("خاتم", "ring").replaceAll("دبله", "ring").replaceAll("محبس", "ring")
+    .replaceAll("عقد", "necklace").replaceAll("سلسله", "necklace").replaceAll("سلسلة", "necklace")
+    .replaceAll("اسوره", "bracelet").replaceAll("أسوارة", "bracelet")
+    .replaceAll("حلق", "earring").replaceAll("حلقان", "earring")
+    .replaceAll("ذهب", "gold").replaceAll("فضه", "silver").replaceAll("فضة", "silver")
     .replaceAll("بلاتين", "platinum")
     .replaceAll("الماس", "diamond")
-    .replaceAll("موزانيت", "moissanite")
-    .replaceAll("مويسانيت", "moissanite")
-    .replaceAll("موزنايت", "moissanite")
+    .replaceAll("موزانيت", "moissanite").replaceAll("مويسانيت", "moissanite").replaceAll("موزنايت", "moissanite")
     .replaceAll("روز", "rose gold")
-    .replaceAll("اصفر", "yellow gold")
-    .replaceAll("ابيض", "white gold")
-    .replaceAll("هديه", "gift jewelry")
-    .replaceAll("هدية", "gift jewelry");
+    .replaceAll("اصفر", "yellow gold").replaceAll("ابيض", "white gold")
+    .replaceAll("هديه", "gift jewelry").replaceAll("هدية", "gift jewelry")
+    .replaceAll("اسم", "name").replaceAll("حرف", "initial")
+    .replaceAll("قلاده", "necklace").replaceAll("قلادة", "necklace")
+    .replaceAll("دلايه", "pendant").replaceAll("دلاية", "pendant");
+}
 
+// =====================================
+// DETECT LANGUAGE
+// =====================================
+
+function detectLanguage(message) {
+  const arabicPattern = /[\u0600-\u06FF]/;
+  return arabicPattern.test(message) ? "arabic" : "english";
 }
 
 // =====================================
@@ -144,14 +116,33 @@ function shouldSearchProducts(message) {
   const msg = normalizeText(message);
 
   const keywords = [
-    "ring", "necklace", "bracelet", "earring",
-    "diamond", "gold", "silver", "platinum",
-    "rose gold", "moissanite", "pearl",
+
+    // JEWELRY TYPES
+    "ring", "necklace", "bracelet", "earring", "pendant",
+    "bangle", "choker", "anklet", "brooch",
+
+    // NAME / INITIAL
+    "name", "initial", "letter", "custom", "personalized",
+
+    // MATERIALS
+    "diamond", "gold", "silver", "platinum", "rose gold",
+    "moissanite", "pearl", "gemstone", "ruby", "sapphire",
+
+    // OCCASIONS
     "gift", "luxury", "bridal", "wedding", "engagement",
-    "show", "recommend", "suggest", "products",
-    "romantic", "elegant", "minimal", "classic",
-    "anniversary", "birthday", "love",
-    "هديه", "ذكري", "عيد", "جميل", "انيق", "فاخر",
+    "anniversary", "birthday", "valentine",
+
+    // INTENT
+    "show", "recommend", "suggest", "find", "looking",
+    "want", "need", "buy", "shop",
+
+    // STYLE
+    "romantic", "elegant", "minimal", "classic", "luxury",
+
+    // ARABIC
+    "هديه", "هدية", "ذكري", "عيد", "جميل", "انيق", "فاخر",
+    "دبله", "مجوهرات", "جواهر",
+
   ];
 
   return keywords.some((w) => msg.includes(normalizeText(w)));
@@ -168,10 +159,11 @@ function shouldShowNext(message) {
 
   const keywords = [
     "next", "another", "more", "different", "other", "else",
-    "تاني", "غيره", "واحد تاني", "ورني تاني", "قطعه اخره",
-    "قطعة اخرى", "قطعه اخري", "قطعة أخرى", "اخري", "اخره",
-    "مش عاجبني", "غير", "كمان", "وغيره", "شوف تاني",
-    "ورني غيره", "ورني غيرها", "شيء آخر", "حاجة تانية",
+    "تاني", "غيره", "غيرها", "واحد تاني", "ورني تاني",
+    "قطعه اخره", "قطعة اخرى", "قطعه اخري", "قطعة أخرى",
+    "اخري", "اخره", "اخرى", "مش عاجبني", "غير",
+    "كمان", "وغيره", "شوف تاني", "ورني غيره", "ورني غيرها",
+    "شيء آخر", "حاجة تانية", "حاجه تانيه",
   ];
 
   return keywords.some((w) => msg.includes(w));
@@ -215,6 +207,10 @@ function roughFilter(userMessage, products) {
     if (msg.includes("necklace") && text.includes("necklace")) score += 80;
     if (msg.includes("bracelet") && text.includes("bracelet")) score += 80;
     if (msg.includes("earring") && text.includes("earring")) score += 80;
+    if (msg.includes("pendant") && text.includes("pendant")) score += 80;
+    if (msg.includes("name") && text.includes("name")) score += 100;
+    if (msg.includes("initial") && text.includes("initial")) score += 100;
+
     if (msg.includes("rose gold") && text.includes("rose gold")) score += 150;
     if (msg.includes("yellow gold") && text.includes("yellow gold")) score += 150;
     if (msg.includes("white gold") && text.includes("white gold")) score += 150;
@@ -225,6 +221,7 @@ function roughFilter(userMessage, products) {
     if (msg.includes("wedding") && text.includes("wedding")) score += 120;
     if (msg.includes("engagement") && text.includes("engagement")) score += 120;
 
+    // CATEGORY PENALTY
     if (msg.includes("ring") && !text.includes("ring")) score -= 150;
     if (msg.includes("necklace") && !text.includes("necklace")) score -= 150;
     if (msg.includes("bracelet") && !text.includes("bracelet")) score -= 150;
@@ -255,42 +252,40 @@ async function aiSelectProducts(userMessage, candidates) {
       title: p.title,
       category: p.aiFeatures?.category || "",
       collection: p.aiFeatures?.collection || "",
+      productType: p.aiFeatures?.productType || "",
       metal: p.aiFeatures?.variantMetalColors?.join(", ") || "",
       styles: p.aiFeatures?.styles?.join(", ") || "",
       intent: p.aiFeatures?.intent?.join(", ") || "",
+      searchKeywords: p.aiFeatures?.searchKeywords?.join(", ") || "",
       price: p.variants?.[0]?.price || p.price || "",
     }));
 
     const completion = await openai.chat.completions.create({
-
       model: "gpt-4.1-mini",
       temperature: 0,
-
       messages: [
         {
           role: "system",
           content: `
 You are a luxury jewelry product selector.
-Choose the 6 most relevant products from the list.
+Choose the 6 most relevant products from the list based on the customer request.
 Rules:
-- Match category EXACTLY
+- Match product type EXACTLY (if customer wants necklace, only pick necklaces)
+- Match collection or keywords if relevant (e.g. "name pendant" → pick name necklace products)
 - Match metal if mentioned
 - Pick DIFFERENT products (no duplicates)
 - Return ONLY a JSON array of 6 index numbers like: [2, 7, 15, 23, 5, 11]
-- No extra text
+- No extra text, no explanation
           `,
         },
         {
           role: "user",
-          content: `Customer: "${userMessage}"\n\nProducts:\n${JSON.stringify(candidateList, null, 2)}\n\nReturn 6 best index numbers as JSON array.`,
+          content: `Customer request: "${userMessage}"\n\nProducts:\n${JSON.stringify(candidateList, null, 2)}\n\nReturn 6 best index numbers as JSON array.`,
         },
       ],
-
     });
 
-    const raw = completion.choices[0].message.content
-      .replace(/```json|```/g, "").trim();
-
+    const raw = completion.choices[0].message.content.replace(/```json|```/g, "").trim();
     const indices = JSON.parse(raw);
 
     return indices
@@ -299,10 +294,8 @@ Rules:
       .map((i) => candidates[i]);
 
   } catch (err) {
-
     console.log("AI SELECTION FAILED:", err.message);
     return candidates.slice(0, 6);
-
   }
 
 }
@@ -319,9 +312,14 @@ function buildProductDetails(p) {
   const stones = p.aiFeatures?.variantStoneColors || [];
   const certifications = p.aiFeatures?.certifications || [];
 
-  const priceList = [...new Set(
-    (p.variants || []).map((v) => v.rawPrice).filter(Boolean).sort((a, b) => a - b)
-  )];
+  const rawPrices = (p.variants || [])
+    .map((v) => v.rawPrice)
+    .filter(Boolean)
+    .sort((a, b) => a - b);
+
+  const startingPrice = rawPrices.length > 0
+    ? `${rawPrices[0]} AED`
+    : p.variants?.[0]?.price || p.price || "";
 
   return {
     title: p.title,
@@ -332,7 +330,7 @@ function buildProductDetails(p) {
     stoneSizes: sizes,
     stoneColors: stones,
     certifications,
-    startingPrice: priceList.length > 0 ? `${priceList[0]} AED` : p.price || "",
+    startingPrice,
     styles: p.aiFeatures?.styles || [],
     emotionalTriggers: p.aiFeatures?.emotionalTriggers || [],
     description: (p.description || "").slice(0, 200),
@@ -367,7 +365,6 @@ function buildProductForFrontend(p) {
     price: p.variants?.[0]?.price || p.price || "",
     rawPrice: p.variants?.[0]?.rawPrice || p.rawPrice || 0,
     currency: p.currency || "AED",
-
     variants: p.variants?.slice(0, 20)?.map((v) => {
       const variantImage = v.mappedImage || v.image || resolvedImage || "";
       return {
@@ -462,14 +459,19 @@ app.post("/chat", async (req, res) => {
     const userMessage = req.body.message || "";
     const sessionId = req.body.sessionId || crypto.randomUUID();
     const normalizedMessage = normalizeText(userMessage);
+    const language = detectLanguage(userMessage);
 
     // INIT
     if (!conversations[sessionId]) conversations[sessionId] = [];
     if (!sessionProducts[sessionId]) sessionProducts[sessionId] = { queue: [], lastSearch: "" };
     sessionTimestamps[sessionId] = Date.now();
 
-    // SAVE USER MESSAGE
-    conversations[sessionId].push({ role: "user", content: userMessage });
+    // GREETING ONLY - don't save to memory
+    const isGreeting = userMessage === "__greeting__";
+
+    if (!isGreeting) {
+      conversations[sessionId].push({ role: "user", content: userMessage });
+    }
 
     // CLEAN MEMORY
     if (conversations[sessionId].length > 20) {
@@ -478,7 +480,6 @@ app.post("/chat", async (req, res) => {
 
     // MEMORY SUMMARY
     if (conversations[sessionId].length > 10) {
-
       const summaryCompletion = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
         temperature: 0.2,
@@ -487,9 +488,7 @@ app.post("/chat", async (req, res) => {
           { role: "user", content: JSON.stringify(conversations[sessionId]) },
         ],
       });
-
       summaries[sessionId] = summaryCompletion.choices[0].message.content;
-
     }
 
     // =====================================
@@ -497,34 +496,25 @@ app.post("/chat", async (req, res) => {
     // =====================================
 
     let currentProduct = null;
-
     const isNextRequest = shouldShowNext(userMessage);
-    const isNewSearch = shouldSearchProducts(normalizedMessage) && !isNextRequest;
+    const isNewSearch = !isGreeting && shouldSearchProducts(normalizedMessage) && !isNextRequest;
 
     if (isNextRequest && sessionProducts[sessionId].queue.length > 0) {
 
-      // POP NEXT FROM QUEUE
       currentProduct = sessionProducts[sessionId].queue.shift();
 
     } else if (isNewSearch) {
 
-      // NEW SEARCH
       const candidates = roughFilter(normalizedMessage, products);
 
       if (candidates.length > 0) {
-
         const selected = await aiSelectProducts(userMessage, candidates);
         sessionProducts[sessionId].queue = selected;
         sessionProducts[sessionId].lastSearch = userMessage;
         currentProduct = sessionProducts[sessionId].queue.shift();
-
       }
 
     }
-
-    // =====================================
-    // BUILD DATA
-    // =====================================
 
     const hasMore = sessionProducts[sessionId].queue.length > 0;
     const aiProductForFrontend = currentProduct ? buildProductForFrontend(currentProduct) : null;
@@ -534,58 +524,84 @@ app.post("/chat", async (req, res) => {
     // AI CHAT
     // =====================================
 
+    const languageInstruction = language === "arabic"
+      ? "IMPORTANT: Respond ENTIRELY in Arabic. Do NOT use any English words."
+      : "IMPORTANT: Respond ENTIRELY in English. Do NOT use any Arabic words.";
+
+    const greetingInstruction = isGreeting
+      ? `
+This is the opening greeting. Welcome the customer warmly and elegantly.
+Ask what they are looking for today — jewelry type, occasion, or preference.
+Do NOT mention any specific product or price.
+Keep it short, warm, and luxurious.
+      `
+      : "";
+
+    const noProductInstruction = !aiProductDetails && !isGreeting
+      ? `
+No product is available right now.
+Do NOT invent any product, metal, price, or detail.
+Engage warmly with the customer and ask about their preferences to help them find the perfect piece.
+      `
+      : "";
+
+    const productInstruction = aiProductDetails
+      ? `
+YOUR JOB:
+1. Open with an emotional, luxurious hook about this specific piece
+2. Describe the available metals and why each one is special and unique
+3. Mention stones/shapes/sizes if available — make them irresistible
+4. Give the starting price EXACTLY as: "${aiProductDetails.startingPrice}" — do not change it or invent another price
+5. End with ONE engaging question
+
+${hasMore ? `End with: "هل تريد أن أريك قطعة أخرى مميزة؟" (if Arabic) or "Would you like to see another stunning piece?" (if English)` : ""}
+
+CURRENT PRODUCT:
+${JSON.stringify(aiProductDetails, null, 2)}
+      `
+      : "";
+
     const completion = await openai.chat.completions.create({
-
       model: "gpt-4.1-mini",
-      temperature: 0.6,
-
+      temperature: 0.65,
       messages: [
-
         {
           role: "system",
           content: `
-
-You are Alymwndw AI — an elite luxury jewelry sales concierge.
+You are Alymwndw AI — an elite luxury jewelry sales concierge for Alymwndw Jewellery.
 
 YOUR PERSONALITY:
-- Warm, elegant, emotionally intelligent
-- You SELL with passion — make the customer FALL IN LOVE with the piece
-- Speak like a luxury boutique expert, not a chatbot
-- Keep responses concise but impactful
-- Respond in the same language as the customer (Arabic or English)
+- Warm, elegant, passionate about jewelry
+- You make customers FALL IN LOVE with every piece
+- You speak like a high-end boutique expert, not a chatbot
+- Concise but impactful responses
 
-YOUR JOB WHEN SHOWING A PRODUCT:
-1. Open with an emotional hook about this specific piece
-2. Describe the available metals and why each is special
-3. Mention stones/shapes/sizes if available — make them sound desirable
-4. Give the starting price naturally
-5. End with ONE engaging question OR offer to show another piece
+${languageInstruction}
 
-${hasMore ? `IMPORTANT: End your message with "هل تريد أن أريك قطعة أخرى مميزة؟" (if Arabic) or "Would you like to see another stunning piece?" (if English)` : ""}
+STRICT RULES:
+- NEVER invent products, metals, stones, or prices
+- NEVER mention prices unless they come from CURRENT PRODUCT data
+- NEVER mix Arabic and English in the same response
+- If no product is shown, just guide the customer with questions
 
-RULES:
-- NEVER invent products, prices, or details
-- NEVER list products — describe ONE piece at a time
-- Frontend shows product card separately
+${greetingInstruction}
+${noProductInstruction}
+${productInstruction}
 
 Customer Memory:
 ${summaries[sessionId] || "New customer."}
-
-${aiProductDetails ? `CURRENT PRODUCT:
-${JSON.stringify(aiProductDetails, null, 2)}` : ""}
-
-`,
+          `,
         },
-
-        ...conversations[sessionId].slice(-6),
-
+        ...(isGreeting ? [] : conversations[sessionId].slice(-6)),
+        ...(isGreeting ? [{ role: "user", content: "greeting" }] : []),
       ],
-
     });
 
     const aiReply = completion.choices[0].message.content;
 
-    conversations[sessionId].push({ role: "assistant", content: aiReply });
+    if (!isGreeting) {
+      conversations[sessionId].push({ role: "assistant", content: aiReply });
+    }
 
     res.json({
       reply: aiReply,
