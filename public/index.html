@@ -36,10 +36,6 @@ display:flex;
 height:100vh;
 }
 
-/* ===================== */
-/* SIDEBAR */
-/* ===================== */
-
 .sidebar{
 width:240px;
 background:#060606;
@@ -85,10 +81,6 @@ line-height:1.5;
 font-size:15px;
 }
 
-/* ===================== */
-/* CHAT AREA */
-/* ===================== */
-
 .chat-area{
 flex:1;
 display:flex;
@@ -106,18 +98,10 @@ padding:30px;
 scroll-behavior:smooth;
 }
 
-/* ===================== */
-/* MOBILE HEADER */
-/* ===================== */
-
 .mobile-header{
 display:none;
 flex-shrink:0;
 }
-
-/* ===================== */
-/* MESSAGE ROW */
-/* ===================== */
 
 .message-row{
 display:flex;
@@ -160,10 +144,6 @@ background:#44f1cf;
 color:black;
 font-weight:600;
 }
-
-/* ===================== */
-/* PRODUCT CARD */
-/* ===================== */
 
 .product-card{
 background:#0d0d0d;
@@ -279,10 +259,6 @@ font-weight:700;
 cursor:pointer;
 }
 
-/* ===================== */
-/* INPUT */
-/* ===================== */
-
 .input-area{
 padding:24px;
 display:flex;
@@ -314,10 +290,6 @@ font-size:34px;
 font-weight:bold;
 cursor:pointer;
 }
-
-/* ===================== */
-/* TYPING */
-/* ===================== */
 
 .typing-loader{ margin-bottom:20px; }
 
@@ -362,10 +334,6 @@ to{ opacity:1; transform:translateY(0); }
 }
 
 .pull-tab{ display:none; }
-
-/* ===================== */
-/* DRAWER */
-/* ===================== */
 
 .drawer-overlay{
 display:none;
@@ -467,10 +435,6 @@ border-radius:20px;
 white-space:nowrap;
 }
 
-/* ===================== */
-/* DESKTOP TABLET */
-/* ===================== */
-
 @media(max-width:900px){
 .sidebar{ width:120px; padding:20px 10px; }
 .brand{ font-size:14px; }
@@ -481,10 +445,6 @@ white-space:nowrap;
 .product-title{ font-size:18px; }
 .input{ font-size:18px; }
 }
-
-/* ===================== */
-/* MOBILE */
-/* ===================== */
 
 @media(max-width:600px){
 
@@ -707,6 +667,36 @@ onkeydown="handleKey(event)"
 const chatBox = document.getElementById("chat-box");
 let sessionId = null;
 
+// =====================
+// AUTO GREETING ON LOAD
+// =====================
+
+window.addEventListener("load", async () => {
+
+  showTypingLoader();
+
+  try {
+
+    const response = await fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "__greeting__", sessionId: null }),
+    });
+
+    const data = await response.json();
+
+    removeTypingLoader();
+
+    if (data.sessionId) sessionId = data.sessionId;
+
+    await typeMessage(data.reply);
+
+  } catch (err) {
+    removeTypingLoader();
+  }
+
+});
+
 function openDrawer(){
 document.getElementById("drawer").classList.add("open");
 document.getElementById("drawer-overlay").classList.add("open");
@@ -716,6 +706,35 @@ function closeDrawer(){
 document.getElementById("drawer").classList.remove("open");
 document.getElementById("drawer-overlay").classList.remove("open");
 }
+
+// =====================
+// TYPING LOADER
+// =====================
+
+function showTypingLoader(){
+const loader = document.createElement("div");
+loader.className = "typing-loader";
+loader.id = "typing-loader";
+loader.innerHTML = `
+<div class="typing-wrap">
+<img src="deer.png" class="ai-avatar"/>
+<div class="typing-bubble">
+<span></span><span></span><span></span>
+</div>
+</div>
+`;
+chatBox.appendChild(loader);
+chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function removeTypingLoader(){
+const loader = document.getElementById("typing-loader");
+if (loader) loader.remove();
+}
+
+// =====================
+// TYPE MESSAGE
+// =====================
 
 async function typeMessage(text){
 const row = document.createElement("div");
@@ -739,6 +758,10 @@ await new Promise((r)=>setTimeout(r,35));
 }
 }
 
+// =====================
+// USER MESSAGE
+// =====================
+
 function addUserMessage(text){
 const row = document.createElement("div");
 row.className = "user-row";
@@ -749,6 +772,10 @@ row.appendChild(bubble);
 chatBox.appendChild(row);
 chatBox.scrollTop = chatBox.scrollHeight;
 }
+
+// =====================
+// SWITCH VARIANT
+// =====================
 
 function switchVariantImage(imageId,newImage,priceId,newPrice,button){
 const image = document.getElementById(imageId);
@@ -763,6 +790,10 @@ btn.classList.remove("active-variant");
 }
 button.classList.add("active-variant");
 }
+
+// =====================
+// RENDER PRODUCTS
+// =====================
 
 function renderProducts(products){
 products.forEach((product)=>{
@@ -781,33 +812,24 @@ product.url ||
 const imageId = `img-${product.handle}`;
 const priceId = `price-${product.handle}`;
 
-// =====================
-// VARIANT NAME = METAL + STONE + SHAPE
-// =====================
-
 const variantButtons =
 (product.variants || []).map((v,index)=>{
-
 const variantImage = v.mappedImage || v.image || image;
 const variantPrice = String(v.price || "").replace("AED","").trim();
-
 const variantName =
 [v.metal, v.stoneColor, v.shape]
 .filter(Boolean)
 .join(" · ") ||
 v.title ||
 "Variant";
-
 return `<button
 class="variant-btn ${index===0?"active-variant":""}"
 onclick="switchVariantImage('${imageId}','${variantImage}','${priceId}','${variantPrice} AED',this)"
 >${variantName}</button>`;
-
 }).join("");
 
 const card = document.createElement("div");
 card.className = "product-card";
-
 card.innerHTML = `
 <img id="${imageId}" src="${image}" class="product-image" onerror="this.src='https://via.placeholder.com/500'"/>
 <div class="product-content">
@@ -826,47 +848,56 @@ card.innerHTML = `
 </div>
 </div>
 `;
-
 chatBox.appendChild(card);
-
 });
 chatBox.scrollTop = chatBox.scrollHeight;
 }
+
+// =====================
+// HANDLE ENTER
+// =====================
 
 function handleKey(event){
 if(event.key==="Enter"){ sendMessage(); }
 }
 
+// =====================
+// SEND MESSAGE
+// =====================
+
 async function sendMessage(){
 const input = document.getElementById("message");
 const message = input.value.trim();
 if(!message) return;
+
 addUserMessage(message);
 input.value = "";
-const loader = document.createElement("div");
-loader.className = "typing-loader";
-loader.innerHTML = `
-<div class="typing-wrap">
-<img src="deer.png" class="ai-avatar"/>
-<div class="typing-bubble">
-<span></span><span></span><span></span>
-</div>
-</div>
-`;
-chatBox.appendChild(loader);
-chatBox.scrollTop = chatBox.scrollHeight;
+
+showTypingLoader();
+
+try {
+
 const response = await fetch("/chat",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify({message,sessionId})
 });
+
 const data = await response.json();
 if(data.sessionId){ sessionId = data.sessionId; }
-loader.remove();
+
+removeTypingLoader();
 await typeMessage(data.reply);
+
 if(data.products && data.products.length){
 setTimeout(()=>{ renderProducts(data.products); },300);
 }
+
+} catch(err) {
+removeTypingLoader();
+await typeMessage("Something went wrong, please try again.");
+}
+
 }
 
 </script>
