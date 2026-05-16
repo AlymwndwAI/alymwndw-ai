@@ -30,7 +30,7 @@ const openai = new OpenAI({
 const conversations = {};
 const summaries = {};
 const sessionTimestamps = {};
-const sessionProducts = {}; // products queue per session
+const sessionProducts = {};
 
 // =====================================
 // IMAGE GENERATION TRACKING
@@ -85,9 +85,7 @@ try {
 
 } catch (err) {
 
-  console.log(
-    "NO PRODUCTS BRAIN FOUND"
-  );
+  console.log("NO PRODUCTS BRAIN FOUND");
 
 }
 
@@ -98,15 +96,12 @@ try {
 function normalizeText(text = "") {
 
   return text
-
     .toLowerCase()
-
     .replaceAll("أ", "ا")
     .replaceAll("إ", "ا")
     .replaceAll("آ", "ا")
     .replaceAll("ة", "ه")
     .replaceAll("ى", "ي")
-
     .replaceAll("خاتم خطوبه", "engagement ring")
     .replaceAll("خاتم خطوبة", "engagement ring")
     .replaceAll("سلسله اسم", "name necklace")
@@ -159,9 +154,7 @@ function shouldSearchProducts(message) {
     "هديه", "ذكري", "عيد", "جميل", "انيق", "فاخر",
   ];
 
-  return keywords.some((w) =>
-    msg.includes(normalizeText(w))
-  );
+  return keywords.some((w) => msg.includes(normalizeText(w)));
 
 }
 
@@ -171,14 +164,14 @@ function shouldSearchProducts(message) {
 
 function shouldShowNext(message) {
 
-  const msg = normalizeText(message).toLowerCase();
+  const msg = message.toLowerCase();
 
   const keywords = [
-    "next", "another", "more", "different",
-    "show me more", "other", "else",
-    "تاني", "غيره", "واحد تاني", "ورني تاني",
-    "مش عاجبني", "مش عارفني", "غير",
-    "كمان", "وغيره", "شوف تاني",
+    "next", "another", "more", "different", "other", "else",
+    "تاني", "غيره", "واحد تاني", "ورني تاني", "قطعه اخره",
+    "قطعة اخرى", "قطعه اخري", "قطعة أخرى", "اخري", "اخره",
+    "مش عاجبني", "غير", "كمان", "وغيره", "شوف تاني",
+    "ورني غيره", "ورني غيرها", "شيء آخر", "حاجة تانية",
   ];
 
   return keywords.some((w) => msg.includes(w));
@@ -249,7 +242,7 @@ function roughFilter(userMessage, products) {
 }
 
 // =====================================
-// AI SELECTS BEST PRODUCTS
+// AI SELECTS BEST 6 PRODUCTS
 // =====================================
 
 async function aiSelectProducts(userMessage, candidates) {
@@ -282,7 +275,6 @@ Choose the 6 most relevant products from the list.
 Rules:
 - Match category EXACTLY
 - Match metal if mentioned
-- Match style and occasion if mentioned
 - Pick DIFFERENT products (no duplicates)
 - Return ONLY a JSON array of 6 index numbers like: [2, 7, 15, 23, 5, 11]
 - No extra text
@@ -328,7 +320,7 @@ function buildProductDetails(p) {
   const certifications = p.aiFeatures?.certifications || [];
 
   const priceList = [...new Set(
-    (p.variants || []).map((v) => v.price).filter(Boolean)
+    (p.variants || []).map((v) => v.rawPrice).filter(Boolean).sort((a, b) => a - b)
   )];
 
   return {
@@ -340,12 +332,61 @@ function buildProductDetails(p) {
     stoneSizes: sizes,
     stoneColors: stones,
     certifications,
-    priceRange: priceList.length > 1
-      ? `${priceList[0]} - ${priceList[priceList.length - 1]}`
-      : priceList[0] || p.price || "",
+    startingPrice: priceList.length > 0 ? `${priceList[0]} AED` : p.price || "",
     styles: p.aiFeatures?.styles || [],
     emotionalTriggers: p.aiFeatures?.emotionalTriggers || [],
     description: (p.description || "").slice(0, 200),
+  };
+
+}
+
+// =====================================
+// BUILD PRODUCT FOR FRONTEND
+// =====================================
+
+function buildProductForFrontend(p) {
+
+  const resolvedImage = p.image || "";
+
+  return {
+    id: p.id || "",
+    title: p.title || "",
+    handle: p.handle || "",
+    description: p.description || "",
+    type: p.type || "",
+    vendor: p.vendor || "",
+    image: resolvedImage,
+    images: p.images || [],
+    url: p.url || `https://alymwndw.com/products/${p.handle}`,
+    reviewRating: p.reviewRating ?? 4.9,
+    reviewCount: p.reviewCount ?? 120,
+    category: p.aiFeatures?.category || "",
+    collection: p.aiFeatures?.collection || "",
+    styles: p.aiFeatures?.styles || [],
+    emotionalTriggers: p.aiFeatures?.emotionalTriggers || [],
+    price: p.variants?.[0]?.price || p.price || "",
+    rawPrice: p.variants?.[0]?.rawPrice || p.rawPrice || 0,
+    currency: p.currency || "AED",
+
+    variants: p.variants?.slice(0, 20)?.map((v) => {
+      const variantImage = v.mappedImage || v.image || resolvedImage || "";
+      return {
+        id: v.id || "",
+        title: v.title || "",
+        sku: v.sku || "",
+        available: v.available ?? true,
+        price: v.price || "",
+        rawPrice: v.rawPrice || 0,
+        currency: v.currency || "AED",
+        image: variantImage,
+        mappedImage: variantImage,
+        metal: v.metal || "",
+        stoneColor: v.stoneColor || "",
+        shape: v.shape || "",
+        stoneSize: v.stoneSize || "",
+        options: v.options || [],
+      };
+    }) || [],
   };
 
 }
@@ -371,37 +412,21 @@ app.post("/generate-image", async (req, res) => {
     const productDescription = req.body.productDescription || "";
     const email = req.body.email || "";
 
-    if (!sessionImageCount[sessionId]) {
-      sessionImageCount[sessionId] = 0;
-    }
+    if (!sessionImageCount[sessionId]) sessionImageCount[sessionId] = 0;
 
     const count = sessionImageCount[sessionId];
 
     if (count >= 2 && !sessionEmails[sessionId]) {
-      return res.json({
-        requireEmail: true,
-        message: "Please enter your email to continue.",
-      });
+      return res.json({ requireEmail: true });
     }
 
     if (email) sessionEmails[sessionId] = email;
 
     if (count >= 3) {
-      return res.json({
-        blocked: true,
-        message: "Maximum image generations reached.",
-      });
+      return res.json({ blocked: true });
     }
 
-    const prompt = `
-      Luxury jewelry product photo.
-      ${productTitle}.
-      ${productDescription.slice(0, 100)}.
-      High-end jewelry photography.
-      White background.
-      Professional studio lighting.
-      Ultra detailed. 8K quality.
-    `;
+    const prompt = `Luxury jewelry product photo. ${productTitle}. ${productDescription.slice(0, 100)}. White background. Professional studio lighting. Ultra detailed. 8K quality.`;
 
     const response = await openai.images.generate({
       model: "dall-e-3",
@@ -411,11 +436,10 @@ app.post("/generate-image", async (req, res) => {
       quality: "standard",
     });
 
-    const imageUrl = response.data[0].url;
     sessionImageCount[sessionId]++;
 
     res.json({
-      imageUrl,
+      imageUrl: response.data[0].url,
       count: sessionImageCount[sessionId],
       remaining: Math.max(0, 3 - sessionImageCount[sessionId]),
     });
@@ -441,14 +465,11 @@ app.post("/chat", async (req, res) => {
 
     // INIT
     if (!conversations[sessionId]) conversations[sessionId] = [];
-    if (!sessionProducts[sessionId]) sessionProducts[sessionId] = [];
+    if (!sessionProducts[sessionId]) sessionProducts[sessionId] = { queue: [], lastSearch: "" };
     sessionTimestamps[sessionId] = Date.now();
 
     // SAVE USER MESSAGE
-    conversations[sessionId].push({
-      role: "user",
-      content: userMessage,
-    });
+    conversations[sessionId].push({ role: "user", content: userMessage });
 
     // CLEAN MEMORY
     if (conversations[sessionId].length > 20) {
@@ -462,14 +483,8 @@ app.post("/chat", async (req, res) => {
         model: "gpt-4.1-mini",
         temperature: 0.2,
         messages: [
-          {
-            role: "system",
-            content: `Summarize this luxury jewelry customer profile. Keep: style, taste, materials, budget. Be concise.`,
-          },
-          {
-            role: "user",
-            content: JSON.stringify(conversations[sessionId]),
-          },
+          { role: "system", content: "Summarize this luxury jewelry customer profile. Keep: style, taste, materials, budget. Be concise." },
+          { role: "user", content: JSON.stringify(conversations[sessionId]) },
         ],
       });
 
@@ -482,87 +497,38 @@ app.post("/chat", async (req, res) => {
     // =====================================
 
     let currentProduct = null;
-    let isNewSearch = false;
 
-    if (shouldShowNext(normalizedMessage) && sessionProducts[sessionId].length > 0) {
+    const isNextRequest = shouldShowNext(userMessage);
+    const isNewSearch = shouldSearchProducts(normalizedMessage) && !isNextRequest;
 
-      // POP NEXT PRODUCT FROM QUEUE
-      currentProduct = sessionProducts[sessionId].shift();
+    if (isNextRequest && sessionProducts[sessionId].queue.length > 0) {
 
-    } else if (shouldSearchProducts(normalizedMessage)) {
+      // POP NEXT FROM QUEUE
+      currentProduct = sessionProducts[sessionId].queue.shift();
+
+    } else if (isNewSearch) {
 
       // NEW SEARCH
-      isNewSearch = true;
-
       const candidates = roughFilter(normalizedMessage, products);
 
       if (candidates.length > 0) {
 
         const selected = await aiSelectProducts(userMessage, candidates);
-
-        sessionProducts[sessionId] = selected;
-        currentProduct = sessionProducts[sessionId].shift();
+        sessionProducts[sessionId].queue = selected;
+        sessionProducts[sessionId].lastSearch = userMessage;
+        currentProduct = sessionProducts[sessionId].queue.shift();
 
       }
 
     }
 
     // =====================================
-    // BUILD PRODUCT FOR FRONTEND
+    // BUILD DATA
     // =====================================
 
-    let aiProductForFrontend = null;
-    let aiProductDetails = null;
-    const hasMoreProducts = sessionProducts[sessionId].length > 0;
-
-    if (currentProduct) {
-
-      const resolvedImage = currentProduct.image || "";
-
-      aiProductForFrontend = {
-        id: currentProduct.id || "",
-        title: currentProduct.title || "",
-        handle: currentProduct.handle || "",
-        description: currentProduct.description || "",
-        type: currentProduct.type || "",
-        vendor: currentProduct.vendor || "",
-        image: resolvedImage,
-        images: currentProduct.images || [],
-        url: currentProduct.url || `https://alymwndw.com/products/${currentProduct.handle}`,
-        reviewRating: currentProduct.reviewRating ?? 4.9,
-        reviewCount: currentProduct.reviewCount ?? 120,
-        category: currentProduct.aiFeatures?.category || "",
-        collection: currentProduct.aiFeatures?.collection || "",
-        styles: currentProduct.aiFeatures?.styles || [],
-        emotionalTriggers: currentProduct.aiFeatures?.emotionalTriggers || [],
-        price: currentProduct.variants?.[0]?.price || currentProduct.price || "",
-        rawPrice: currentProduct.variants?.[0]?.rawPrice || currentProduct.rawPrice || 0,
-        currency: currentProduct.currency || "AED",
-
-        variants: currentProduct.variants?.slice(0, 20)?.map((v) => {
-          const variantImage = v.mappedImage || v.image || resolvedImage || "";
-          return {
-            id: v.id || "",
-            title: v.title || "",
-            sku: v.sku || "",
-            available: v.available ?? true,
-            price: v.price || "",
-            rawPrice: v.rawPrice || 0,
-            currency: v.currency || "AED",
-            image: variantImage,
-            mappedImage: variantImage,
-            metal: v.metal || "",
-            stoneColor: v.stoneColor || "",
-            shape: v.shape || "",
-            stoneSize: v.stoneSize || "",
-            options: v.options || [],
-          };
-        }) || [],
-      };
-
-      aiProductDetails = buildProductDetails(currentProduct);
-
-    }
+    const hasMore = sessionProducts[sessionId].queue.length > 0;
+    const aiProductForFrontend = currentProduct ? buildProductForFrontend(currentProduct) : null;
+    const aiProductDetails = currentProduct ? buildProductDetails(currentProduct) : null;
 
     // =====================================
     // AI CHAT
@@ -583,32 +549,30 @@ You are Alymwndw AI — an elite luxury jewelry sales concierge.
 
 YOUR PERSONALITY:
 - Warm, elegant, emotionally intelligent
-- You SELL with passion — you make the customer FALL IN LOVE with the piece
-- You speak like a luxury boutique expert, not a chatbot
+- You SELL with passion — make the customer FALL IN LOVE with the piece
+- Speak like a luxury boutique expert, not a chatbot
 - Keep responses concise but impactful
+- Respond in the same language as the customer (Arabic or English)
 
 YOUR JOB WHEN SHOWING A PRODUCT:
-1. Open with an emotional hook about the piece
-2. Describe the metals available and why each one is special
-3. Mention stones/shapes/sizes if available and make them sound desirable
-4. Give the price naturally as "starting from X AED"
-5. End with ONE question to engage the customer OR offer to show another piece
+1. Open with an emotional hook about this specific piece
+2. Describe the available metals and why each is special
+3. Mention stones/shapes/sizes if available — make them sound desirable
+4. Give the starting price naturally
+5. End with ONE engaging question OR offer to show another piece
 
-${hasMoreProducts ? 'Say at the end: "هل تريد أن أريك قطعة أخرى مميزة؟" or "Would you like to see another stunning piece?"' : ''}
+${hasMore ? `IMPORTANT: End your message with "هل تريد أن أريك قطعة أخرى مميزة؟" (if Arabic) or "Would you like to see another stunning piece?" (if English)` : ""}
 
 RULES:
 - NEVER invent products, prices, or details
-- NEVER list products — describe ONE piece at a time with passion
-- Respond in the same language as the customer
-- Frontend shows the product card separately — don't repeat all details
+- NEVER list products — describe ONE piece at a time
+- Frontend shows product card separately
 
 Customer Memory:
 ${summaries[sessionId] || "New customer."}
 
-${aiProductDetails ? `
-CURRENT PRODUCT TO SELL:
-${JSON.stringify(aiProductDetails, null, 2)}
-` : ""}
+${aiProductDetails ? `CURRENT PRODUCT:
+${JSON.stringify(aiProductDetails, null, 2)}` : ""}
 
 `,
         },
@@ -621,26 +585,18 @@ ${JSON.stringify(aiProductDetails, null, 2)}
 
     const aiReply = completion.choices[0].message.content;
 
-    // SAVE AI RESPONSE
-    conversations[sessionId].push({
-      role: "assistant",
-      content: aiReply,
-    });
+    conversations[sessionId].push({ role: "assistant", content: aiReply });
 
-    // RESPONSE
     res.json({
       reply: aiReply,
       products: aiProductForFrontend ? [aiProductForFrontend] : [],
-      hasMore: hasMoreProducts,
+      hasMore,
       sessionId,
     });
 
   } catch (err) {
     console.log(err);
-    res.status(500).json({
-      reply: "Server error",
-      products: [],
-    });
+    res.status(500).json({ reply: "Server error", products: [] });
   }
 
 });
