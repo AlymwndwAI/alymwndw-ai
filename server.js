@@ -93,13 +93,12 @@ async function shopifyQuery(query) {
     );
     return response.json();
   } catch (err) {
-    console.log("SHOPIFY QUERY ERROR:", err.message);
     return null;
   }
 }
 
 // =====================================
-// GET ACTIVE DISCOUNTS FROM SHOPIFY
+// GET ACTIVE DISCOUNTS
 // =====================================
 
 async function getActiveDiscounts() {
@@ -109,29 +108,17 @@ async function getActiveDiscounts() {
         discountNodes(first: 10) {
           edges {
             node {
-              id
               discount {
                 ... on DiscountCodeBasic {
                   title
                   status
-                  codes(first: 5) {
-                    edges {
-                      node {
-                        code
-                      }
-                    }
+                  codes(first: 3) {
+                    edges { node { code } }
                   }
                   customerGets {
                     value {
-                      ... on DiscountPercentage {
-                        percentage
-                      }
-                      ... on DiscountAmount {
-                        amount {
-                          amount
-                          currencyCode
-                        }
-                      }
+                      ... on DiscountPercentage { percentage }
+                      ... on DiscountAmount { amount { amount currencyCode } }
                     }
                   }
                 }
@@ -140,9 +127,7 @@ async function getActiveDiscounts() {
                   status
                   customerGets {
                     value {
-                      ... on DiscountPercentage {
-                        percentage
-                      }
+                      ... on DiscountPercentage { percentage }
                     }
                   }
                 }
@@ -152,45 +137,12 @@ async function getActiveDiscounts() {
         }
       }
     `);
-
     if (!data?.data?.discountNodes?.edges) return [];
-
     return data.data.discountNodes.edges
       .map((e) => e.node.discount)
-      .filter((d) => d.status === "ACTIVE");
-
+      .filter((d) => d?.status === "ACTIVE");
   } catch (err) {
     return [];
-  }
-}
-
-// =====================================
-// GET PRODUCT INVENTORY FROM SHOPIFY
-// =====================================
-
-async function getProductInventory(handle) {
-  try {
-    const data = await shopifyQuery(`
-      {
-        productByHandle(handle: "${handle}") {
-          title
-          variants(first: 20) {
-            edges {
-              node {
-                title
-                availableForSale
-                price
-              }
-            }
-          }
-        }
-      }
-    `);
-
-    return data?.data?.productByHandle || null;
-
-  } catch (err) {
-    return null;
   }
 }
 
@@ -227,7 +179,8 @@ function normalizeText(text = "") {
     .replaceAll("رجالي", "men").replaceAll("رجال", "men")
     .replaceAll("اطفال", "kids").replaceAll("أطفال", "kids")
     .replaceAll("خصم", "discount").replaceAll("تخفيض", "discount")
-    .replaceAll("متاح", "available").replaceAll("موجود", "available");
+    .replaceAll("زوجين", "couple").replaceAll("زوجي", "couple")
+    .replaceAll("هدية", "gift").replaceAll("هديه", "gift");
 }
 
 // =====================================
@@ -239,38 +192,67 @@ function detectLanguage(message) {
 }
 
 // =====================================
+// EXTRACT INTENT VIA OPENAI
+// =====================================
+
+async function extractIntent(userMessage) {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      temperature: 0,
+      messages: [
+        {
+          role: "system",
+          content: `
+You are a jewelry search intent extractor.
+Extract the customer's jewelry search intent and return ONLY a JSON object.
+
+Return format:
+{
+  "category": "ring|necklace|bracelet|earring|pendant|chain|",
+  "metal": "rose gold|yellow gold|white gold|silver|platinum|",
+  "stone": "moissanite|diamond|pearl|",
+  "shape": "oval|pear|round|emerald|princess|radiant|marquise|cushion|heart|asscher|",
+  "occasion": "wedding|engagement|gift|anniversary|birthday|",
+  "style": "men|kids|couple|custom|name|initial|tennis|",
+  "keywords": ["keyword1", "keyword2"]
+}
+
+Only fill fields that are clearly mentioned. Leave others empty.
+Return ONLY the JSON, no extra text.
+          `,
+        },
+        { role: "user", content: userMessage },
+      ],
+    });
+
+    const raw = completion.choices[0].message.content
+      .replace(/```json|```/g, "").trim();
+
+    return JSON.parse(raw);
+
+  } catch (err) {
+    return null;
+  }
+}
+
+// =====================================
 // SHOULD SEARCH PRODUCTS
 // =====================================
 
 function shouldSearchProducts(message) {
-
   const msg = normalizeText(message);
-
   const keywords = [
-    // JEWELRY TYPES
-    "ring", "necklace", "bracelet", "earring", "pendant",
-    "bangle", "choker", "anklet", "chain",
-    // NAME / INITIAL
+    "ring", "necklace", "bracelet", "earring", "pendant", "chain",
     "name", "initial", "letter", "custom", "personalized",
-    // MATERIALS
-    "diamond", "gold", "silver", "platinum", "rose gold",
-    "moissanite", "pearl", "gemstone",
-    // COLLECTIONS
-    "moissanite", "lab grown", "lab diamond", "make for you",
-    "wedding", "engagement", "pearl", "men", "kids",
-    "oval", "pear", "round", "emerald", "princess", "radiant",
-    "marquise", "cushion", "asscher", "heart shape",
-    // OCCASIONS
-    "gift", "luxury", "bridal", "anniversary", "birthday", "valentine",
-    // INTENT
-    "show", "recommend", "suggest", "find", "looking", "want", "buy",
-    // ARABIC
-    "هديه", "هدية", "ذكري", "عيد", "جميل", "انيق", "فاخر",
-    "دبله", "مجوهرات", "جواهر", "رجالي",
+    "diamond", "gold", "silver", "platinum", "rose gold", "moissanite", "pearl",
+    "gift", "luxury", "bridal", "wedding", "engagement",
+    "oval", "pear", "round", "emerald", "princess", "radiant", "heart",
+    "men", "kids", "couple", "tennis",
+    "show", "recommend", "suggest", "find", "want", "buy",
+    "هديه", "هدية", "ذكري", "عيد", "مجوهرات", "جواهر", "رجالي", "زوجين",
   ];
-
   return keywords.some((w) => msg.includes(normalizeText(w)));
-
 }
 
 // =====================================
@@ -284,8 +266,7 @@ function shouldShowNext(message) {
     "تاني", "غيره", "غيرها", "واحد تاني", "ورني تاني",
     "قطعه اخره", "قطعة اخرى", "قطعه اخري", "قطعة أخرى",
     "اخري", "اخره", "اخرى", "مش عاجبني", "غير",
-    "كمان", "وغيره", "شوف تاني", "ورني غيره", "ورني غيرها",
-    "شيء آخر", "حاجة تانية", "حاجه تانيه",
+    "كمان", "شوف تاني", "ورني غيره", "حاجة تانية",
   ];
   return keywords.some((w) => msg.includes(w));
 }
@@ -296,37 +277,29 @@ function shouldShowNext(message) {
 
 function shouldAskDiscount(message) {
   const msg = normalizeText(message);
-  return (
-    msg.includes("discount") ||
-    msg.includes("sale") ||
-    msg.includes("offer") ||
-    msg.includes("promo") ||
-    msg.includes("code")
-  );
-}
-
-// =====================================
-// SHOULD ASK ABOUT AVAILABILITY
-// =====================================
-
-function shouldAskAvailability(message) {
-  const msg = normalizeText(message);
-  return (
-    msg.includes("available") ||
-    msg.includes("in stock") ||
-    msg.includes("متاح") ||
-    msg.includes("موجود")
-  );
+  return msg.includes("discount") || msg.includes("sale") ||
+    msg.includes("offer") || msg.includes("promo") || msg.includes("code");
 }
 
 // =====================================
 // ROUGH FILTER - TOP 30
 // =====================================
 
-function roughFilter(userMessage, products) {
+function roughFilter(userMessage, intent, products) {
 
   const msg = normalizeText(userMessage);
-  const words = msg.split(" ");
+  const words = msg.split(" ").filter((w) => w.length > 2);
+
+  // Intent keywords
+  const intentWords = [
+    intent?.category,
+    intent?.metal,
+    intent?.stone,
+    intent?.shape,
+    intent?.occasion,
+    intent?.style,
+    ...(intent?.keywords || []),
+  ].filter(Boolean).map((w) => normalizeText(w));
 
   let scoredProducts = products.map((p) => {
 
@@ -343,7 +316,6 @@ function roughFilter(userMessage, products) {
       ${p.aiFeatures?.styles?.join(" ") || ""}
       ${p.aiFeatures?.intent?.join(" ") || ""}
       ${p.aiFeatures?.searchKeywords?.join(" ") || ""}
-      ${p.aiFeatures?.emotionalTriggers?.join(" ") || ""}
       ${p.aiFeatures?.materials?.join(" ") || ""}
       ${p.aiFeatures?.variantMetalColors?.join(" ") || ""}
       ${p.aiFeatures?.diamondShapes?.join(" ") || ""}
@@ -352,50 +324,43 @@ function roughFilter(userMessage, products) {
 
     let score = 0;
 
+    // Word matching
     words.forEach((word) => {
-      if (word.length > 2 && text.includes(word)) score += 10;
+      if (text.includes(word)) score += 10;
     });
 
-    // CATEGORY BOOSTS
-    if (msg.includes("ring") && text.includes("ring")) score += 80;
-    if (msg.includes("necklace") && text.includes("necklace")) score += 80;
-    if (msg.includes("bracelet") && text.includes("bracelet")) score += 80;
-    if (msg.includes("earring") && text.includes("earring")) score += 80;
-    if (msg.includes("pendant") && text.includes("pendant")) score += 80;
-    if (msg.includes("chain") && text.includes("chain")) score += 80;
-
-    // NAME / INITIAL
-    if (msg.includes("name") && text.includes("name")) score += 120;
-    if (msg.includes("initial") && text.includes("initial")) score += 120;
-
-    // METAL BOOSTS
-    if (msg.includes("rose gold") && text.includes("rose gold")) score += 150;
-    if (msg.includes("yellow gold") && text.includes("yellow gold")) score += 150;
-    if (msg.includes("white gold") && text.includes("white gold")) score += 150;
-    if (msg.includes("platinum") && text.includes("platinum")) score += 180;
-
-    // STONE BOOSTS
-    if (msg.includes("moissanite") && text.includes("moissanite")) score += 200;
-    if (msg.includes("diamond") && text.includes("diamond")) score += 150;
-    if (msg.includes("pearl") && text.includes("pearl")) score += 150;
-
-    // SHAPE BOOSTS
-    const shapes = ["oval", "pear", "round", "emerald", "princess", "radiant", "marquise", "cushion", "heart", "asscher"];
-    shapes.forEach((shape) => {
-      if (msg.includes(shape) && text.includes(shape)) score += 120;
+    // Intent matching - higher boost
+    intentWords.forEach((word) => {
+      if (word && text.includes(word)) score += 40;
     });
 
-    // OCCASION BOOSTS
-    if (msg.includes("wedding") && text.includes("wedding")) score += 150;
-    if (msg.includes("engagement") && text.includes("engagement")) score += 150;
-    if (msg.includes("men") && text.includes("men")) score += 100;
-    if (msg.includes("kids") && text.includes("kids")) score += 100;
+    // Category exact match
+    if (intent?.category && text.includes(intent.category)) score += 100;
 
-    // CATEGORY PENALTIES
-    if (msg.includes("ring") && !text.includes("ring")) score -= 150;
-    if (msg.includes("necklace") && !text.includes("necklace")) score -= 150;
-    if (msg.includes("bracelet") && !text.includes("bracelet")) score -= 150;
-    if (msg.includes("earring") && !text.includes("earring")) score -= 150;
+    // Metal exact match
+    if (intent?.metal && text.includes(intent.metal)) score += 150;
+
+    // Stone match
+    if (intent?.stone && text.includes(intent.stone)) score += 200;
+
+    // Shape match
+    if (intent?.shape && text.includes(intent.shape)) score += 150;
+
+    // Occasion match
+    if (intent?.occasion && text.includes(intent.occasion)) score += 120;
+
+    // Style match
+    if (intent?.style && text.includes(intent.style)) score += 100;
+
+    // Category penalties
+    if (intent?.category) {
+      if (!text.includes(intent.category)) score -= 200;
+    } else {
+      if (msg.includes("ring") && !text.includes("ring")) score -= 150;
+      if (msg.includes("necklace") && !text.includes("necklace")) score -= 150;
+      if (msg.includes("bracelet") && !text.includes("bracelet")) score -= 150;
+      if (msg.includes("earring") && !text.includes("earring")) score -= 150;
+    }
 
     return { ...p, score };
 
@@ -409,25 +374,24 @@ function roughFilter(userMessage, products) {
 }
 
 // =====================================
-// AI SELECTS BEST 6 PRODUCTS
+// AI SELECTS BEST 8 PRODUCTS
 // =====================================
 
-async function aiSelectProducts(userMessage, candidates) {
+async function aiSelectProducts(userMessage, intent, candidates) {
 
   try {
 
     const candidateList = candidates.map((p, i) => ({
       index: i,
-      id: p.handle,
       title: p.title,
       category: p.aiFeatures?.category || "",
-      collections: p.aiFeatures?.collections || [],
+      collections: (p.aiFeatures?.collections || []).slice(0, 5),
       productType: p.aiFeatures?.productType || "",
-      metal: p.aiFeatures?.variantMetalColors?.join(", ") || "",
+      metals: p.aiFeatures?.variantMetalColors?.join(", ") || "",
       shapes: p.aiFeatures?.diamondShapes?.join(", ") || "",
+      stones: p.aiFeatures?.variantStoneColors?.join(", ") || "",
       styles: p.aiFeatures?.styles?.join(", ") || "",
       intent: p.aiFeatures?.intent?.join(", ") || "",
-      searchKeywords: p.aiFeatures?.searchKeywords?.join(", ") || "",
       price: p.variants?.[0]?.price || p.price || "",
     }));
 
@@ -439,19 +403,30 @@ async function aiSelectProducts(userMessage, candidates) {
           role: "system",
           content: `
 You are a luxury jewelry product selector.
-Choose the 6 most relevant products from the list.
+Choose the 8 most relevant AND DIVERSE products from the list.
+
 Rules:
-- Match product type EXACTLY
-- Match collection keywords (e.g. "name pendant" → name/initial collections)
+- Match product type EXACTLY (ring → rings only)
+- Match collection/type keywords precisely
 - Match metal if mentioned
-- Match shape if mentioned (oval, pear, round, etc.)
-- Pick DIFFERENT products
-- Return ONLY a JSON array of 6 index numbers like: [2, 7, 15, 23, 5, 11]
+- Match shape if mentioned
+- Pick DIFFERENT products - no similar duplicates
+- Ensure VARIETY in the selection
+- Return ONLY a JSON array of 8 index numbers
+- No extra text
           `,
         },
         {
           role: "user",
-          content: `Customer: "${userMessage}"\n\nProducts:\n${JSON.stringify(candidateList, null, 2)}\n\nReturn 6 best index numbers as JSON array.`,
+          content: `
+Customer: "${userMessage}"
+Intent: ${JSON.stringify(intent)}
+
+Products:
+${JSON.stringify(candidateList, null, 2)}
+
+Return 8 diverse best index numbers as JSON array.
+          `,
         },
       ],
     });
@@ -461,12 +436,12 @@ Rules:
 
     return indices
       .filter((i) => i >= 0 && i < candidates.length)
-      .slice(0, 6)
+      .slice(0, 8)
       .map((i) => candidates[i]);
 
   } catch (err) {
     console.log("AI SELECTION FAILED:", err.message);
-    return candidates.slice(0, 6);
+    return candidates.slice(0, 8);
   }
 
 }
@@ -485,7 +460,7 @@ function buildProductDetails(p) {
   return {
     title: p.title,
     category: p.aiFeatures?.category || "",
-    collections: p.aiFeatures?.collections || [],
+    collections: (p.aiFeatures?.collections || []).slice(0, 5),
     metals: p.aiFeatures?.variantMetalColors || [],
     shapes: p.aiFeatures?.diamondShapes || [],
     stoneSizes: p.aiFeatures?.variantStoneSizes || [],
@@ -624,7 +599,13 @@ app.post("/chat", async (req, res) => {
 
     // INIT
     if (!conversations[sessionId]) conversations[sessionId] = [];
-    if (!sessionProducts[sessionId]) sessionProducts[sessionId] = { queue: [], lastSearch: "" };
+    if (!sessionProducts[sessionId]) {
+      sessionProducts[sessionId] = {
+        queue: [],
+        lastSearch: "",
+        lastIntent: null,
+      };
+    }
     sessionTimestamps[sessionId] = Date.now();
 
     const isGreeting = userMessage === "__greeting__";
@@ -637,6 +618,7 @@ app.post("/chat", async (req, res) => {
       conversations[sessionId] = conversations[sessionId].slice(-10);
     }
 
+    // MEMORY SUMMARY
     if (conversations[sessionId].length > 10) {
       const summaryCompletion = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
@@ -650,22 +632,16 @@ app.post("/chat", async (req, res) => {
     }
 
     // =====================================
-    // SHOPIFY REAL-TIME DATA
+    // SHOPIFY REAL-TIME DISCOUNTS
     // =====================================
 
     let discountContext = "";
-    let inventoryContext = "";
 
     if (shouldAskDiscount(userMessage)) {
       const discounts = await getActiveDiscounts();
-      if (discounts.length > 0) {
-        discountContext = `
-ACTIVE DISCOUNTS FROM SHOPIFY:
-${JSON.stringify(discounts, null, 2)}
-        `;
-      } else {
-        discountContext = "No active discounts right now.";
-      }
+      discountContext = discounts.length > 0
+        ? `ACTIVE DISCOUNTS: ${JSON.stringify(discounts, null, 2)}`
+        : "No active discounts right now.";
     }
 
     // =====================================
@@ -678,17 +654,27 @@ ${JSON.stringify(discounts, null, 2)}
 
     if (isNextRequest && sessionProducts[sessionId].queue.length > 0) {
 
+      // POP NEXT FROM QUEUE
       currentProduct = sessionProducts[sessionId].queue.shift();
 
     } else if (isNewSearch) {
 
-      const candidates = roughFilter(normalizedMessage, products);
+      // EXTRACT INTENT FIRST
+      const intent = await extractIntent(userMessage);
+      sessionProducts[sessionId].lastIntent = intent;
+
+      // ROUGH FILTER
+      const candidates = roughFilter(normalizedMessage, intent, products);
 
       if (candidates.length > 0) {
-        const selected = await aiSelectProducts(userMessage, candidates);
+
+        // AI SELECTS BEST 8
+        const selected = await aiSelectProducts(userMessage, intent, candidates);
+
         sessionProducts[sessionId].queue = selected;
-        sessionProducts[sessionId].lastSearch = userMessage;
+        sessionProducts[sessionId].lastSearch = normalizedMessage;
         currentProduct = sessionProducts[sessionId].queue.shift();
+
       }
 
     }
@@ -702,8 +688,8 @@ ${JSON.stringify(discounts, null, 2)}
     // =====================================
 
     const languageInstruction = language === "arabic"
-      ? "CRITICAL: Respond ENTIRELY in Arabic only. No English words at all."
-      : "CRITICAL: Respond ENTIRELY in English only. No Arabic words at all.";
+      ? "CRITICAL: Respond ENTIRELY in Arabic only. Zero English words."
+      : "CRITICAL: Respond ENTIRELY in English only. Zero Arabic words.";
 
     const completion = await openai.chat.completions.create({
 
@@ -715,62 +701,60 @@ ${JSON.stringify(discounts, null, 2)}
         {
           role: "system",
           content: `
-You are Alymwndw AI — an elite luxury jewelry sales concierge for Alymwndw Jewellery UAE.
+You are Alymwndw AI — elite luxury jewelry sales concierge for Alymwndw Jewellery UAE.
 
-YOUR PERSONALITY:
-- Warm, elegant, passionate about jewelry
-- Make customers FALL IN LOVE with every piece
-- Speak like a high-end boutique expert
-- Concise but impactful responses
+PERSONALITY:
+- Warm, elegant, passionate
+- Make customers fall in love with every piece
+- Concise but impactful — max 4 sentences per response
+- Sound like a luxury boutique expert, not a chatbot
 
 ${languageInstruction}
 
 STRICT RULES:
-- NEVER invent products, metals, stones, or prices
-- NEVER mention any price unless it comes EXACTLY from CURRENT PRODUCT startingPrice
-- NEVER mix Arabic and English in the same response
-- NEVER use markdown formatting like **bold** or *italic*
-- If no product shown, guide customer with questions only
+- NEVER invent products, metals, stones, prices
+- NEVER mention price unless from CURRENT PRODUCT startingPrice
+- NEVER use markdown like **bold** or *italic*
+- NEVER mix Arabic and English
+- If customer asks about something off-topic, gently redirect to jewelry
 
 ${isGreeting ? `
-This is the opening greeting.
-Welcome the customer warmly to Alymwndw Jewellery.
-Ask what they are looking for — jewelry type, occasion, or preference.
-Keep it short, warm, and luxurious.
-Do NOT mention any product or price.
+GREETING MODE:
+Welcome customer warmly to Alymwndw Jewellery.
+Ask what they're looking for — type, occasion, or preference.
+Short, warm, luxurious. No products or prices.
 ` : ""}
 
 ${!aiProductDetails && !isGreeting ? `
-No product available right now.
-Do NOT invent any product, metal, price, or detail.
-Engage warmly and ask about preferences.
+NO PRODUCT MODE:
+No product available. Don't invent anything.
+Ask customer questions to understand their preference better.
 ` : ""}
 
 ${aiProductDetails ? `
-YOUR JOB:
-1. Open with an emotional luxurious hook about this specific piece
-2. Describe the available metals and why each is special
-3. Mention stones/shapes/sizes if available
-4. Give the price EXACTLY as: "${aiProductDetails.startingPrice}" — never change it
-5. End with ONE engaging question
-
-${hasMore ? `End with: "هل تريد أن أريك قطعة أخرى مميزة؟" (Arabic) or "Would you like to see another stunning piece?" (English)` : ""}
-
-CURRENT PRODUCT:
+SELLING MODE — Current product to present:
 ${JSON.stringify(aiProductDetails, null, 2)}
+
+YOUR TASK:
+1. Emotional hook — why this piece is special
+2. Describe metals available and their unique appeal
+3. Mention stones/shapes/sizes naturally
+4. Price EXACTLY: "${aiProductDetails.startingPrice}"
+5. One engaging question
+
+${hasMore ? `End: "هل تريد أن أريك قطعة أخرى؟" or "Want to see another piece?"` : ""}
 ` : ""}
 
-${discountContext ? `
-DISCOUNT INFO:
-${discountContext}
-` : ""}
+${discountContext ? `DISCOUNT INFO: ${discountContext}` : ""}
 
-Customer Memory:
-${summaries[sessionId] || "New customer."}
+Customer Memory: ${summaries[sessionId] || "New customer."}
           `,
         },
 
-        ...(isGreeting ? [{ role: "user", content: "greeting" }] : conversations[sessionId].slice(-6)),
+        ...(isGreeting
+          ? [{ role: "user", content: "greeting" }]
+          : conversations[sessionId].slice(-8)
+        ),
 
       ],
 
