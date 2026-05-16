@@ -112,6 +112,7 @@ scroll-behavior:smooth;
 
 .mobile-header{
 display:none;
+flex-shrink:0;
 }
 
 /* ===================== */
@@ -231,9 +232,10 @@ border-radius:30px;
 border:1px solid rgba(255,255,255,.15);
 background:#141414;
 color:white;
-font-size:14px;
+font-size:13px;
 cursor:pointer;
 transition:all .2s;
+white-space:nowrap;
 }
 
 .variant-btn:hover{ border-color:#44f1cf; color:#44f1cf; }
@@ -359,10 +361,6 @@ to{ opacity:1; transform:translateY(0); }
 50%{ box-shadow:0 0 40px rgba(68,241,207,.4), 0 0 80px rgba(68,241,207,.15); }
 }
 
-/* ===================== */
-/* PULL TAB */
-/* ===================== */
-
 .pull-tab{ display:none; }
 
 /* ===================== */
@@ -380,10 +378,7 @@ transition:opacity .3s ease;
 pointer-events:none;
 }
 
-.drawer-overlay.open{
-opacity:1;
-pointer-events:all;
-}
+.drawer-overlay.open{ opacity:1; pointer-events:all; }
 
 .drawer{
 position:fixed;
@@ -501,8 +496,6 @@ height:100vh;
 position:relative;
 }
 
-/* MOBILE HEADER - FIXED */
-
 .mobile-header{
 display:flex;
 flex-direction:column;
@@ -572,8 +565,6 @@ letter-spacing:1.5px;
 text-transform:uppercase;
 }
 
-/* CHAT AREA */
-
 .chat-area{
 position:fixed;
 top:106px;
@@ -593,11 +584,7 @@ padding:16px;
 overflow-y:auto;
 }
 
-/* DRAWER */
-
 .drawer-overlay{ display:block; }
-
-/* PULL TAB */
 
 .pull-tab{
 display:flex;
@@ -625,8 +612,6 @@ font-weight:900;
 
 .pull-tab:hover{ width:28px; }
 
-/* PRODUCT */
-
 .product-card{
 margin-left:0;
 border-radius:24px;
@@ -636,13 +621,7 @@ width:100%;
 .product-title{ font-size:17px; }
 .product-price{ font-size:18px; }
 
-/* INPUT */
-
-.input-area{
-padding:12px 16px;
-flex-shrink:0;
-}
-
+.input-area{ padding:12px 16px; flex-shrink:0; }
 .input{ font-size:16px; height:56px; }
 .send-btn{ width:56px; height:56px; font-size:24px; }
 
@@ -801,18 +780,34 @@ product.url ||
 `https://alymwndw.com/products/${product.handle}`;
 const imageId = `img-${product.handle}`;
 const priceId = `price-${product.handle}`;
+
+// =====================
+// VARIANT NAME = METAL + STONE + SHAPE
+// =====================
+
 const variantButtons =
 (product.variants || []).map((v,index)=>{
+
 const variantImage = v.mappedImage || v.image || image;
 const variantPrice = String(v.price || "").replace("AED","").trim();
-const variantName = v.metal || v.stoneColor || v.shape || v.title || "Variant";
+
+const variantName =
+[v.metal, v.stoneColor, v.shape]
+.filter(Boolean)
+.join(" · ") ||
+v.title ||
+"Variant";
+
 return `<button
 class="variant-btn ${index===0?"active-variant":""}"
 onclick="switchVariantImage('${imageId}','${variantImage}','${priceId}','${variantPrice} AED',this)"
 >${variantName}</button>`;
+
 }).join("");
+
 const card = document.createElement("div");
 card.className = "product-card";
+
 card.innerHTML = `
 <img id="${imageId}" src="${image}" class="product-image" onerror="this.src='https://via.placeholder.com/500'"/>
 <div class="product-content">
@@ -821,7 +816,7 @@ card.innerHTML = `
 <div class="product-rating">⭐ ${product.reviewRating||4.9} (${product.reviewCount||120} reviews)</div>
 <div class="variant-switcher">${variantButtons}</div>
 <div class="variant-box">
-<div class="product-info">💎 Variant: ${firstVariant.title||"Luxury Edition"}</div>
+<div class="product-info">💎 ${firstVariant.title||"Luxury Edition"}</div>
 <div class="product-info">📦 ${firstVariant.available!==false?"In Stock":"Out Of Stock"}</div>
 </div>
 <div class="product-description">${(product.description||"").slice(0,140)}...</div>
@@ -831,7 +826,9 @@ card.innerHTML = `
 </div>
 </div>
 `;
+
 chatBox.appendChild(card);
+
 });
 chatBox.scrollTop = chatBox.scrollHeight;
 }
@@ -870,10 +867,6 @@ await typeMessage(data.reply);
 if(data.products && data.products.length){
 setTimeout(()=>{ renderProducts(data.products); },300);
 }
-}
-
-function handleKey(event){
-if(event.key==="Enter"){ sendMessage(); }
 }
 
 </script>
