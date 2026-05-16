@@ -61,6 +61,8 @@ function parseVariant(v, images) {
     metal = "silver";
   } else if (optionText.includes("platinum")) {
     metal = "platinum";
+  } else if (optionText.includes("gold")) {
+    metal = "gold";
   }
 
   // ========================================
@@ -84,6 +86,10 @@ function parseVariant(v, images) {
     !optionText.includes("pink gold")
   ) {
     stoneColor = "pink";
+  } else if (optionText.includes("blue")) {
+    stoneColor = "blue";
+  } else if (optionText.includes("green")) {
+    stoneColor = "green";
   }
 
   // ========================================
@@ -110,6 +116,10 @@ function parseVariant(v, images) {
     shape = "marquise";
   } else if (optionText.includes("heart")) {
     shape = "heart";
+  } else if (optionText.includes("asscher")) {
+    shape = "asscher";
+  } else if (optionText.includes("hexagonal")) {
+    shape = "hexagonal";
   }
 
   // ========================================
@@ -118,31 +128,9 @@ function parseVariant(v, images) {
 
   let stoneSize = "";
 
-  if (
-    optionText.includes("0.5ct") ||
-    optionText.includes("0.5 ct")
-  ) {
-    stoneSize = "0.5 CT";
-  } else if (
-    optionText.includes("1ct") ||
-    optionText.includes("1 ct")
-  ) {
-    stoneSize = "1 CT";
-  } else if (
-    optionText.includes("1.5ct") ||
-    optionText.includes("1.5 ct")
-  ) {
-    stoneSize = "1.5 CT";
-  } else if (
-    optionText.includes("2ct") ||
-    optionText.includes("2 ct")
-  ) {
-    stoneSize = "2 CT";
-  } else if (
-    optionText.includes("3ct") ||
-    optionText.includes("3 ct")
-  ) {
-    stoneSize = "3 CT";
+  const sizeMatch = optionText.match(/(\d+\.?\d*)\s*ct/);
+  if (sizeMatch) {
+    stoneSize = `${sizeMatch[1]} CT`;
   }
 
   // ========================================
@@ -154,183 +142,189 @@ function parseVariant(v, images) {
   if (!matchedImage) {
 
     const smartImage = images.find((img) => {
-
       const alt = (img.alt || "").toLowerCase();
-
       return (
         (metal && alt.includes(metal)) ||
         (shape && alt.includes(shape)) ||
         (stoneColor && alt.includes(stoneColor))
       );
-
     });
 
-    matchedImage =
-      smartImage?.url ||
-      images[0]?.url ||
-      "";
+    matchedImage = smartImage?.url || images[0]?.url || "";
 
   }
 
-  // ========================================
-  // RETURN
-  // ========================================
-
   return {
-
-    id:
-      v.node.id,
-
-    title:
-      v.node.title,
-
-    sku:
-      v.node.sku || "",
-
-    available:
-      v.node.availableForSale ?? true,
-
-    price:
-      `${v.node.price} AED`,
-
-    rawPrice:
-      Number(v.node.price),
-
-    currency:
-      "AED",
-
-    image:
-      matchedImage,
-
-    mappedImage:
-      matchedImage,
-
+    id: v.node.id,
+    title: v.node.title,
+    sku: v.node.sku || "",
+    available: v.node.availableForSale ?? true,
+    price: `${v.node.price} AED`,
+    rawPrice: Number(v.node.price),
+    currency: "AED",
+    image: matchedImage,
+    mappedImage: matchedImage,
     metal,
-
     stoneColor,
-
     shape,
-
     stoneSize,
-
-    options:
-      v.node.selectedOptions,
-
+    options: v.node.selectedOptions,
   };
 
 }
 
 // ========================================
-// BUILD AI FEATURES
+// BUILD AI FEATURES FROM COLLECTIONS
 // ========================================
 
-function buildAiFeatures(product, text) {
+function buildAiFeatures(product) {
+
+  const collectionTitles =
+    product.collections.map((c) => c.title.toLowerCase());
+
+  const collectionHandles =
+    product.collections.map((c) => c.handle.toLowerCase());
+
+  const text = `
+    ${product.title}
+    ${product.description}
+    ${product.tags?.join(" ")}
+    ${product.type}
+    ${collectionTitles.join(" ")}
+  `.toLowerCase();
 
   const ai = {
-
     category: "",
     collection: "",
+    collections: product.collections.map((c) => c.title),
     productType: "",
     subCategory: "",
-
     styles: [],
     intent: [],
     emotionalTriggers: [],
     searchKeywords: [],
     materials: [],
-
     variantMetalColors: [],
     variantStoneColors: [],
     variantStoneSizes: [],
     diamondShapes: [],
-
     language: "",
     supportedLanguages: [],
     certifications: [],
     features: [],
     upsells: [],
-
   };
 
-  const collectionHandles =
-    product.collections.map((c) => c.handle);
+  const hasCollection = (keyword) =>
+    collectionTitles.some((c) => c.includes(keyword)) ||
+    collectionHandles.some((c) => c.includes(keyword));
 
   // ========================================
-  // MAKE FOR YOU
+  // PRODUCT TYPE FROM COLLECTIONS
+  // ========================================
+
+  if (hasCollection("ring") || text.includes("ring")) {
+    ai.category = "rings";
+    ai.productType = "ring";
+  } else if (hasCollection("necklace") || text.includes("necklace")) {
+    ai.category = "necklaces";
+    ai.productType = "necklace";
+  } else if (hasCollection("bracelet") || text.includes("bracelet")) {
+    ai.category = "bracelets";
+    ai.productType = "bracelet";
+  } else if (hasCollection("earring") || text.includes("earring")) {
+    ai.category = "earrings";
+    ai.productType = "earring";
+  } else if (hasCollection("chain") || text.includes("chain")) {
+    ai.category = "chains";
+    ai.productType = "chain";
+  } else if (hasCollection("pendant") || text.includes("pendant")) {
+    ai.category = "pendants";
+    ai.productType = "pendant";
+  }
+
+  // ========================================
+  // MOISSANITE
   // ========================================
 
   if (
-    collectionHandles.includes(
-      "make-for-you-gold-custom-jewelry"
-    ) ||
-    text.includes("custom") ||
-    text.includes("personalized")
+    hasCollection("moissanite") ||
+    hasCollection("massonite") ||
+    hasCollection("mossanite") ||
+    text.includes("moissanite") ||
+    text.includes("gra certified")
   ) {
 
-    ai.collection =
-      "make-for-you-gold-custom-jewelry";
+    ai.collection = "moissanite";
+    ai.certifications.push("GRA Certified");
+    ai.features.push("diamond-like sparkle", "high brilliance");
+    ai.intent.push("luxury moissanite jewelry", "engagement ring", "diamond alternative");
+    ai.emotionalTriggers.push("brilliance", "luxury");
+    ai.styles.push("luxury", "bridal");
+    ai.searchKeywords.push("moissanite ring", "diamond alternative", "gra certified");
+    ai.upsells.push("wedding bands");
+    ai.materials.push("moissanite");
 
-    ai.category =
-      "custom-jewelry";
-
-    ai.productType =
-      "custom-jewelry";
-
-    ai.intent.push(
-      "personalized jewelry",
-      "custom necklace",
-      "gift jewelry"
-    );
-
-    ai.styles.push(
-      "luxury",
-      "minimal"
-    );
-
-    ai.searchKeywords.push(
-      "custom necklace",
-      "name necklace"
-    );
+    if (text.includes("tennis")) {
+      ai.subCategory = "tennis-jewelry";
+      ai.intent.push("iced luxury jewelry");
+      ai.styles.push("celebrity luxury");
+    }
 
   }
 
   // ========================================
-  // WEDDING
+  // LAB GROWN DIAMOND
   // ========================================
 
   if (
-    collectionHandles.includes(
-      "wedding-rings-uae"
-    ) ||
+    hasCollection("lab grown") ||
+    hasCollection("lab diamond") ||
+    text.includes("lab grown diamond") ||
+    text.includes("lab diamond")
+  ) {
+
+    ai.collection = ai.collection || "lab-grown-diamond";
+    ai.intent.push("engagement", "wedding", "luxury diamond");
+    ai.styles.push("luxury", "minimal");
+    ai.searchKeywords.push("lab diamond ring", "lab grown diamond");
+    ai.materials.push("lab diamond");
+
+  }
+
+  // ========================================
+  // MAKE FOR YOU / CUSTOM
+  // ========================================
+
+  if (
+    hasCollection("make for you") ||
+    hasCollection("custom") ||
+    text.includes("custom") ||
+    text.includes("personalized")
+  ) {
+
+    ai.collection = ai.collection || "custom-jewelry";
+    ai.intent.push("personalized jewelry", "custom jewelry", "gift jewelry");
+    ai.styles.push("luxury", "minimal", "personalized");
+    ai.searchKeywords.push("custom necklace", "name necklace", "personalized jewelry");
+
+  }
+
+  // ========================================
+  // WEDDING / ENGAGEMENT
+  // ========================================
+
+  if (
+    hasCollection("wedding") ||
+    hasCollection("engagement") ||
     text.includes("wedding") ||
     text.includes("engagement")
   ) {
 
-    if (!ai.collection) {
-      ai.collection = "wedding-rings-uae";
-    }
-
-    ai.category =
-      "wedding-rings";
-
-    ai.productType =
-      "wedding-rings";
-
-    ai.intent.push(
-      "engagement",
-      "wedding",
-      "bridal"
-    );
-
-    ai.emotionalTriggers.push(
-      "love",
-      "forever"
-    );
-
-    ai.styles.push(
-      "luxury",
-      "classic"
-    );
+    ai.collection = ai.collection || "wedding-rings";
+    ai.intent.push("engagement", "wedding", "bridal");
+    ai.emotionalTriggers.push("love", "forever", "commitment");
+    ai.styles.push("luxury", "classic");
 
   }
 
@@ -339,236 +333,104 @@ function buildAiFeatures(product, text) {
   // ========================================
 
   if (
-    collectionHandles.includes(
-      "pearl-jewelry"
-    ) ||
+    hasCollection("pearl") ||
     text.includes("pearl")
   ) {
 
-    if (!ai.collection) {
-      ai.collection = "pearl-jewelry";
-    }
-
-    ai.category =
-      "pearl-jewelry";
-
-    ai.productType =
-      "pearl-jewelry";
-
-    ai.intent.push(
-      "luxury pearl jewelry",
-      "bridal jewelry"
-    );
-
-    ai.emotionalTriggers.push(
-      "elegance",
-      "timeless beauty"
-    );
+    ai.collection = ai.collection || "pearl-jewelry";
+    ai.intent.push("luxury pearl jewelry", "bridal jewelry", "elegant jewelry");
+    ai.emotionalTriggers.push("elegance", "timeless beauty");
+    ai.materials.push("pearl");
 
   }
 
   // ========================================
-  // MOISSANITE
+  // DIANA PEARL
+  // ========================================
+
+  if (hasCollection("diana pearl")) {
+
+    ai.collection = "diana-pearl";
+    ai.styles.push("classic", "elegant");
+
+  }
+
+  // ========================================
+  // MEN'S
   // ========================================
 
   if (
-    collectionHandles.includes(
-      "certified-mossanite-shop-now"
-    ) ||
-    text.includes("moissanite") ||
-    text.includes("gra certified")
+    hasCollection("men") ||
+    text.includes("men") ||
+    text.includes("man")
   ) {
 
-    if (!ai.collection) {
-      ai.collection = "certified-mossanite-shop-now";
-    }
-
-    ai.category =
-      "luxury-moissanite";
-
-    ai.certifications.push(
-      "GRA Certified"
-    );
-
-    ai.features.push(
-      "diamond-like sparkle",
-      "high brilliance"
-    );
-
-    ai.intent.push(
-      "luxury moissanite jewelry",
-      "engagement ring",
-      "diamond alternative"
-    );
-
-    ai.emotionalTriggers.push(
-      "brilliance",
-      "luxury"
-    );
-
-    ai.styles.push(
-      "luxury",
-      "bridal"
-    );
-
-    ai.searchKeywords.push(
-      "moissanite ring",
-      "diamond alternative"
-    );
-
-    ai.upsells.push(
-      "wedding bands"
-    );
-
-    if (text.includes("ring")) {
-      ai.productType = "moissanite-ring";
-    } else if (text.includes("necklace")) {
-      ai.productType = "moissanite-necklace";
-    } else if (text.includes("bracelet")) {
-      ai.productType = "moissanite-bracelet";
-    } else if (text.includes("earring")) {
-      ai.productType = "moissanite-earring";
-    } else {
-      ai.productType = "moissanite-jewelry";
-    }
-
-    if (text.includes("tennis")) {
-
-      ai.subCategory =
-        "tennis-jewelry";
-
-      ai.intent.push(
-        "iced luxury jewelry"
-      );
-
-      ai.styles.push(
-        "celebrity luxury"
-      );
-
-      ai.features.push(
-        "high sparkle luxury"
-      );
-
-    }
+    ai.intent.push("men jewelry", "gift for him");
+    ai.styles.push("masculine", "bold");
 
   }
 
   // ========================================
-  // LAB DIAMOND
+  // KIDS
+  // ========================================
+
+  if (hasCollection("kids")) {
+
+    ai.intent.push("kids jewelry", "gift for kids");
+    ai.styles.push("cute", "minimal");
+
+  }
+
+  // ========================================
+  // SILVER
   // ========================================
 
   if (
-    collectionHandles.includes(
-      "lab-grown-diamond-ring"
-    ) ||
-    text.includes("lab grown diamond") ||
-    text.includes("lab diamond")
+    hasCollection("silver") ||
+    text.includes("silver 925") ||
+    text.includes("sterling silver")
   ) {
 
-    if (!ai.collection) {
-      ai.collection = "lab-grown-diamond-ring";
-    }
-
-    ai.category =
-      "lab-grown-diamond";
-
-    ai.productType =
-      "diamond-ring";
-
-    ai.intent.push(
-      "engagement",
-      "wedding",
-      "luxury diamond"
-    );
-
-    ai.styles.push(
-      "luxury",
-      "minimal"
-    );
-
-    ai.searchKeywords.push(
-      "lab diamond ring",
-      "lab grown diamond"
-    );
+    ai.materials.push("silver 925");
+    ai.searchKeywords.push("silver jewelry", "925 silver");
 
   }
 
   // ========================================
-  // ALPHA GOLD
+  // SHAPES FROM COLLECTIONS
   // ========================================
 
-  if (
-    collectionHandles.includes(
-      "alpha-gold"
-    ) ||
-    text.includes("arabic letter") ||
-    text.includes("initial")
-  ) {
+  const shapes = ["oval", "pear", "round", "emerald", "princess", "radiant", "marquise", "cushion", "asscher", "hexagonal", "heart"];
 
-    if (!ai.collection) {
-      ai.collection = "alpha-gold";
+  shapes.forEach((shape) => {
+    if (hasCollection(shape) || text.includes(shape)) {
+      ai.diamondShapes.push(shape);
     }
+  });
 
-    ai.category =
-      "personalized-gold-jewelry";
+  // ========================================
+  // FLASH SALE / BEST SELLERS
+  // ========================================
 
-    ai.productType =
-      "initial-necklace";
+  if (hasCollection("flash sale")) {
+    ai.searchKeywords.push("sale", "discount");
+  }
 
-    ai.intent.push(
-      "gift jewelry",
-      "personalized jewelry"
-    );
+  if (hasCollection("best sell")) {
+    ai.searchKeywords.push("best seller", "popular");
+  }
 
-    ai.styles.push(
-      "minimal",
-      "personalized"
-    );
-
-    if (text.includes("arabic")) {
-      ai.language = "arabic";
-      ai.supportedLanguages.push("arabic");
-    }
-
-    if (text.includes("english")) {
-      ai.language = "english";
-      ai.supportedLanguages.push("english");
-    }
-
+  if (hasCollection("newly arrived") || hasCollection("newest")) {
+    ai.searchKeywords.push("new arrival", "latest");
   }
 
   // ========================================
-  // FALLBACK CATEGORY
+  // MATERIALS FROM TEXT
   // ========================================
 
-  if (!ai.category) {
-
-    if (text.includes("ring")) {
-      ai.category = "rings";
-      ai.productType = "ring";
-    } else if (text.includes("necklace")) {
-      ai.category = "necklaces";
-      ai.productType = "necklace";
-    } else if (text.includes("bracelet")) {
-      ai.category = "bracelets";
-      ai.productType = "bracelet";
-    } else if (text.includes("earring")) {
-      ai.category = "earrings";
-      ai.productType = "earring";
-    }
-
-  }
-
-  // ========================================
-  // MATERIALS
-  // ========================================
-
-  if (text.includes("gold"))       ai.materials.push("gold");
-  if (text.includes("silver"))     ai.materials.push("silver");
-  if (text.includes("platinum"))   ai.materials.push("platinum");
-  if (text.includes("moissanite")) ai.materials.push("moissanite");
-  if (text.includes("diamond"))    ai.materials.push("diamond");
-  if (text.includes("pearl"))      ai.materials.push("pearl");
+  if (text.includes("gold")) ai.materials.push("gold");
+  if (text.includes("platinum")) ai.materials.push("platinum");
+  if (text.includes("diamond")) ai.materials.push("diamond");
 
   // ========================================
   // VARIANT ANALYSIS
@@ -581,83 +443,23 @@ function buildAiFeatures(product, text) {
       ${JSON.stringify(v.options)}
     `.toLowerCase();
 
-    // METALS
+    if (variantText.includes("rose gold")) ai.variantMetalColors.push("rose gold");
+    if (variantText.includes("yellow gold")) ai.variantMetalColors.push("yellow gold");
+    if (variantText.includes("white gold")) ai.variantMetalColors.push("white gold");
+    if (variantText.includes("silver")) ai.variantMetalColors.push("silver");
+    if (variantText.includes("platinum")) ai.variantMetalColors.push("platinum");
 
-    if (variantText.includes("rose gold")) {
-      ai.variantMetalColors.push("rose gold");
-    }
-    if (variantText.includes("yellow gold")) {
-      ai.variantMetalColors.push("yellow gold");
-    }
-    if (variantText.includes("white gold")) {
-      ai.variantMetalColors.push("white gold");
-    }
-    if (variantText.includes("silver")) {
-      ai.variantMetalColors.push("silver");
-    }
-    if (variantText.includes("platinum")) {
-      ai.variantMetalColors.push("platinum");
-    }
+    if (variantText.includes("white") && !variantText.includes("white gold")) ai.variantStoneColors.push("white");
+    if (variantText.includes("yellow") && !variantText.includes("yellow gold")) ai.variantStoneColors.push("yellow");
+    if (variantText.includes("pink") && !variantText.includes("pink gold")) ai.variantStoneColors.push("pink");
+    if (variantText.includes("blue")) ai.variantStoneColors.push("blue");
 
-    // STONE COLORS
+    shapes.forEach((shape) => {
+      if (variantText.includes(shape)) ai.diamondShapes.push(shape);
+    });
 
-    if (
-      variantText.includes("white") &&
-      !variantText.includes("white gold")
-    ) {
-      ai.variantStoneColors.push("white");
-    }
-    if (
-      variantText.includes("yellow") &&
-      !variantText.includes("yellow gold")
-    ) {
-      ai.variantStoneColors.push("yellow");
-    }
-    if (
-      variantText.includes("pink") &&
-      !variantText.includes("pink gold")
-    ) {
-      ai.variantStoneColors.push("pink");
-    }
-
-    // SHAPES
-
-    if (variantText.includes("oval"))     ai.diamondShapes.push("oval");
-    if (variantText.includes("emerald"))  ai.diamondShapes.push("emerald");
-    if (variantText.includes("radiant"))  ai.diamondShapes.push("radiant");
-    if (variantText.includes("pear"))     ai.diamondShapes.push("pear");
-    if (variantText.includes("round"))    ai.diamondShapes.push("round");
-    if (variantText.includes("cushion"))  ai.diamondShapes.push("cushion");
-    if (variantText.includes("princess")) ai.diamondShapes.push("princess");
-    if (variantText.includes("marquise")) ai.diamondShapes.push("marquise");
-    if (variantText.includes("heart"))    ai.diamondShapes.push("heart");
-
-    // STONE SIZES
-
-    if (
-      variantText.includes("0.5ct") ||
-      variantText.includes("0.5 ct")
-    ) ai.variantStoneSizes.push("0.5 CT");
-
-    if (
-      variantText.includes("1ct") ||
-      variantText.includes("1 ct")
-    ) ai.variantStoneSizes.push("1 CT");
-
-    if (
-      variantText.includes("1.5ct") ||
-      variantText.includes("1.5 ct")
-    ) ai.variantStoneSizes.push("1.5 CT");
-
-    if (
-      variantText.includes("2ct") ||
-      variantText.includes("2 ct")
-    ) ai.variantStoneSizes.push("2 CT");
-
-    if (
-      variantText.includes("3ct") ||
-      variantText.includes("3 ct")
-    ) ai.variantStoneSizes.push("3 CT");
+    const sizeMatch = variantText.match(/(\d+\.?\d*)\s*ct/);
+    if (sizeMatch) ai.variantStoneSizes.push(`${sizeMatch[1]} CT`);
 
   });
 
@@ -674,7 +476,6 @@ function buildAiFeatures(product, text) {
   ai.variantStoneColors = [...new Set(ai.variantStoneColors)];
   ai.variantStoneSizes =  [...new Set(ai.variantStoneSizes)];
   ai.diamondShapes =      [...new Set(ai.diamondShapes)];
-  ai.supportedLanguages = [...new Set(ai.supportedLanguages)];
   ai.certifications =     [...new Set(ai.certifications)];
   ai.features =           [...new Set(ai.features)];
   ai.upsells =            [...new Set(ai.upsells)];
@@ -690,16 +491,12 @@ function buildAiFeatures(product, text) {
 async function fetchProducts() {
 
   let allProducts = [];
-
   let hasNextPage = true;
-
   let cursor = null;
 
   while (hasNextPage) {
 
-    console.log(
-      "FETCHING NEXT 250 PRODUCTS..."
-    );
+    console.log("FETCHING NEXT 250 PRODUCTS...");
 
     const query = `
     {
@@ -723,7 +520,7 @@ async function fetchProducts() {
             vendor
             tags
 
-            collections(first: 10) {
+            collections(first: 20) {
               edges {
                 node {
                   title
@@ -769,141 +566,65 @@ async function fetchProducts() {
     }
     `;
 
-    const data =
-      await shopifyQuery(query);
-
-    const products =
-      data.data.products.edges;
-
-    // ========================================
-    // LOOP PRODUCTS
-    // ========================================
+    const data = await shopifyQuery(query);
+    const products = data.data.products.edges;
 
     for (const item of products) {
 
       const p = item.node;
 
-      // ========================================
       // IMAGES
-      // ========================================
+      const images = p.images.edges.map((img) => ({
+        url: img.node.url,
+        alt: img.node.altText || "",
+      }));
 
-      const images =
-        p.images.edges.map((img) => ({
-          url: img.node.url,
-          alt: img.node.altText || "",
-        }));
+      // COLLECTIONS
+      const collections = p.collections.edges.map((c) => ({
+        title: c.node.title,
+        handle: c.node.handle,
+      }));
 
-      // ========================================
       // VARIANTS
-      // ========================================
+      const variants = p.variants.edges.map((v) =>
+        parseVariant(v, images)
+      );
 
-      const variants =
-        p.variants.edges.map((v) =>
-          parseVariant(v, images)
-        );
-
-      // ========================================
       // PRODUCT
-      // ========================================
-
       const product = {
-
-        id:
-          p.id,
-
-        title:
-          p.title,
-
-        handle:
-          p.handle,
-
-        description:
-          p.description,
-
-        type:
-          p.productType,
-
-        vendor:
-          p.vendor,
-
-        tags:
-          p.tags,
-
-        collections:
-          p.collections.edges.map((c) => ({
-            title: c.node.title,
-            handle: c.node.handle,
-          })),
-
-        image:
-          images[0]?.url || "",
-
+        id: p.id,
+        title: p.title,
+        handle: p.handle,
+        description: p.description,
+        type: p.productType,
+        vendor: p.vendor,
+        tags: p.tags,
+        collections,
+        image: images[0]?.url || "",
         images,
-
         variants,
-
-        price:
-          variants[0]?.price || "",
-
-        rawPrice:
-          variants[0]?.rawPrice || 0,
-
-        currency:
-          "AED",
-
-        reviewRating:
-          4.9,
-
-        reviewCount:
-          120,
-
-        url:
-          `https://${SHOP}/products/${p.handle}`,
-
+        price: variants[0]?.price || "",
+        rawPrice: variants[0]?.rawPrice || 0,
+        currency: "AED",
+        reviewRating: 4.9,
+        reviewCount: 120,
+        url: `https://${SHOP}/products/${p.handle}`,
       };
 
-      // ========================================
-      // PRODUCT TEXT
-      // ========================================
-
-      const text = `
-        ${p.title}
-        ${p.description}
-        ${p.tags.join(" ")}
-        ${p.productType}
-      `.toLowerCase();
-
-      // ========================================
       // AI FEATURES
-      // ========================================
-
-      product.aiFeatures =
-        buildAiFeatures(product, text);
-
-      // ========================================
-      // SAVE
-      // ========================================
+      product.aiFeatures = buildAiFeatures(product);
 
       allProducts.push(product);
 
     }
 
-    // ========================================
-    // PAGINATION
-    // ========================================
-
-    hasNextPage =
-      data.data.products.pageInfo.hasNextPage;
+    hasNextPage = data.data.products.pageInfo.hasNextPage;
 
     if (hasNextPage && products.length > 0) {
-      cursor =
-        products[products.length - 1].cursor;
+      cursor = products[products.length - 1].cursor;
     }
 
-    console.log(
-      "TOTAL PRODUCTS:",
-      allProducts.length
-    );
+    console.log("TOTAL PRODUCTS:", allProducts.length);
 
   }
 
@@ -919,41 +640,21 @@ async function buildBrain() {
 
   try {
 
-    console.log(
-      "STARTING PRODUCT BRAIN..."
-    );
+    console.log("STARTING PRODUCT BRAIN...");
 
-    const products =
-      await fetchProducts();
-
-    // ========================================
-    // CREATE PUBLIC DIR
-    // ========================================
+    const products = await fetchProducts();
 
     if (!fs.existsSync("./public")) {
       fs.mkdirSync("./public");
     }
 
-    // ========================================
-    // SAVE JSON
-    // ========================================
-
     fs.writeFileSync(
-
       "./public/products-brain.json",
-
       JSON.stringify(products, null, 2)
-
     );
 
-    console.log(
-      "PRODUCT BRAIN COMPLETE"
-    );
-
-    console.log(
-      "TOTAL PRODUCTS:",
-      products.length
-    );
+    console.log("PRODUCT BRAIN COMPLETE");
+    console.log("TOTAL PRODUCTS:", products.length);
 
   } catch (err) {
 
