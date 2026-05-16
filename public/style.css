@@ -20,17 +20,17 @@ box-shadow:
 
 width:100%;
 
-height:auto;
+height:220px;
 
-max-height:320px;
+object-fit:contain;
+
+padding:20px;
 
 display:block;
 
-object-fit:cover;
-
 border-radius:20px;
 
-background:#111;
+background:#f8f8f8;
 
 margin-bottom:16px;
 
