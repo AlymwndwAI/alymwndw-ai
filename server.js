@@ -145,32 +145,32 @@ function normalizeText(text) {
     .toLowerCase()
     .replaceAll("\u0623", "\u0627").replaceAll("\u0625", "\u0627").replaceAll("\u0622", "\u0627")
     .replaceAll("\u0629", "\u0647").replaceAll("\u0649", "\u064a")
-    .replaceAll("خاتم خطوبه", "engagement ring")
-    .replaceAll("خاتم خطوبة", "engagement ring")
-    .replaceAll("سلسله اسم", "name necklace")
-    .replaceAll("سلسلة اسم", "name necklace")
-    .replaceAll("سلسله حرف", "initial necklace")
-    .replaceAll("سلسلة حرف", "initial necklace")
-    .replaceAll("روز جولد", "rose gold")
-    .replaceAll("خاتم", "ring").replaceAll("دبله", "ring").replaceAll("محبس", "ring")
-    .replaceAll("عقد", "necklace").replaceAll("سلسله", "necklace").replaceAll("سلسلة", "necklace")
-    .replaceAll("اسوره", "bracelet").replaceAll("أسوارة", "bracelet")
-    .replaceAll("حلق", "earring").replaceAll("حلقان", "earring")
-    .replaceAll("ذهب", "gold").replaceAll("فضه", "silver").replaceAll("فضة", "silver")
-    .replaceAll("بلاتين", "platinum")
-    .replaceAll("الماس", "diamond")
-    .replaceAll("موزانيت", "moissanite").replaceAll("مويسانيت", "moissanite").replaceAll("موزنايت", "moissanite")
-    .replaceAll("روز", "rose gold")
-    .replaceAll("اصفر", "yellow gold").replaceAll("ابيض", "white gold")
-    .replaceAll("هديه", "gift jewelry").replaceAll("هدية", "gift jewelry")
-    .replaceAll("اسم", "name").replaceAll("حرف", "initial")
-    .replaceAll("قلاده", "necklace").replaceAll("قلادة", "necklace")
-    .replaceAll("دلايه", "pendant").replaceAll("دلاية", "pendant")
-    .replaceAll("رجالي", "men").replaceAll("رجال", "men")
-    .replaceAll("اطفال", "kids").replaceAll("أطفال", "kids")
-    .replaceAll("خصم", "discount").replaceAll("تخفيض", "discount")
-    .replaceAll("زوجين", "couple").replaceAll("زوجي", "couple")
-    .replaceAll("هدية", "gift").replaceAll("هديه", "gift");
+    .replaceAll("Ø®Ø§ØªÙ Ø®Ø·ÙØ¨Ù", "engagement ring")
+    .replaceAll("Ø®Ø§ØªÙ Ø®Ø·ÙØ¨Ø©", "engagement ring")
+    .replaceAll("Ø³ÙØ³ÙÙ Ø§Ø³Ù", "name necklace")
+    .replaceAll("Ø³ÙØ³ÙØ© Ø§Ø³Ù", "name necklace")
+    .replaceAll("Ø³ÙØ³ÙÙ Ø­Ø±Ù", "initial necklace")
+    .replaceAll("Ø³ÙØ³ÙØ© Ø­Ø±Ù", "initial necklace")
+    .replaceAll("Ø±ÙØ² Ø¬ÙÙØ¯", "rose gold")
+    .replaceAll("Ø®Ø§ØªÙ", "ring").replaceAll("Ø¯Ø¨ÙÙ", "ring").replaceAll("ÙØ­Ø¨Ø³", "ring")
+    .replaceAll("Ø¹ÙØ¯", "necklace").replaceAll("Ø³ÙØ³ÙÙ", "necklace").replaceAll("Ø³ÙØ³ÙØ©", "necklace")
+    .replaceAll("Ø§Ø³ÙØ±Ù", "bracelet").replaceAll("Ø£Ø³ÙØ§Ø±Ø©", "bracelet")
+    .replaceAll("Ø­ÙÙ", "earring").replaceAll("Ø­ÙÙØ§Ù", "earring")
+    .replaceAll("Ø°ÙØ¨", "gold").replaceAll("ÙØ¶Ù", "silver").replaceAll("ÙØ¶Ø©", "silver")
+    .replaceAll("Ø¨ÙØ§ØªÙÙ", "platinum")
+    .replaceAll("Ø§ÙÙØ§Ø³", "diamond")
+    .replaceAll("ÙÙØ²Ø§ÙÙØª", "moissanite").replaceAll("ÙÙÙØ³Ø§ÙÙØª", "moissanite").replaceAll("ÙÙØ²ÙØ§ÙØª", "moissanite")
+    .replaceAll("Ø±ÙØ²", "rose gold")
+    .replaceAll("Ø§ØµÙØ±", "yellow gold").replaceAll("Ø§Ø¨ÙØ¶", "white gold")
+    .replaceAll("ÙØ¯ÙÙ", "gift jewelry").replaceAll("ÙØ¯ÙØ©", "gift jewelry")
+    .replaceAll("Ø§Ø³Ù", "name").replaceAll("Ø­Ø±Ù", "initial")
+    .replaceAll("ÙÙØ§Ø¯Ù", "necklace").replaceAll("ÙÙØ§Ø¯Ø©", "necklace")
+    .replaceAll("Ø¯ÙØ§ÙÙ", "pendant").replaceAll("Ø¯ÙØ§ÙØ©", "pendant")
+    .replaceAll("Ø±Ø¬Ø§ÙÙ", "men").replaceAll("Ø±Ø¬Ø§Ù", "men")
+    .replaceAll("Ø§Ø·ÙØ§Ù", "kids").replaceAll("Ø£Ø·ÙØ§Ù", "kids")
+    .replaceAll("Ø®ØµÙ", "discount").replaceAll("ØªØ®ÙÙØ¶", "discount")
+    .replaceAll("Ø²ÙØ¬ÙÙ", "couple").replaceAll("Ø²ÙØ¬Ù", "couple")
+    .replaceAll("ÙØ¯ÙØ©", "gift").replaceAll("ÙØ¯ÙÙ", "gift");
 }
 
 function detectLanguage(message) {
@@ -207,7 +207,7 @@ function shouldSearchProducts(message) {
     "oval", "pear", "round", "emerald", "princess", "radiant", "heart",
     "men", "kids", "couple", "tennis",
     "show", "recommend", "suggest", "find", "want", "buy",
-    "هديه", "هدية", "ذكري", "عيد", "مجوهرات", "جواهر", "رجالي", "زوجين",
+    "ÙØ¯ÙÙ", "ÙØ¯ÙØ©", "Ø°ÙØ±Ù", "Ø¹ÙØ¯", "ÙØ¬ÙÙØ±Ø§Øª", "Ø¬ÙØ§ÙØ±", "Ø±Ø¬Ø§ÙÙ", "Ø²ÙØ¬ÙÙ",
   ];
   return keywords.some((w) => msg.includes(normalizeText(w)));
 }
@@ -216,10 +216,10 @@ function shouldShowNext(message) {
   const msg = message.toLowerCase();
   const keywords = [
     "next", "another", "more", "different", "other", "else",
-    "تاني", "غيره", "غيرها", "واحد تاني", "ورني تاني",
-    "قطعه اخره", "قطعة اخرى", "قطعه اخري", "قطعة أخرى",
-    "اخري", "اخره", "اخرى", "مش عاجبني", "غير",
-    "كمان", "شوف تاني", "ورني غيره", "حاجة تانية",
+    "ØªØ§ÙÙ", "ØºÙØ±Ù", "ØºÙØ±ÙØ§", "ÙØ§Ø­Ø¯ ØªØ§ÙÙ", "ÙØ±ÙÙ ØªØ§ÙÙ",
+    "ÙØ·Ø¹Ù Ø§Ø®Ø±Ù", "ÙØ·Ø¹Ø© Ø§Ø®Ø±Ù", "ÙØ·Ø¹Ù Ø§Ø®Ø±Ù", "ÙØ·Ø¹Ø© Ø£Ø®Ø±Ù",
+    "Ø§Ø®Ø±Ù", "Ø§Ø®Ø±Ù", "Ø§Ø®Ø±Ù", "ÙØ´ Ø¹Ø§Ø¬Ø¨ÙÙ", "ØºÙØ±",
+    "ÙÙØ§Ù", "Ø´ÙÙ ØªØ§ÙÙ", "ÙØ±ÙÙ ØºÙØ±Ù", "Ø­Ø§Ø¬Ø© ØªØ§ÙÙØ©",
   ];
   return keywords.some((w) => msg.includes(w));
 }
@@ -370,64 +370,280 @@ app.get("/", (req, res) => { res.send("ALYMWNDW AI RUNNING"); });
 // =====================================
 
 app.post("/add-to-cart", async (req, res) => {
+
   try {
+
     const variantId = req.body.variantId;
     const quantity = req.body.quantity || 1;
     const cartId = req.body.cartId || null;
 
+    // =====================================
+    // VALIDATION
+    // =====================================
+
     if (!variantId) {
-      return res.status(400).json({ error: "variantId required" });
+
+      return res.status(400).json({
+        error: "variantId required"
+      });
+
     }
 
-    let mutation;
-    let variables;
+    // =====================================
+    // GRAPHQL
+    // =====================================
+
+    let mutation = "";
+    let variables = {};
+
+    // =====================================
+    // EXISTING CART
+    // =====================================
 
     if (cartId) {
+
       mutation = `
-        mutation cartLinesAdd($cartId: ID!, $lines: [CartLineInput!]!) {
-          cartLinesAdd(cartId: $cartId, lines: $lines) {
-            cart { id checkoutUrl totalQuantity }
-            userErrors { field message }
+        mutation cartLinesAdd(
+          $cartId: ID!,
+          $lines: [CartLineInput!]!
+        ) {
+
+          cartLinesAdd(
+            cartId: $cartId,
+            lines: $lines
+          ) {
+
+            cart {
+              id
+              checkoutUrl
+              totalQuantity
+            }
+
+            userErrors {
+              field
+              message
+            }
+
           }
+
         }
       `;
-      variables = { cartId, lines: [{ merchandiseId: variantId, quantity }] };
-    } else {
-      mutation = `
-        mutation cartCreate($input: CartInput!) {
-          cartCreate(input: $input) {
-            cart { id checkoutUrl totalQuantity }
-            userErrors { field message }
+
+      variables = {
+
+        cartId: cartId,
+
+        lines: [
+          {
+            merchandiseId: variantId,
+            quantity: quantity
           }
+        ]
+
+      };
+
+    }
+
+    // =====================================
+    // CREATE CART
+    // =====================================
+
+    else {
+
+      mutation = `
+        mutation cartCreate(
+          $input: CartInput!
+        ) {
+
+          cartCreate(
+            input: $input
+          ) {
+
+            cart {
+              id
+              checkoutUrl
+              totalQuantity
+            }
+
+            userErrors {
+              field
+              message
+            }
+
+          }
+
         }
       `;
-      variables = { input: { lines: [{ merchandiseId: variantId, quantity }] } };
+
+      variables = {
+
+        input: {
+
+          lines: [
+            {
+              merchandiseId: variantId,
+              quantity: quantity
+            }
+          ]
+
+        }
+
+      };
+
     }
 
-    const data = await storefrontQuery(mutation, variables);
+    // =====================================
+    // REQUEST
+    // =====================================
 
-    if (!data) return res.status(500).json({ error: "Storefront API error" });
+    const data = await storefrontQuery(
+      mutation,
+      variables
+    );
 
-    const cartData = cartId ? data.data.cartLinesAdd.cart : data.data.cartCreate.cart;
-    const userErrors = cartId ? data.data.cartLinesAdd.userErrors : data.data.cartCreate.userErrors;
+    // =====================================
+    // DEBUG
+    // =====================================
 
-    if (userErrors && userErrors.length > 0) {
-      return res.status(400).json({ error: userErrors[0].message });
+    console.log("=================================");
+    console.log("SHOPIFY CART RESPONSE:");
+    console.log(JSON.stringify(data, null, 2));
+    console.log("=================================");
+
+    // =====================================
+    // NO RESPONSE
+    // =====================================
+
+    if (!data) {
+
+      return res.status(500).json({
+        error: "No response from Shopify"
+      });
+
     }
 
-    if (!cartData) return res.status(500).json({ error: "Cart failed" });
+    // =====================================
+    // GRAPHQL ERRORS
+    // =====================================
 
-    res.json({
+    if (
+      data.errors &&
+      data.errors.length > 0
+    ) {
+
+      console.log("GRAPHQL ERRORS:");
+      console.log(data.errors);
+
+      return res.status(500).json({
+        error:
+          data.errors[0].message ||
+          "GraphQL error"
+      });
+
+    }
+
+    // =====================================
+    // NO DATA
+    // =====================================
+
+    if (!data.data) {
+
+      console.log("NO DATA RETURNED:");
+      console.log(data);
+
+      return res.status(500).json({
+        error: "No data returned from Shopify"
+      });
+
+    }
+
+    // =====================================
+    // EXTRACT
+    // =====================================
+
+    let cartData = null;
+    let userErrors = [];
+
+    if (cartId) {
+
+      cartData =
+        data.data.cartLinesAdd?.cart;
+
+      userErrors =
+        data.data.cartLinesAdd?.userErrors || [];
+
+    }
+
+    else {
+
+      cartData =
+        data.data.cartCreate?.cart;
+
+      userErrors =
+        data.data.cartCreate?.userErrors || [];
+
+    }
+
+    // =====================================
+    // USER ERRORS
+    // =====================================
+
+    if (userErrors.length > 0) {
+
+      console.log("SHOPIFY USER ERRORS:");
+      console.log(userErrors);
+
+      return res.status(400).json({
+        error: userErrors[0].message
+      });
+
+    }
+
+    // =====================================
+    // CART FAILED
+    // =====================================
+
+    if (!cartData) {
+
+      console.log("CART DATA EMPTY");
+
+      return res.status(500).json({
+        error: "Cart creation failed"
+      });
+
+    }
+
+    // =====================================
+    // SUCCESS
+    // =====================================
+
+    return res.json({
+
       success: true,
+
       cartId: cartData.id,
+
       checkoutUrl: cartData.checkoutUrl,
-      totalQuantity: cartData.totalQuantity,
+
+      totalQuantity: cartData.totalQuantity
+
     });
 
-  } catch (err) {
-    console.log("ADD TO CART ERROR:", err.message);
-    res.status(500).json({ error: "Add to cart failed" });
   }
+
+  catch (err) {
+
+    console.log("=================================");
+    console.log("ADD TO CART ERROR:");
+    console.log(err);
+    console.log("=================================");
+
+    return res.status(500).json({
+      error: "Add to cart failed"
+    });
+
+  }
+
 });
 
 // =============================================
@@ -634,7 +850,7 @@ app.post("/chat", async (req, res) => {
       ? "CRITICAL: Respond ENTIRELY in Arabic only. Zero English words."
       : "CRITICAL: Respond ENTIRELY in English only. Zero Arabic words.";
 
-    let systemPrompt = "You are Alymwndw AI — elite luxury jewelry sales concierge for Alymwndw Jewellery UAE.\n";
+    let systemPrompt = "You are Alymwndw AI â elite luxury jewelry sales concierge for Alymwndw Jewellery UAE.\n";
     systemPrompt += "PERSONALITY: Warm, elegant, passionate. Max 4 sentences per response.\n";
     systemPrompt += languageInstruction + "\n";
     systemPrompt += "STRICT RULES:\n- NEVER invent products, metals, stones, prices\n- NEVER mention price unless from CURRENT PRODUCT startingPrice\n- NEVER use markdown\n- NEVER mix Arabic and English\n";
