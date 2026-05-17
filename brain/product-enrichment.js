@@ -1,547 +1,251 @@
-const fs = require("fs");
-
 function enrichProduct(product) {
 
   const text = `
     ${product.title}
     ${product.description}
-    ${product.tags?.join(" ")}
     ${product.type}
     ${product.vendor}
+    ${product.tags?.join(" ")}
   `.toLowerCase();
 
   const enrichment = {
 
-    // MAIN INTELLIGENCE
-    semanticTags: [],
+    gemstones: [],
+    gemstoneColors: [],
+    metals: [],
     luxuryStyles: [],
     occasions: [],
     emotions: [],
-    audience: [],
-    searchIntent: [],
-    vibes: [],
-
-    // JEWELRY UNDERSTANDING
-    jewelryTypes: [],
-    gemstones: [],
-    materials: [],
-    luxuryLevel: [],
-    fashionStyles: [],
-    gifting: [],
-    bridal: [],
     celebrityStyles: [],
-    customization: [],
-    wearingStyle: [],
-    symbolism: [],
-    moods: [],
-    aiKeywords: []
+    customCapabilities: [],
+    jewelryVibes: [],
+    fashionStyles: [],
+    bridalStyles: [],
+    stackable: false,
+    customizable: false,
+    luxuryLevel: "standard",
 
   };
 
   // ========================================
-  // JEWELRY TYPES
+  // METALS
   // ========================================
 
-  if (
-    text.includes("ring") ||
-    text.includes("خاتم")
-  ) {
-    enrichment.jewelryTypes.push("ring");
+  if (text.includes("gold")) {
+    enrichment.metals.push("gold");
   }
-
-  if (
-    text.includes("necklace") ||
-    text.includes("chain") ||
-    text.includes("عقد") ||
-    text.includes("سلسلة")
-  ) {
-    enrichment.jewelryTypes.push("necklace");
-  }
-
-  if (
-    text.includes("bracelet") ||
-    text.includes("اسورة")
-  ) {
-    enrichment.jewelryTypes.push("bracelet");
-  }
-
-  if (
-    text.includes("earring") ||
-    text.includes("حلق")
-  ) {
-    enrichment.jewelryTypes.push("earring");
-  }
-
-  if (text.includes("pendant")) {
-    enrichment.jewelryTypes.push("pendant");
-  }
-
-  // ========================================
-  // GOLD TYPES
-  // ========================================
-
-  if (
-    text.includes("18k") ||
-    text.includes("18k gold") ||
-    text.includes("750 gold")
-  ) {
-
-    enrichment.materials.push("18k gold");
-    enrichment.luxuryLevel.push("fine jewelry");
-
-  }
-
-  if (
-    text.includes("21k") ||
-    text.includes("21k gold")
-  ) {
-
-    enrichment.materials.push("21k gold");
-
-  }
-
-  if (text.includes("22k")) {
-    enrichment.materials.push("22k gold");
-  }
-
-  if (text.includes("24k")) {
-    enrichment.materials.push("24k gold");
-  }
-
-  // ========================================
-  // GOLD COLORS
-  // ========================================
 
   if (text.includes("white gold")) {
-    enrichment.materials.push("white gold");
+    enrichment.metals.push("white gold");
   }
 
   if (text.includes("rose gold")) {
-    enrichment.materials.push("rose gold");
+    enrichment.metals.push("rose gold");
   }
 
   if (text.includes("yellow gold")) {
-    enrichment.materials.push("yellow gold");
+    enrichment.metals.push("yellow gold");
   }
 
-  // ========================================
-  // PLATINUM
-  // ========================================
+  if (text.includes("silver")) {
+    enrichment.metals.push("silver");
+  }
 
   if (text.includes("platinum")) {
-
-    enrichment.materials.push("platinum");
-    enrichment.luxuryLevel.push("ultra luxury");
-
+    enrichment.metals.push("platinum");
   }
 
   // ========================================
-  // SILVER
+  // GEMSTONES
   // ========================================
 
-  if (
-    text.includes("silver") ||
-    text.includes("925")
-  ) {
-
-    enrichment.materials.push(
-      "silver",
-      "925 silver",
-      "sterling silver"
-    );
-
+  if (text.includes("diamond")) {
+    enrichment.gemstones.push("diamond");
   }
 
-  // ========================================
-  // VERMEIL
-  // ========================================
-
-  if (text.includes("vermeil")) {
-    enrichment.materials.push("gold vermeil");
+  if (text.includes("moissanite")) {
+    enrichment.gemstones.push("moissanite");
   }
 
-  // ========================================
-  // STAINLESS STEEL
-  // ========================================
-
-  if (text.includes("stainless steel")) {
-    enrichment.materials.push("stainless steel");
+  if (text.includes("ruby")) {
+    enrichment.gemstones.push("ruby");
   }
 
-  // ========================================
-  // TITANIUM
-  // ========================================
-
-  if (text.includes("titanium")) {
-    enrichment.materials.push("titanium");
+  if (text.includes("emerald")) {
+    enrichment.gemstones.push("emerald");
   }
 
-  // ========================================
-  // TUNGSTEN
-  // ========================================
-
-  if (text.includes("tungsten")) {
-    enrichment.materials.push("tungsten");
+  if (text.includes("sapphire")) {
+    enrichment.gemstones.push("sapphire");
   }
-
-  // ========================================
-  // RHODIUM
-  // ========================================
-
-  if (text.includes("rhodium")) {
-    enrichment.materials.push("rhodium plated");
-  }
-
-  // ========================================
-  // DIAMOND
-  // ========================================
-
-  if (
-    text.includes("diamond") ||
-    text.includes("lab diamond")
-  ) {
-
-    enrichment.gemstones.push(
-      "diamond",
-      "lab diamond"
-    );
-
-    enrichment.semanticTags.push(
-      "fine jewelry",
-      "luxury diamond jewelry"
-    );
-
-    enrichment.luxuryStyles.push(
-      "luxury",
-      "premium",
-      "timeless"
-    );
-
-    enrichment.occasions.push(
-      "engagement",
-      "gift",
-      "anniversary"
-    );
-
-  }
-
-  // ========================================
-  // MOISSANITE
-  // ========================================
-
-  if (
-    text.includes("moissanite") ||
-    text.includes("gra")
-  ) {
-
-    enrichment.gemstones.push(
-      "moissanite"
-    );
-
-    enrichment.semanticTags.push(
-      "diamond alternative",
-      "high brilliance"
-    );
-
-    enrichment.searchIntent.push(
-      "affordable luxury",
-      "diamond look"
-    );
-
-  }
-
-  // ========================================
-  // SAPPHIRE
-  // ========================================
-
-  if (
-    text.includes("sapphire") ||
-    text.includes("ياقوت")
-  ) {
-
-    enrichment.gemstones.push(
-      "sapphire"
-    );
-
-  }
-
-  // ========================================
-  // EMERALD
-  // ========================================
-
-  if (
-    text.includes("emerald") ||
-    text.includes("زمرد")
-  ) {
-
-    enrichment.gemstones.push(
-      "emerald"
-    );
-
-  }
-
-  // ========================================
-  // RUBY
-  // ========================================
-
-  if (
-    text.includes("ruby") ||
-    text.includes("روبي")
-  ) {
-
-    enrichment.gemstones.push(
-      "ruby"
-    );
-
-  }
-
-  // ========================================
-  // PEARL
-  // ========================================
-
-  if (
-    text.includes("pearl") ||
-    text.includes("لؤلؤ")
-  ) {
-
-    enrichment.gemstones.push(
-      "pearl"
-    );
-
-    enrichment.luxuryStyles.push(
-      "royal",
-      "classic",
-      "quiet luxury"
-    );
-
-  }
-
-  // ========================================
-  // OPAL
-  // ========================================
 
   if (text.includes("opal")) {
     enrichment.gemstones.push("opal");
   }
 
-  // ========================================
-  // AMETHYST
-  // ========================================
-
-  if (text.includes("amethyst")) {
-    enrichment.gemstones.push("amethyst");
+  if (text.includes("pearl")) {
+    enrichment.gemstones.push("pearl");
   }
 
   // ========================================
-  // TOPAZ
+  // GEMSTONE COLORS
   // ========================================
-
-  if (text.includes("topaz")) {
-    enrichment.gemstones.push("topaz");
-  }
-
-  // ========================================
-  // AQUAMARINE
-  // ========================================
-
-  if (text.includes("aquamarine")) {
-    enrichment.gemstones.push("aquamarine");
-  }
-
-  // ========================================
-  // MORGANITE
-  // ========================================
-
-  if (text.includes("morganite")) {
-    enrichment.gemstones.push("morganite");
-  }
-
-  // ========================================
-  // TANZANITE
-  // ========================================
-
-  if (text.includes("tanzanite")) {
-    enrichment.gemstones.push("tanzanite");
-  }
-
-  // ========================================
-  // STONE COLORS
-  // ========================================
-
-  if (text.includes("white")) {
-    enrichment.aiKeywords.push("white stone");
-  }
 
   if (text.includes("blue")) {
-    enrichment.aiKeywords.push("blue stone");
+    enrichment.gemstoneColors.push("blue");
   }
 
   if (text.includes("green")) {
-    enrichment.aiKeywords.push("green stone");
-  }
-
-  if (text.includes("red")) {
-    enrichment.aiKeywords.push("red stone");
+    enrichment.gemstoneColors.push("green");
   }
 
   if (text.includes("pink")) {
-    enrichment.aiKeywords.push("pink stone");
+    enrichment.gemstoneColors.push("pink");
   }
 
   if (text.includes("yellow")) {
-    enrichment.aiKeywords.push("yellow stone");
+    enrichment.gemstoneColors.push("yellow");
+  }
+
+  if (text.includes("red")) {
+    enrichment.gemstoneColors.push("red");
   }
 
   if (text.includes("black")) {
-    enrichment.aiKeywords.push("black stone");
+    enrichment.gemstoneColors.push("black");
+  }
+
+  if (text.includes("white")) {
+    enrichment.gemstoneColors.push("white");
   }
 
   if (text.includes("purple")) {
-    enrichment.aiKeywords.push("purple stone");
-  }
-
-  if (text.includes("champagne")) {
-    enrichment.aiKeywords.push("champagne stone");
+    enrichment.gemstoneColors.push("purple");
   }
 
   // ========================================
-  // SOLITAIRE
+  // LUXURY STYLES
   // ========================================
 
-  if (text.includes("solitaire")) {
+  if (
+    text.includes("luxury") ||
+    text.includes("premium")
+  ) {
 
-    enrichment.semanticTags.push(
-      "engagement ring",
-      "proposal ring"
-    );
-
-    enrichment.bridal.push(
-      "bridal",
-      "engagement"
-    );
-
-    enrichment.emotions.push(
-      "love",
-      "romantic"
+    enrichment.luxuryStyles.push(
+      "luxury"
     );
 
   }
 
-  // ========================================
-  // TENNIS
-  // ========================================
+  if (
+    text.includes("minimal")
+  ) {
 
-  if (text.includes("tennis")) {
+    enrichment.luxuryStyles.push(
+      "minimal"
+    );
 
-    enrichment.semanticTags.push(
-      "tennis jewelry",
-      "celebrity jewelry"
+  }
+
+  if (
+    text.includes("vintage")
+  ) {
+
+    enrichment.luxuryStyles.push(
+      "vintage"
+    );
+
+  }
+
+  if (
+    text.includes("tennis")
+  ) {
+
+    enrichment.luxuryStyles.push(
+      "iced"
     );
 
     enrichment.celebrityStyles.push(
-      "rapper luxury",
-      "red carpet"
-    );
-
-    enrichment.vibes.push(
-      "flashy",
-      "rich"
+      "celebrity luxury"
     );
 
   }
 
   // ========================================
-  // CUSTOM
+  // OCCASIONS
   // ========================================
 
   if (
-    text.includes("custom") ||
-    text.includes("personalized") ||
-    text.includes("make for you")
+    text.includes("engagement")
   ) {
 
-    enrichment.customization.push(
-      "custom jewelry",
-      "name necklace",
-      "engraving"
+    enrichment.occasions.push(
+      "engagement"
     );
 
-    enrichment.gifting.push(
-      "gift for girlfriend",
-      "gift for wife"
+    enrichment.bridalStyles.push(
+      "proposal ring"
+    );
+
+  }
+
+  if (
+    text.includes("wedding")
+  ) {
+
+    enrichment.occasions.push(
+      "wedding"
+    );
+
+  }
+
+  if (
+    text.includes("gift")
+  ) {
+
+    enrichment.occasions.push(
+      "gift"
+    );
+
+  }
+
+  if (
+    text.includes("birthday")
+  ) {
+
+    enrichment.occasions.push(
+      "birthday"
     );
 
   }
 
   // ========================================
-  // MINIMAL
+  // EMOTIONS
   // ========================================
 
   if (
-    text.includes("minimal") ||
-    text.includes("simple")
+    text.includes("love")
   ) {
 
-    enrichment.fashionStyles.push(
-      "minimal",
-      "modern",
-      "clean"
-    );
-
-    enrichment.vibes.push(
-      "quiet luxury"
+    enrichment.emotions.push(
+      "love"
     );
 
   }
-
-  // ========================================
-  // HIP HOP / ICED
-  // ========================================
 
   if (
-    text.includes("hip hop") ||
-    text.includes("iced")
+    text.includes("forever")
   ) {
 
-    enrichment.fashionStyles.push(
-      "street luxury",
-      "hip hop"
-    );
-
-    enrichment.vibes.push(
-      "rapper style",
-      "flashy"
+    enrichment.emotions.push(
+      "forever"
     );
 
   }
-
-  // ========================================
-  // MEN
-  // ========================================
 
   if (
-    text.includes("men") ||
-    text.includes("mens")
+    text.includes("elegance")
   ) {
 
-    enrichment.audience.push(
-      "men"
-    );
-
-  }
-
-  // ========================================
-  // UNIQUE VALUES
-  // ========================================
-
-  Object.keys(enrichment).forEach((key) => {
-    enrichment[key] = [...new Set(enrichment[key])];
-  });
-
-  return enrichment;
-
-}
-
-module.exports = {
-  enrichProduct
-};
+    enrichment.emotions.push
