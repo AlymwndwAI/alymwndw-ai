@@ -139,43 +139,99 @@ async function getActiveDiscounts() {
   }
 }
 
+// =====================
+// NORMALIZE TEXT - UPDATED (Arabic + multilingual)
+// =====================
+
 function normalizeText(text) {
   if (!text) return "";
   return text
     .toLowerCase()
+    // Arabic letter normalization
     .replaceAll("\u0623", "\u0627").replaceAll("\u0625", "\u0627").replaceAll("\u0622", "\u0627")
     .replaceAll("\u0629", "\u0647").replaceAll("\u0649", "\u064a")
+    // PHRASES FIRST (before single words)
     .replaceAll("خاتم خطوبه", "engagement ring")
     .replaceAll("خاتم خطوبة", "engagement ring")
+    .replaceAll("خاتم زواج", "wedding ring")
+    .replaceAll("خاتم زوجين", "couple ring")
     .replaceAll("سلسله اسم", "name necklace")
     .replaceAll("سلسلة اسم", "name necklace")
     .replaceAll("سلسله حرف", "initial necklace")
     .replaceAll("سلسلة حرف", "initial necklace")
+    .replaceAll("قلاده اسم", "name necklace")
+    .replaceAll("قلادة اسم", "name necklace")
+    .replaceAll("دلايه اسم", "name pendant")
+    .replaceAll("دلاية اسم", "name pendant")
     .replaceAll("روز جولد", "rose gold")
-    .replaceAll("خاتم", "ring").replaceAll("دبله", "ring").replaceAll("محبس", "ring")
+    .replaceAll("ذهب ابيض", "white gold")
+    .replaceAll("ذهب اصفر", "yellow gold")
+    .replaceAll("ذهب وردي", "rose gold")
+    .replaceAll("ذهب احمر", "rose gold")
+    .replaceAll("خاتم فضه", "silver ring")
+    .replaceAll("خاتم فضة", "silver ring")
+    .replaceAll("خاتم ذهب", "gold ring")
+    .replaceAll("خاتم موزانيت", "moissanite ring")
+    .replaceAll("خاتم الماس", "diamond ring")
+    .replaceAll("اسوره فضه", "silver bracelet")
+    .replaceAll("اسوره ذهب", "gold bracelet")
+    .replaceAll("حلق فضه", "silver earring")
+    .replaceAll("حلق ذهب", "gold earring")
+    .replaceAll("عيد ميلاد", "birthday")
+    .replaceAll("18 قيراط", "18k gold")
+    .replaceAll("21 قيراط", "21k gold")
+    // CATEGORIES
+    .replaceAll("خاتم", "ring").replaceAll("دبله", "ring").replaceAll("محبس", "ring").replaceAll("خواتم", "ring")
     .replaceAll("عقد", "necklace").replaceAll("سلسله", "necklace").replaceAll("سلسلة", "necklace")
-    .replaceAll("اسوره", "bracelet").replaceAll("أسوارة", "bracelet")
-    .replaceAll("حلق", "earring").replaceAll("حلقان", "earring")
-    .replaceAll("ذهب", "gold").replaceAll("فضه", "silver").replaceAll("فضة", "silver")
-    .replaceAll("بلاتين", "platinum")
-    .replaceAll("الماس", "diamond")
-    .replaceAll("موزانيت", "moissanite").replaceAll("مويسانيت", "moissanite").replaceAll("موزنايت", "moissanite")
-    .replaceAll("روز", "rose gold")
-    .replaceAll("اصفر", "yellow gold").replaceAll("ابيض", "white gold")
-    .replaceAll("هديه", "gift jewelry").replaceAll("هدية", "gift jewelry")
-    .replaceAll("اسم", "name").replaceAll("حرف", "initial")
     .replaceAll("قلاده", "necklace").replaceAll("قلادة", "necklace")
-    .replaceAll("دلايه", "pendant").replaceAll("دلاية", "pendant")
-    .replaceAll("رجالي", "men").replaceAll("رجال", "men")
-    .replaceAll("اطفال", "kids").replaceAll("أطفال", "kids")
-    .replaceAll("خصم", "discount").replaceAll("تخفيض", "discount")
-    .replaceAll("زوجين", "couple").replaceAll("زوجي", "couple")
-    .replaceAll("هدية", "gift").replaceAll("هديه", "gift");
+    .replaceAll("اسوره", "bracelet").replaceAll("أسوارة", "bracelet").replaceAll("اسورة", "bracelet").replaceAll("سوار", "bracelet")
+    .replaceAll("حلق", "earring").replaceAll("حلقان", "earring").replaceAll("اقراط", "earring").replaceAll("أقراط", "earring")
+    .replaceAll("دلايه", "pendant").replaceAll("دلاية", "pendant").replaceAll("دلاي", "pendant")
+    // METALS
+    .replaceAll("ذهب", "gold").replaceAll("فضه", "silver").replaceAll("فضة", "silver").replaceAll("فضي", "silver")
+    .replaceAll("بلاتين", "platinum").replaceAll("بلاتينيوم", "platinum")
+    .replaceAll("روز", "rose gold")
+    .replaceAll("اصفر", "yellow gold").replaceAll("ابيض", "white gold").replaceAll("احمر", "rose gold")
+    // STONES
+    .replaceAll("الماس", "diamond").replaceAll("الماز", "diamond")
+    .replaceAll("موزانيت", "moissanite").replaceAll("مويسانيت", "moissanite")
+    .replaceAll("موزنايت", "moissanite").replaceAll("موسانيت", "moissanite")
+    .replaceAll("لؤلؤ", "pearl").replaceAll("لولو", "pearl")
+    .replaceAll("زيركون", "zircon").replaceAll("زركونيا", "zirconia")
+    // SHAPES
+    .replaceAll("بيضاوي", "oval").replaceAll("قلب", "heart").replaceAll("مستدير", "round").replaceAll("دائري", "round")
+    .replaceAll("اجاصه", "pear").replaceAll("أجاصة", "pear").replaceAll("كمثري", "pear")
+    .replaceAll("مستطيل", "emerald").replaceAll("اميرة", "princess")
+    // STYLES
+    .replaceAll("اسم", "name").replaceAll("حرف", "initial")
+    .replaceAll("مخصص", "custom").replaceAll("مخصصه", "custom").replaceAll("مخصصة", "custom")
+    .replaceAll("رجالي", "men").replaceAll("رجال", "men").replaceAll("للرجال", "men")
+    .replaceAll("نسائي", "women").replaceAll("للنساء", "women")
+    .replaceAll("اطفال", "kids").replaceAll("أطفال", "kids").replaceAll("للاطفال", "kids")
+    .replaceAll("زوجين", "couple").replaceAll("زوجي", "couple").replaceAll("للزوجين", "couple")
+    .replaceAll("تنس", "tennis")
+    // OCCASIONS
+    .replaceAll("خطوبه", "engagement").replaceAll("خطوبة", "engagement").replaceAll("خطيبه", "engagement")
+    .replaceAll("زواج", "wedding").replaceAll("زفاف", "wedding")
+    .replaceAll("هديه", "gift").replaceAll("هدية", "gift").replaceAll("هدايا", "gift")
+    .replaceAll("ذكري", "anniversary").replaceAll("ذكرى", "anniversary")
+    .replaceAll("عيد", "anniversary")
+    // GENERAL
+    .replaceAll("مجوهرات", "jewelry").replaceAll("جواهر", "jewelry").replaceAll("مجوهر", "jewelry")
+    .replaceAll("خصم", "discount").replaceAll("تخفيض", "discount").replaceAll("عرض", "offer")
+    .replaceAll("ورني", "show me").replaceAll("عايز", "want").replaceAll("عوز", "want").replaceAll("ابغى", "want")
+    .replaceAll("اشوف", "show").replaceAll("شوفلي", "show me")
+    .replaceAll("كم سعر", "price").replaceAll("سعر", "price").replaceAll("بكام", "price")
+    .replaceAll("جديد", "new").replaceAll("احدث", "newest").replaceAll("جديده", "new");
 }
 
 function detectLanguage(message) {
   return /[\u0600-\u06FF]/.test(message) ? "arabic" : "english";
 }
+
+// =====================
+// EXTRACT INTENT - UPDATED (supports Arabic + all languages + collections)
+// =====================
 
 async function extractIntent(userMessage) {
   try {
@@ -185,7 +241,42 @@ async function extractIntent(userMessage) {
       messages: [
         {
           role: "system",
-          content: "You are a jewelry search intent extractor. Extract the customer jewelry search intent and return ONLY a JSON object. Format: {\"category\": \"ring|necklace|bracelet|earring|pendant|chain|\", \"metal\": \"rose gold|yellow gold|white gold|silver|platinum|\", \"stone\": \"moissanite|diamond|pearl|\", \"shape\": \"oval|pear|round|emerald|princess|radiant|marquise|cushion|heart|asscher|\", \"occasion\": \"wedding|engagement|gift|anniversary|birthday|\", \"style\": \"men|kids|couple|custom|name|initial|tennis|\", \"keywords\": []}. Only fill fields clearly mentioned. Return ONLY the JSON.",
+          content: `You are a jewelry search intent extractor. The user may write in Arabic, English, French, or any language. Understand the message then extract intent.
+
+Return ONLY a JSON object:
+{
+  "category": "ring|necklace|bracelet|earring|pendant|chain|",
+  "metal": "rose gold|yellow gold|white gold|silver|platinum|gold|",
+  "stone": "moissanite|diamond|pearl|zircon|",
+  "shape": "oval|pear|round|emerald|princess|radiant|marquise|cushion|heart|asscher|",
+  "occasion": "wedding|engagement|gift|anniversary|birthday|",
+  "style": "men|kids|couple|custom|name|initial|tennis|women|",
+  "collection": "moissanite|lab grown diamond|pearl|make for you|silver|gold|heart shape|",
+  "keywords": []
+}
+
+Arabic reference:
+- خاتم/دبله/محبس/خواتم = ring
+- سلسله/عقد/قلاده = necklace
+- اسوره/سوار = bracelet
+- حلق/اقراط = earring
+- دلايه = pendant
+- موزانيت/مويسانيت/موزنايت = moissanite → collection: moissanite
+- الماس = diamond → collection: lab grown diamond
+- لؤلؤ = pearl → collection: pearl
+- اسم/حرف = name/initial → style: name, collection: make for you
+- رجالي/رجال = men
+- اطفال = kids
+- زوجين/زوجي = couple
+- قلب = heart → shape: heart, collection: heart shape
+- فضه/فضة = silver
+- ذهب = gold
+- بلاتين = platinum
+- خطوبه/خطوبة = engagement
+- زواج/زفاف = wedding
+- هديه/هدية = gift
+
+Only fill fields clearly mentioned. Return ONLY the JSON.`,
         },
         { role: "user", content: userMessage },
       ],
@@ -202,12 +293,13 @@ function shouldSearchProducts(message) {
   const keywords = [
     "ring", "necklace", "bracelet", "earring", "pendant", "chain",
     "name", "initial", "letter", "custom", "personalized",
-    "diamond", "gold", "silver", "platinum", "rose gold", "moissanite", "pearl",
+    "diamond", "gold", "silver", "platinum", "rose gold", "moissanite", "pearl", "zircon",
     "gift", "luxury", "bridal", "wedding", "engagement",
     "oval", "pear", "round", "emerald", "princess", "radiant", "heart",
-    "men", "kids", "couple", "tennis",
+    "men", "kids", "couple", "tennis", "women",
     "show", "recommend", "suggest", "find", "want", "buy",
     "هديه", "هدية", "ذكري", "عيد", "مجوهرات", "جواهر", "رجالي", "زوجين",
+    "ورني", "عايز", "ابغى", "اشوف", "شوفلي",
   ];
   return keywords.some((w) => msg.includes(normalizeText(w)));
 }
@@ -230,6 +322,10 @@ function shouldAskDiscount(message) {
     msg.includes("offer") || msg.includes("promo") || msg.includes("code");
 }
 
+// =====================
+// ROUGH FILTER - SMARTER SCORING
+// =====================
+
 function roughFilter(userMessage, intent, products) {
   const msg = normalizeText(userMessage);
   const words = msg.split(" ").filter((w) => w.length > 2);
@@ -240,14 +336,18 @@ function roughFilter(userMessage, intent, products) {
     intent && intent.shape,
     intent && intent.occasion,
     intent && intent.style,
+    intent && intent.collection,
     ...((intent && intent.keywords) || []),
   ].filter(Boolean).map((w) => normalizeText(w));
 
   let scoredProducts = products.map((p) => {
     const collectionText = ((p.aiFeatures && p.aiFeatures.collections) || []).join(" ").toLowerCase();
+    const tagsText = ((p.tags) || []).join(" ").toLowerCase();
     const text = normalizeText(
-      (p.title || "") + " " + (p.description || "") + " " + (p.type || "") + " " +
-      ((p.tags && p.tags.join(" ")) || "") + " " +
+      (p.title || "") + " " +
+      (p.description || "") + " " +
+      (p.type || "") + " " +
+      tagsText + " " +
       ((p.aiFeatures && p.aiFeatures.category) || "") + " " +
       ((p.aiFeatures && p.aiFeatures.collection) || "") + " " +
       ((p.aiFeatures && p.aiFeatures.productType) || "") + " " +
@@ -261,26 +361,68 @@ function roughFilter(userMessage, intent, products) {
     );
 
     let score = 0;
+
+    // WORD MATCHES
     words.forEach((word) => { if (text.includes(word)) score += 10; });
     intentWords.forEach((word) => { if (word && text.includes(word)) score += 40; });
-    if (intent && intent.category && text.includes(intent.category)) score += 100;
-    if (intent && intent.metal && text.includes(intent.metal)) score += 150;
-    if (intent && intent.stone && text.includes(intent.stone)) score += 200;
-    if (intent && intent.shape && text.includes(intent.shape)) score += 150;
-    if (intent && intent.occasion && text.includes(intent.occasion)) score += 120;
-    if (intent && intent.style && text.includes(intent.style)) score += 100;
+
+    // CATEGORY - MOST IMPORTANT, HARD PENALTY IF MISSING
     if (intent && intent.category) {
-      if (!text.includes(intent.category)) score -= 200;
+      if (text.includes(intent.category)) score += 300;
+      else score -= 500;
     } else {
-      if (msg.includes("ring") && !text.includes("ring")) score -= 150;
-      if (msg.includes("necklace") && !text.includes("necklace")) score -= 150;
-      if (msg.includes("bracelet") && !text.includes("bracelet")) score -= 150;
-      if (msg.includes("earring") && !text.includes("earring")) score -= 150;
+      if (msg.includes("ring") && !text.includes("ring")) score -= 300;
+      if (msg.includes("necklace") && !text.includes("necklace")) score -= 300;
+      if (msg.includes("bracelet") && !text.includes("bracelet")) score -= 300;
+      if (msg.includes("earring") && !text.includes("earring")) score -= 300;
+      if (msg.includes("pendant") && !text.includes("pendant") && !text.includes("necklace")) score -= 200;
     }
-    return Object.assign({}, p, { score: score });
+
+    // METAL
+    if (intent && intent.metal) {
+      if (text.includes(intent.metal)) score += 200;
+      else score -= 100;
+    }
+
+    // STONE
+    if (intent && intent.stone) {
+      if (text.includes(intent.stone)) score += 250;
+      else score -= 150;
+    }
+
+    // SHAPE
+    if (intent && intent.shape) {
+      if (text.includes(intent.shape)) score += 200;
+    }
+
+    // COLLECTION
+    if (intent && intent.collection) {
+      if (collectionText.includes(intent.collection) || text.includes(intent.collection)) score += 200;
+    }
+
+    // STYLE
+    if (intent && intent.style) {
+      if (text.includes(intent.style)) score += 150;
+      else if (intent.style === "name" || intent.style === "initial") score -= 100;
+    }
+
+    // OCCASION
+    if (intent && intent.occasion && text.includes(intent.occasion)) score += 120;
+
+    // TAGS BONUS
+    if (tagsText) {
+      if (intent && intent.category && tagsText.includes(intent.category)) score += 50;
+      if (intent && intent.stone && tagsText.includes(intent.stone)) score += 50;
+      if (intent && intent.shape && tagsText.includes(intent.shape)) score += 50;
+    }
+
+    return Object.assign({}, p, { score });
   });
 
-  return scoredProducts.filter((p) => p.score > 0).sort((a, b) => b.score - a.score).slice(0, 30);
+  return scoredProducts
+    .filter((p) => p.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 30);
 }
 
 async function aiSelectProducts(userMessage, intent, candidates) {
@@ -302,8 +444,18 @@ async function aiSelectProducts(userMessage, intent, candidates) {
       model: "gpt-4.1-mini",
       temperature: 0,
       messages: [
-        { role: "system", content: "You are a luxury jewelry product selector. Choose the 8 most relevant AND DIVERSE products. CATEGORY IS MANDATORY. Return ONLY a JSON array of index numbers. No extra text." },
-        { role: "user", content: "Customer: \"" + userMessage + "\"\nIntent: " + JSON.stringify(intent) + "\nProducts:\n" + JSON.stringify(candidateList, null, 2) + "\nReturn 8 diverse best index numbers as JSON array." },
+        {
+          role: "system",
+          content: `You are a luxury jewelry product selector. 
+RULES:
+- CATEGORY MUST MATCH EXACTLY. If customer asks for ring, only pick rings. Necklace = only necklaces.
+- Choose the 8 most relevant AND DIVERSE products.
+- Return ONLY a JSON array of index numbers. No extra text.`,
+        },
+        {
+          role: "user",
+          content: "Customer: \"" + userMessage + "\"\nIntent: " + JSON.stringify(intent) + "\nProducts:\n" + JSON.stringify(candidateList, null, 2) + "\nReturn 8 best matching index numbers as JSON array. CATEGORY MUST MATCH.",
+        },
       ],
     });
 
@@ -359,9 +511,6 @@ function buildProductForFrontend(p) {
         metal: v.metal || "", stoneColor: v.stoneColor || "",
         shape: v.shape || "", stoneSize: v.stoneSize || "",
         options: v.options || [],
-        // ========================================
-        // KEY FIX - بيخلي الـ variants تتعرض صح
-        // ========================================
         optionNames: v.optionNames || [],
         optionsMap: v.optionsMap || {},
       };
