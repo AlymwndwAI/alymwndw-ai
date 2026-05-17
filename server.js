@@ -1,1075 +1,860 @@
-<!DOCTYPE html>
-<html lang="en">
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import OpenAI from "openai";
+import fs from "fs";
+import crypto from "crypto";
+import fetch from "node-fetch";
 
-<head>
+dotenv.config();
 
-<meta charset="UTF-8"/>
+const app = express();
 
-<meta
-name="viewport"
-content="width=device-width, initial-scale=1.0"
-/>
+app.use(cors());
+app.use(express.json());
+app.use(express.static("public"));
 
-<title>Alymwndw AI</title>
+const PORT = process.env.PORT || 10000;
 
-<style>
-
-*{
-margin:0;
-padding:0;
-box-sizing:border-box;
-}
-
-html, body{
-height:100%;
-overflow:hidden;
-}
-
-body{
-background:#050505;
-font-family:Arial,sans-serif;
-color:white;
-}
-
-.app{
-display:flex;
-height:100vh;
-}
-
-.sidebar{
-width:240px;
-background:#060606;
-border-right:1px solid rgba(255,255,255,.06);
-padding:30px 20px;
-display:flex;
-flex-direction:column;
-align-items:center;
-flex-shrink:0;
-}
-
-.sidebar-logo{
-width:90px;
-height:90px;
-border-radius:50%;
-background:#0c0c0c;
-display:flex;
-align-items:center;
-justify-content:center;
-box-shadow:0 0 30px rgba(0,255,200,.15);
-margin-bottom:25px;
-overflow:hidden;
-}
-
-.sidebar-logo img{
-width:58px;
-height:58px;
-object-fit:contain;
-}
-
-.brand{
-font-size:22px;
-font-weight:700;
-text-align:center;
-line-height:1.3;
-margin-bottom:10px;
-}
-
-.brand-sub{
-opacity:.65;
-text-align:center;
-line-height:1.5;
-font-size:15px;
-}
-
-.chat-area{
-flex:1;
-display:flex;
-flex-direction:column;
-background:#000;
-min-width:0;
-overflow:hidden;
-}
-
-.chat-box{
-flex:1;
-overflow-y:auto;
-min-height:0;
-padding:30px;
-scroll-behavior:smooth;
-}
-
-.mobile-header{
-display:none;
-flex-shrink:0;
-}
-
-.message-row{
-display:flex;
-gap:12px;
-margin-bottom:22px;
-align-items:flex-start;
-}
-
-.user-row{
-display:flex;
-justify-content:flex-end;
-margin-bottom:22px;
-}
-
-.ai-avatar{
-width:34px;
-height:34px;
-object-fit:contain;
-margin-top:5px;
-flex-shrink:0;
-}
-
-.message{
-padding:16px 18px;
-border-radius:24px;
-line-height:1.9;
-font-size:15px;
-max-width:700px;
-word-wrap:break-word;
-animation:fade .25s ease;
-}
-
-.ai-message{
-background:#121212;
-border:1px solid rgba(255,255,255,.05);
-}
-
-.user-message{
-background:#44f1cf;
-color:black;
-font-weight:600;
-}
-
-.product-card{
-background:#0d0d0d;
-border-radius:34px;
-overflow:hidden;
-margin-bottom:26px;
-border:1px solid rgba(255,255,255,.06);
-max-width:720px;
-margin-left:46px;
-animation:fade .3s ease;
-}
-
-.product-image{
-width:100%;
-aspect-ratio:1/1;
-object-fit:cover;
-display:block;
-background:#111;
-transition:opacity .3s ease;
-}
-
-.product-content{ padding:24px; }
-
-.product-title{
-font-size:22px;
-font-weight:700;
-line-height:1.5;
-margin-bottom:12px;
-}
-
-.product-price{
-font-size:24px;
-font-weight:700;
-color:#44f1cf;
-margin-bottom:12px;
-}
-
-.product-rating{
-opacity:.75;
-margin-bottom:20px;
-font-size:15px;
-}
-
-.variant-groups{
-margin-bottom:20px;
-display:flex;
-flex-direction:column;
-gap:16px;
-}
-
-.variant-group{
-display:flex;
-flex-direction:column;
-gap:8px;
-}
-
-.variant-group-label{
-font-size:11px;
-font-weight:600;
-opacity:.4;
-text-transform:uppercase;
-letter-spacing:1.5px;
-}
-
-.variant-group-options{
-display:flex;
-flex-wrap:wrap;
-gap:8px;
-}
-
-.metal-btn{
-padding:8px 16px;
-border-radius:30px;
-border:1px solid rgba(255,255,255,.15);
-background:#141414;
-color:white;
-font-size:13px;
-cursor:pointer;
-transition:all .2s;
-white-space:nowrap;
-}
-
-.metal-btn:hover{ border-color:#44f1cf; color:#44f1cf; }
-
-.metal-btn.active{
-background:#44f1cf;
-color:black;
-font-weight:700;
-border-color:#44f1cf;
-}
-
-.stone-btn{
-width:36px;
-height:36px;
-border-radius:50%;
-border:2px solid transparent;
-cursor:pointer;
-transition:all .2s;
-position:relative;
-flex-shrink:0;
-}
-
-.stone-btn:hover{ transform:scale(1.1); }
-
-.stone-btn.active{
-border-color:#44f1cf;
-box-shadow:0 0 12px rgba(68,241,207,.5);
-transform:scale(1.15);
-}
-
-.size-btn{
-padding:8px 14px;
-border-radius:20px;
-border:1px solid rgba(255,255,255,.15);
-background:#141414;
-color:white;
-font-size:12px;
-font-weight:600;
-cursor:pointer;
-transition:all .2s;
-white-space:nowrap;
-}
-
-.size-btn:hover{ border-color:#44f1cf; color:#44f1cf; }
-
-.size-btn.active{
-background:#44f1cf;
-color:black;
-font-weight:700;
-border-color:#44f1cf;
-}
-
-.product-description{
-opacity:.65;
-line-height:1.8;
-font-size:14px;
-margin-bottom:22px;
-}
-
-.product-buttons{ display:flex; gap:14px; margin-bottom:16px; }
-
-.view-btn{
-flex:1;
-padding:16px;
-border-radius:18px;
-background:#44f1cf;
-color:black;
-font-weight:700;
-text-align:center;
-text-decoration:none;
-font-size:17px;
-}
-
-.cart-btn{
-flex:1;
-padding:16px;
-border:none;
-border-radius:18px;
-background:white;
-font-size:17px;
-font-weight:700;
-cursor:pointer;
-transition:all .2s;
-}
-
-.cart-btn:hover{ opacity:.9; }
-
-.cart-btn.loading{
-opacity:.7;
-cursor:not-allowed;
-}
-
-.cart-btn.success{
-background:#44f1cf;
-color:black;
-}
-
-.cart-btn.error{
-background:#ff4444;
-color:white;
-}
-
-.input-area{
-padding:24px;
-display:flex;
-gap:16px;
-background:#050505;
-border-top:1px solid rgba(255,255,255,.05);
-flex-shrink:0;
-}
-
-.input{
-flex:1;
-background:#0f0f0f;
-border:1px solid rgba(255,255,255,.06);
-height:72px;
-border-radius:24px;
-padding:0 24px;
-font-size:20px;
-color:white;
-outline:none;
-}
-
-.send-btn{
-width:78px;
-height:72px;
-border:none;
-border-radius:24px;
-background:#44f1cf;
-font-size:34px;
-font-weight:bold;
-cursor:pointer;
-}
-
-.typing-loader{ margin-bottom:20px; }
-
-.typing-wrap{
-display:flex;
-gap:12px;
-align-items:center;
-}
-
-.typing-bubble{
-background:#121212;
-padding:16px 18px;
-border-radius:22px;
-display:flex;
-gap:6px;
-}
-
-.typing-bubble span{
-width:8px;
-height:8px;
-border-radius:50%;
-background:#44f1cf;
-animation:bounce 1s infinite;
-}
-
-.typing-bubble span:nth-child(2){ animation-delay:.15s; }
-.typing-bubble span:nth-child(3){ animation-delay:.3s; }
-
-@keyframes bounce{
-0%,80%,100%{ transform:scale(0); opacity:.3; }
-40%{ transform:scale(1); opacity:1; }
-}
-
-@keyframes fade{
-from{ opacity:0; transform:translateY(10px); }
-to{ opacity:1; transform:translateY(0); }
-}
-
-@keyframes pulse-glow{
-0%,100%{ box-shadow:0 0 25px rgba(68,241,207,.2), 0 0 50px rgba(68,241,207,.08); }
-50%{ box-shadow:0 0 40px rgba(68,241,207,.4), 0 0 80px rgba(68,241,207,.15); }
-}
-
-.pull-tab{ display:none; }
-
-.drawer-overlay{
-display:none;
-position:fixed;
-inset:0;
-background:rgba(0,0,0,.6);
-z-index:100;
-opacity:0;
-transition:opacity .3s ease;
-pointer-events:none;
-}
-
-.drawer-overlay.open{ opacity:1; pointer-events:all; }
-
-.drawer{
-position:fixed;
-top:0;
-left:0;
-width:80%;
-max-width:320px;
-height:100vh;
-background:#0a0a0a;
-border-right:1px solid rgba(255,255,255,.08);
-z-index:101;
-transform:translateX(-100%);
-transition:transform .3s ease;
-display:flex;
-flex-direction:column;
-padding:30px 24px;
-overflow-y:auto;
-}
-
-.drawer.open{ transform:translateX(0); }
-
-.drawer-header{
-display:flex;
-align-items:center;
-justify-content:space-between;
-margin-bottom:30px;
-}
-
-.drawer-title{ font-size:18px; font-weight:700; }
-
-.drawer-close{
-width:36px;
-height:36px;
-border-radius:50%;
-background:#1a1a1a;
-border:none;
-color:white;
-font-size:18px;
-cursor:pointer;
-}
-
-.drawer-section{ margin-bottom:28px; }
-
-.drawer-section-title{
-font-size:12px;
-font-weight:600;
-opacity:.4;
-text-transform:uppercase;
-letter-spacing:1.5px;
-margin-bottom:14px;
-}
-
-.drawer-item{
-background:#141414;
-border-radius:16px;
-padding:18px;
-margin-bottom:12px;
-border:1px solid rgba(255,255,255,.06);
-display:flex;
-align-items:center;
-gap:14px;
-cursor:pointer;
-transition:border-color .2s;
-}
-
-.drawer-item:hover{ border-color:#44f1cf; }
-.drawer-item-icon{ font-size:22px; }
-
-.drawer-item-text{
-display:flex;
-flex-direction:column;
-gap:3px;
-flex:1;
-}
-
-.drawer-item-name{ font-size:15px; font-weight:600; }
-.drawer-item-desc{ font-size:12px; opacity:.5; }
-
-.drawer-item-badge{
-background:#44f1cf;
-color:black;
-font-size:11px;
-font-weight:700;
-padding:4px 10px;
-border-radius:20px;
-white-space:nowrap;
-}
-
-.ai-customizer{margin-top:20px;padding:16px;background:#141414;border:1px solid rgba(68,241,207,.15);border-radius:18px;}
-.ai-customizer-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-.ai-customizer-icon{font-size:18px;}
-.ai-customizer-title{font-size:14px;font-weight:700;color:#44f1cf;}
-.ai-customizer-hint{font-size:12px;color:rgba(255,255,255,.5);margin-bottom:12px;line-height:1.6;direction:rtl;}
-.ai-desc-input{width:100%;background:#0d0d0d;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 14px;color:white;font-size:14px;resize:none;outline:none;font-family:inherit;margin-bottom:12px;transition:border-color .25s;direction:rtl;line-height:1.6;}
-.ai-desc-input:focus{border-color:rgba(68,241,207,.45);}
-.ai-desc-input::placeholder{color:rgba(255,255,255,.3);}
-.ai-gen-btn{width:100%;padding:14px;background:#44f1cf;border:none;border-radius:16px;color:black;font-size:14px;font-weight:700;cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:8px;}
-.ai-gen-btn:hover{opacity:.9;transform:scale(1.01);}
-.ai-gen-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
-.ai-btn-spinner{width:14px;height:14px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;display:inline-block;animation:spin .7s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
-.ai-result{margin-top:14px;}
-.ai-generating{text-align:center;padding:20px;color:rgba(255,255,255,.5);font-size:13px;}
-.ai-gen-dots{display:flex;justify-content:center;gap:6px;margin-bottom:10px;}
-.ai-gen-dots span{width:8px;height:8px;background:#44f1cf;border-radius:50%;animation:bounce 1.2s infinite;}
-.ai-gen-dots span:nth-child(2){animation-delay:.2s;}
-.ai-gen-dots span:nth-child(3){animation-delay:.4s;}
-.ai-result-wrap{text-align:center;}
-.ai-result-label{font-size:13px;color:#44f1cf;margin-bottom:10px;font-weight:600;}
-.ai-result-img{width:100%;border-radius:18px;background:#111;padding:10px;object-fit:contain;margin-bottom:10px;}
-.ai-result-remaining{font-size:12px;color:rgba(255,255,255,.4);margin-bottom:10px;}
-.ai-download-btn{display:inline-block;padding:12px 24px;background:white;border-radius:16px;color:black;font-size:13px;font-weight:700;text-decoration:none;transition:.2s;}
-.ai-download-btn:hover{opacity:.9;}
-.ai-limit-msg{font-size:13px;color:rgba(255,100,100,.8);text-align:center;padding:10px;}
-.ai-email-gate{text-align:center;padding:8px 0;}
-.ai-email-gate p{font-size:14px;color:rgba(255,255,255,.7);margin-bottom:10px;}
-.ai-email-input{width:100%;padding:12px 14px;background:#0d0d0d;border:1px solid rgba(255,255,255,.08);border-radius:14px;color:white;font-size:14px;outline:none;margin-bottom:12px;font-family:inherit;}
-.ai-email-input:focus{border-color:rgba(68,241,207,.45);}
-
-@media(max-width:900px){
-.sidebar{ width:120px; padding:20px 10px; }
-.brand{ font-size:14px; }
-.brand-sub{ font-size:11px; }
-.chat-box{ padding:18px; }
-.message{ max-width:92%; }
-.product-card{ margin-left:0; }
-.product-title{ font-size:18px; }
-.input{ font-size:18px; }
-}
-
-@media(max-width:600px){
-.sidebar{ display:none; }
-.app{ display:block; height:100vh; position:relative; }
-.mobile-header{ display:flex; flex-direction:column; align-items:center; justify-content:center; padding:14px 20px 10px; background:#060606; border-bottom:1px solid rgba(68,241,207,.12); position:fixed; top:0; left:0; right:0; z-index:10; }
-.mobile-header-logo{ width:52px; height:52px; border-radius:50%; background:radial-gradient(circle at 40% 35%, #1a1a1a, #080808); display:flex; align-items:center; justify-content:center; border:1.5px solid rgba(68,241,207,.3); animation:pulse-glow 3s ease-in-out infinite; margin-bottom:6px; overflow:hidden; }
-.mobile-header-logo img{ width:34px; height:34px; object-fit:contain; }
-.mobile-header-name{ font-size:15px; font-weight:700; letter-spacing:.5px; display:flex; align-items:center; gap:8px; margin-bottom:2px; }
-.mobile-header-dots{ display:flex; gap:4px; align-items:center; }
-.mobile-header-dots span{ width:4px; height:4px; border-radius:50%; background:#44f1cf; animation:bounce 1s infinite; }
-.mobile-header-dots span:nth-child(2){ animation-delay:.15s; }
-.mobile-header-dots span:nth-child(3){ animation-delay:.3s; }
-.mobile-header-sub{ font-size:10px; opacity:.4; letter-spacing:1.5px; text-transform:uppercase; }
-.chat-area{ position:fixed; top:106px; left:0; right:0; bottom:0; display:flex; flex-direction:column; overflow:hidden; background:#000; }
-.chat-box{ flex:1; min-height:0; padding:16px; overflow-y:auto; }
-.drawer-overlay{ display:block; }
-.pull-tab{ display:flex; align-items:center; justify-content:center; position:fixed; left:0; top:50%; transform:translateY(-50%); width:22px; height:64px; background:#44f1cf; border-radius:0 8px 8px 0; z-index:99; cursor:pointer; transition:width .2s; }
-.pull-tab::after{ content:"›"; color:black; font-size:20px; font-weight:900; }
-.pull-tab:hover{ width:28px; }
-.product-card{ margin-left:0; border-radius:24px; width:100%; }
-.product-title{ font-size:17px; }
-.product-price{ font-size:20px; }
-.input-area{ padding:12px 16px; flex-shrink:0; }
-.input{ font-size:16px; height:56px; }
-.send-btn{ width:56px; height:56px; font-size:24px; }
-}
-
-</style>
-
-</head>
-
-<body>
-
-<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
-
-<div class="drawer" id="drawer">
-<div class="drawer-header">
-<div class="drawer-title">✨ Studio</div>
-<button class="drawer-close" onclick="closeDrawer()">✕</button>
-</div>
-<div class="drawer-section">
-<div class="drawer-section-title">AI Photos</div>
-<div class="drawer-item">
-<div class="drawer-item-icon">🎨</div>
-<div class="drawer-item-text">
-<div class="drawer-item-name">Generate Image</div>
-<div class="drawer-item-desc">AI photo for any product</div>
-</div>
-<div class="drawer-item-badge">2 Free</div>
-</div>
-</div>
-<div class="drawer-section">
-<div class="drawer-section-title">Account</div>
-<div class="drawer-item">
-<div class="drawer-item-icon">📧</div>
-<div class="drawer-item-text">
-<div class="drawer-item-name">Save & Continue</div>
-<div class="drawer-item-desc">Enter email to unlock more</div>
-</div>
-</div>
-</div>
-</div>
-
-<div class="pull-tab" id="pull-tab" onclick="openDrawer()"></div>
-
-<div class="app">
-
-<div class="sidebar">
-<div class="sidebar-logo"><img src="deer.png"/></div>
-<div class="brand">Alymwndw AI</div>
-<div class="brand-sub">Luxury Jewelry Concierge</div>
-</div>
-
-<div class="chat-area">
-
-<div class="mobile-header">
-<div class="mobile-header-logo"><img src="deer.png"/></div>
-<div class="mobile-header-name">
-Alymwndw AI
-<div class="mobile-header-dots">
-<span></span><span></span><span></span>
-</div>
-</div>
-<div class="mobile-header-sub">Luxury Jewelry Concierge</div>
-</div>
-
-<div class="chat-box" id="chat-box"></div>
-
-<div class="input-area">
-<input
-id="message"
-class="input"
-placeholder="Ask Alymwndw AI..."
-onkeydown="handleKey(event)"
-/>
-<button class="send-btn" onclick="sendMessage()">➜</button>
-</div>
-
-</div>
-
-</div>
-
-<script>
-
-const chatBox = document.getElementById("chat-box");
-let sessionId = null;
-let cartId = null;
-
-const stoneColorMap = {
-  "white":"#f5f5f5","pink":"#f48fb1","rose":"#e57373","red":"#c62828",
-  "yellow":"#f9c84a","purple":"#8e24aa","blue":"#1976d2","green":"#388e3c",
-  "black":"#212121","orange":"#ef6c00",
-};
-
-function getStoneColor(colorName) {
-  const key = (colorName || "").toLowerCase();
-  for (const [name, hex] of Object.entries(stoneColorMap)) {
-    if (key.includes(name)) return hex;
-  }
-  return "#cccccc";
-}
-
-window.addEventListener("load", async () => {
-  showTypingLoader();
-  try {
-    const response = await fetch("/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "__greeting__", sessionId: null }),
-    });
-    const data = await response.json();
-    removeTypingLoader();
-    if (data.sessionId) sessionId = data.sessionId;
-    await typeMessage(data.reply);
-  } catch (err) {
-    removeTypingLoader();
-  }
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-function openDrawer(){
-  document.getElementById("drawer").classList.add("open");
-  document.getElementById("drawer-overlay").classList.add("open");
-}
+const SHOP = process.env.SHOPIFY_STORE;
+const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
+const STOREFRONT_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN;
+const STOREFRONT_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN;
 
-function closeDrawer(){
-  document.getElementById("drawer").classList.remove("open");
-  document.getElementById("drawer-overlay").classList.remove("open");
-}
+const conversations = {};
+const summaries = {};
+const sessionTimestamps = {};
+const sessionProducts = {};
+const sessionImageCount = {};
+const sessionEmails = {};
 
-function showTypingLoader(){
-  const loader = document.createElement("div");
-  loader.className = "typing-loader";
-  loader.id = "typing-loader";
-  loader.innerHTML = `<div class="typing-wrap"><img src="deer.png" class="ai-avatar"/><div class="typing-bubble"><span></span><span></span><span></span></div></div>`;
-  chatBox.appendChild(loader);
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-function removeTypingLoader(){
-  const loader = document.getElementById("typing-loader");
-  if(loader) loader.remove();
-}
-
-async function typeMessage(text){
-  const row = document.createElement("div");
-  row.className = "message-row";
-  const avatar = document.createElement("img");
-  avatar.src = "deer.png";
-  avatar.className = "ai-avatar";
-  const bubble = document.createElement("div");
-  bubble.className = "message ai-message";
-  row.appendChild(avatar);
-  row.appendChild(bubble);
-  chatBox.appendChild(row);
-  chatBox.scrollTop = chatBox.scrollHeight;
-  const words = text.split(" ");
-  const chunkSize = 3;
-  let current = "";
-  for(let i = 0; i < words.length; i += chunkSize){
-    const chunk = words.slice(i, i + chunkSize).join(" ");
-    current += (current ? " " : "") + chunk;
-    bubble.innerText = current;
-    chatBox.scrollTop = chatBox.scrollHeight;
-    await new Promise((r) => setTimeout(r, 18));
-  }
-  bubble.innerText = text;
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-function addUserMessage(text){
-  const row = document.createElement("div");
-  row.className = "user-row";
-  const bubble = document.createElement("div");
-  bubble.className = "message user-message";
-  bubble.innerText = text;
-  row.appendChild(bubble);
-  chatBox.appendChild(row);
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-// =====================
-// ADD TO CART
-// =====================
-
-async function addToCart(handle, btnId) {
-
-  const btn = document.getElementById(btnId);
-  if (!btn) return;
-
-  const state = window[`state_${handle}`];
-  if (!state) {
-    window.open(`https://alymwndw.com/products/${handle}`, "_blank");
-    return;
-  }
-
-  // Find matching variant
-  const { variants, selectedMetal, selectedStoneColor, selectedStoneSize, selectedShape } = state;
-
-  let match = variants.find((v) =>
-    (!selectedMetal || v.metal === selectedMetal) &&
-    (!selectedStoneColor || v.stoneColor === selectedStoneColor) &&
-    (!selectedStoneSize || v.stoneSize === selectedStoneSize) &&
-    (!selectedShape || v.shape === selectedShape)
-  );
-  if (!match) match = variants.find((v) => !selectedMetal || v.metal === selectedMetal);
-  if (!match) match = variants[0];
-
-  if (!match || !match.id) {
-    window.open(`https://alymwndw.com/products/${handle}`, "_blank");
-    return;
-  }
-
-  btn.classList.add("loading");
-  btn.innerText = "Adding...";
-
-  try {
-
-    const response = await fetch("/add-to-cart", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        variantId: match.id,
-        quantity: 1,
-        cartId: cartId,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      cartId = data.cartId;
-      btn.classList.remove("loading");
-      btn.classList.add("success");
-      btn.innerText = "✓ Added!";
-
-      // Show checkout option after 2 seconds
-      setTimeout(() => {
-        btn.classList.remove("success");
-        btn.innerText = "Checkout →";
-        btn.onclick = () => window.open(data.checkoutUrl, "_blank");
-      }, 2000);
-
-    } else {
-      throw new Error(data.error || "Failed");
+setInterval(() => {
+  const now = Date.now();
+  Object.keys(sessionTimestamps).forEach((id) => {
+    if (now - sessionTimestamps[id] > 3600000) {
+      delete conversations[id];
+      delete summaries[id];
+      delete sessionTimestamps[id];
+      delete sessionImageCount[id];
+      delete sessionEmails[id];
+      delete sessionProducts[id];
     }
-
-  } catch (err) {
-    btn.classList.remove("loading");
-    btn.classList.add("error");
-    btn.innerText = "Error - Try Again";
-    setTimeout(() => {
-      btn.classList.remove("error");
-      btn.innerText = "Add To Cart";
-      btn.onclick = () => addToCart(handle, btnId);
-    }, 2000);
-  }
-
-}
-
-// =============================================
-// AI CUSTOMIZE IMAGE
-// =============================================
-
-async function generateCustomImage(handle, imageId, descId, resultId, btnId) {
-  const descInput = document.getElementById(descId);
-  const resultDiv = document.getElementById(resultId);
-  const btn = document.getElementById(btnId);
-  const userDesc = descInput.value.trim();
-  if (!userDesc) { descInput.focus(); return; }
-
-  const productImgEl = document.getElementById(imageId);
-  const productImageUrl = productImgEl ? productImgEl.src : "";
-
-  btn.disabled = true;
-  btn.innerHTML = `<span class="ai-btn-spinner"></span> جاري التوليد...`;
-  resultDiv.innerHTML = `<div class="ai-generating"><div class="ai-gen-dots"><span></span><span></span><span></span></div><p>✨ الذكاء الاصطناعي يعدّل على نفس التصميم...</p></div>`;
-  resultDiv.style.display = "block";
-
-  try {
-    const response = await fetch("/customize-product", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId,
-        productHandle: handle,
-        productImageUrl: productImageUrl,
-        userDescription: userDesc,
-      }),
-    });
-    const data = await response.json();
-
-    if (data.requireEmail) {
-      resultDiv.innerHTML = `<div class="ai-email-gate"><p>📧 أدخل إيميلك للاستمرار</p><input type="email" id="email-gate-${handle}" placeholder="example@email.com" class="ai-email-input"/><button class="ai-gen-btn" onclick="submitEmailAndGenerate('${handle}','${imageId}','${descId}','${resultId}','${btnId}')">متابعة</button></div>`;
-      btn.disabled = false;
-      btn.innerHTML = `✨ توليد بالذكاء الاصطناعي`;
-      return;
-    }
-
-    if (data.blocked) {
-      resultDiv.innerHTML = `<p class="ai-limit-msg">⚠️ وصلت للحد الأقصى من الصور.</p>`;
-      btn.disabled = true;
-      btn.innerHTML = `✨ توليد بالذكاء الاصطناعي`;
-      return;
-    }
-
-    if (data.imageUrl) {
-      resultDiv.innerHTML = `
-        <div class="ai-result-wrap">
-          <p class="ai-result-label">✨ تصميمك بالذكاء الاصطناعي</p>
-          <img src="${data.imageUrl}" class="ai-result-img"/>
-          <p class="ai-result-remaining">متبقي ${data.remaining} توليد</p>
-          <a href="${data.imageUrl}" download="alymwndw-custom.jpg" class="ai-download-btn">⬇️ تحميل</a>
-        </div>`;
-    } else {
-      resultDiv.innerHTML = `<p class="ai-limit-msg">حدث خطأ. حاول مرة أخرى.</p>`;
-    }
-
-  } catch(err) {
-    resultDiv.innerHTML = `<p class="ai-limit-msg">حدث خطأ في الاتصال.</p>`;
-  }
-
-  btn.disabled = false;
-  btn.innerHTML = `✨ توليد بالذكاء الاصطناعي`;
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-async function submitEmailAndGenerate(handle, imageId, descId, resultId, btnId) {
-  const emailInput = document.getElementById(`email-gate-${handle}`);
-  const email = emailInput ? emailInput.value.trim() : "";
-  if (!email) return;
-  await fetch("/save-email", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionId, email }),
   });
-  generateCustomImage(handle, imageId, descId, resultId, btnId);
-}
+}, 3600000);
 
-// =====================
-// RENDER PRODUCTS
-// =====================
+let products = [];
 
-function renderProducts(products){
-products.forEach((product) => {
-
-const variants = product.variants || [];
-const url = product.url || `https://alymwndw.com/products/${product.handle}`;
-const imageId = `img-${product.handle}`;
-const priceId = `price-${product.handle}`;
-const cartBtnId = `cart-btn-${product.handle}`;
-const descId = `ai-desc-${product.handle}`;
-const resultId = `ai-result-${product.handle}`;
-const btnId = `ai-btn-${product.handle}`;
-
-const metalSet = new Set();
-const stoneColorSet = new Set();
-const stoneSizeSet = new Set();
-const shapeSet = new Set();
-
-variants.forEach((v) => {
-  if (v.metal) metalSet.add(v.metal);
-  if (v.stoneColor) stoneColorSet.add(v.stoneColor);
-  if (v.stoneSize) stoneSizeSet.add(v.stoneSize);
-  if (v.shape) shapeSet.add(v.shape);
-});
-
-const metals = [...metalSet];
-const stoneColors = [...stoneColorSet];
-const stoneSizes = [...stoneSizeSet];
-const shapes = [...shapeSet];
-
-const firstVariant = variants[0] || {};
-const defaultImage = firstVariant.mappedImage || firstVariant.image || product.image || "https://via.placeholder.com/500";
-const defaultPrice = String(firstVariant.price || product.price || "").replace("AED", "").trim();
-
-let variantGroupsHTML = '<div class="variant-groups">';
-
-if (metals.length > 0) {
-  variantGroupsHTML += `<div class="variant-group"><div class="variant-group-label">Material</div><div class="variant-group-options" id="metals-${product.handle}">${metals.map((m, i) => `<button class="metal-btn ${i===0?'active':''}" data-metal="${m}" onclick="selectMetal('${product.handle}','${m}',this)">${m}</button>`).join("")}</div></div>`;
-}
-
-if (stoneColors.length > 0) {
-  variantGroupsHTML += `<div class="variant-group"><div class="variant-group-label">Stone Color</div><div class="variant-group-options" id="stones-${product.handle}">${stoneColors.map((c, i) => `<button class="stone-btn ${i===0?'active':''}" data-stone="${c}" title="${c}" style="background:${getStoneColor(c)};box-shadow:inset 0 0 0 1px rgba(255,255,255,.2);" onclick="selectStone('${product.handle}','${c}',this)"></button>`).join("")}</div></div>`;
-}
-
-if (shapes.length > 0) {
-  variantGroupsHTML += `<div class="variant-group"><div class="variant-group-label">Shape</div><div class="variant-group-options" id="shapes-${product.handle}">${shapes.map((s, i) => `<button class="metal-btn ${i===0?'active':''}" data-shape="${s}" onclick="selectShape('${product.handle}','${s}',this)">${s}</button>`).join("")}</div></div>`;
-}
-
-if (stoneSizes.length > 0) {
-  variantGroupsHTML += `<div class="variant-group"><div class="variant-group-label">Stone Size</div><div class="variant-group-options" id="sizes-${product.handle}">${stoneSizes.map((s, i) => `<button class="size-btn ${i===0?'active':''}" data-size="${s}" onclick="selectSize('${product.handle}','${s}',this)">${s}</button>`).join("")}</div></div>`;
-}
-
-variantGroupsHTML += '</div>';
-
-const card = document.createElement("div");
-card.className = "product-card";
-
-card.innerHTML = `
-<img id="${imageId}" src="${defaultImage}" class="product-image" onerror="this.src='https://via.placeholder.com/500'"/>
-<div class="product-content">
-<div class="product-title">${product.title}</div>
-<div id="${priceId}" class="product-price">${defaultPrice} AED</div>
-<div class="product-rating">⭐ ${product.reviewRating||4.9} (${product.reviewCount||120} reviews)</div>
-${variantGroupsHTML}
-<div class="product-description">${(product.description||"").slice(0,120)}...</div>
-<div class="product-buttons">
-<a href="${url}" target="_blank" class="view-btn">View Product</a>
-<button id="${cartBtnId}" class="cart-btn" onclick="addToCart('${product.handle}','${cartBtnId}')">Add To Cart</button>
-</div>
-<div class="ai-customizer">
-<div class="ai-customizer-header">
-<span class="ai-customizer-icon">✨</span>
-<span class="ai-customizer-title">خصّص قطعتك بالذكاء الاصطناعي</span>
-</div>
-<p class="ai-customizer-hint">صف التعديل — مثال: "عايز الحجر أحمر مع نقش اسم أحمد"</p>
-<textarea id="${descId}" class="ai-desc-input" placeholder="اكتب هنا بالعربي أو الإنجليزي..." rows="3"></textarea>
-<button id="${btnId}" class="ai-gen-btn" onclick="generateCustomImage('${product.handle}','${imageId}','${descId}','${resultId}','${btnId}')">✨ توليد بالذكاء الاصطناعي</button>
-<div id="${resultId}" class="ai-result" style="display:none;"></div>
-</div>
-</div>
-`;
-
-chatBox.appendChild(card);
-
-window[`state_${product.handle}`] = {
-  variants,
-  selectedMetal: metals[0]||"",
-  selectedStoneColor: stoneColors[0]||"",
-  selectedStoneSize: stoneSizes[0]||"",
-  selectedShape: shapes[0]||"",
-  imageId,
-  priceId,
-};
-
-});
-chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-function selectMetal(handle, metal, btn) {
-  const state = window[`state_${handle}`]; if (!state) return;
-  state.selectedMetal = metal;
-  btn.closest(".variant-group-options").querySelectorAll(".metal-btn").forEach((b) => b.classList.remove("active"));
-  btn.classList.add("active"); updateVariant(handle);
-}
-
-function selectStone(handle, stone, btn) {
-  const state = window[`state_${handle}`]; if (!state) return;
-  state.selectedStoneColor = stone;
-  btn.closest(".variant-group-options").querySelectorAll(".stone-btn").forEach((b) => b.classList.remove("active"));
-  btn.classList.add("active"); updateVariant(handle);
-}
-
-function selectShape(handle, shape, btn) {
-  const state = window[`state_${handle}`]; if (!state) return;
-  state.selectedShape = shape;
-  btn.closest(".variant-group-options").querySelectorAll(".metal-btn").forEach((b) => b.classList.remove("active"));
-  btn.classList.add("active"); updateVariant(handle);
-}
-
-function selectSize(handle, size, btn) {
-  const state = window[`state_${handle}`]; if (!state) return;
-  state.selectedStoneSize = size;
-  btn.closest(".variant-group-options").querySelectorAll(".size-btn").forEach((b) => b.classList.remove("active"));
-  btn.classList.add("active"); updateVariant(handle);
-}
-
-function updateVariant(handle) {
-  const state = window[`state_${handle}`]; if (!state) return;
-  const { variants, selectedMetal, selectedStoneColor, selectedStoneSize, selectedShape, imageId, priceId } = state;
-  let match = variants.find((v) => (!selectedMetal||v.metal===selectedMetal)&&(!selectedStoneColor||v.stoneColor===selectedStoneColor)&&(!selectedStoneSize||v.stoneSize===selectedStoneSize)&&(!selectedShape||v.shape===selectedShape));
-  if (!match) match = variants.find((v) => (!selectedMetal||v.metal===selectedMetal));
-  if (!match) match = variants[0];
-  if (!match) return;
-  const img = document.getElementById(imageId);
-  const priceEl = document.getElementById(priceId);
-  if (img && (match.mappedImage||match.image)) {
-    img.style.opacity="0.7";
-    setTimeout(()=>{ img.src=match.mappedImage||match.image; img.style.opacity="1"; },150);
-  }
-  if (priceEl && match.price) { priceEl.innerText = String(match.price).replace("AED","").trim()+" AED"; }
-}
-
-function handleKey(event){ if(event.key==="Enter"){ sendMessage(); } }
-
-async function sendMessage(){
-const input = document.getElementById("message");
-const message = input.value.trim();
-if(!message) return;
-addUserMessage(message);
-input.value = "";
-showTypingLoader();
 try {
-const response = await fetch("/chat",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({message,sessionId}) });
-const data = await response.json();
-if(data.sessionId){ sessionId = data.sessionId; }
-removeTypingLoader();
-await typeMessage(data.reply);
-if(data.products && data.products.length){ setTimeout(()=>{ renderProducts(data.products); },300); }
-} catch(err) {
-removeTypingLoader();
-await typeMessage("Something went wrong, please try again.");
-}
+  const raw = fs.readFileSync("./public/products-brain.json", "utf8");
+  products = JSON.parse(raw);
+  console.log("PRODUCT BRAIN LOADED: " + products.length);
+} catch (err) {
+  console.log("NO PRODUCTS BRAIN FOUND");
 }
 
-</script>
+async function shopifyQuery(query) {
+  try {
+    const response = await fetch(
+      "https://" + SHOP + "/admin/api/2025-01/graphql.json",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": TOKEN,
+        },
+        body: JSON.stringify({ query }),
+      }
+    );
+    return response.json();
+  } catch (err) {
+    return null;
+  }
+}
 
-</body>
+// =====================================
+// SHOPIFY STOREFRONT API
+// =====================================
 
-</html>
+async function storefrontQuery(query, variables = {}) {
+  try {
+    const response = await fetch(
+      "https://" + SHOP + "/api/2025-01/graphql.json",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Storefront-Access-Token": STOREFRONT_TOKEN,
+        },
+        body: JSON.stringify({ query, variables }),
+      }
+    );
+    return response.json();
+  } catch (err) {
+    console.log("STOREFRONT ERROR:", err.message);
+    return null;
+  }
+}
+
+async function getActiveDiscounts() {
+  try {
+    const data = await shopifyQuery(`
+      {
+        discountNodes(first: 10) {
+          edges {
+            node {
+              discount {
+                ... on DiscountCodeBasic {
+                  title
+                  status
+                  codes(first: 3) {
+                    edges { node { code } }
+                  }
+                  customerGets {
+                    value {
+                      ... on DiscountPercentage { percentage }
+                      ... on DiscountAmount { amount { amount currencyCode } }
+                    }
+                  }
+                }
+                ... on DiscountAutomaticBasic {
+                  title
+                  status
+                  customerGets {
+                    value {
+                      ... on DiscountPercentage { percentage }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `);
+    if (!data || !data.data || !data.data.discountNodes || !data.data.discountNodes.edges) return [];
+    return data.data.discountNodes.edges
+      .map((e) => e.node.discount)
+      .filter((d) => d && d.status === "ACTIVE");
+  } catch (err) {
+    return [];
+  }
+}
+
+function normalizeText(text) {
+  if (!text) return "";
+  return text
+    .toLowerCase()
+    .replaceAll("\u0623", "\u0627").replaceAll("\u0625", "\u0627").replaceAll("\u0622", "\u0627")
+    .replaceAll("\u0629", "\u0647").replaceAll("\u0649", "\u064a")
+    .replaceAll("خاتم خطوبه", "engagement ring")
+    .replaceAll("خاتم خطوبة", "engagement ring")
+    .replaceAll("سلسله اسم", "name necklace")
+    .replaceAll("سلسلة اسم", "name necklace")
+    .replaceAll("سلسله حرف", "initial necklace")
+    .replaceAll("سلسلة حرف", "initial necklace")
+    .replaceAll("روز جولد", "rose gold")
+    .replaceAll("خاتم", "ring").replaceAll("دبله", "ring").replaceAll("محبس", "ring")
+    .replaceAll("عقد", "necklace").replaceAll("سلسله", "necklace").replaceAll("سلسلة", "necklace")
+    .replaceAll("اسوره", "bracelet").replaceAll("أسوارة", "bracelet")
+    .replaceAll("حلق", "earring").replaceAll("حلقان", "earring")
+    .replaceAll("ذهب", "gold").replaceAll("فضه", "silver").replaceAll("فضة", "silver")
+    .replaceAll("بلاتين", "platinum")
+    .replaceAll("الماس", "diamond")
+    .replaceAll("موزانيت", "moissanite").replaceAll("مويسانيت", "moissanite").replaceAll("موزنايت", "moissanite")
+    .replaceAll("روز", "rose gold")
+    .replaceAll("اصفر", "yellow gold").replaceAll("ابيض", "white gold")
+    .replaceAll("هديه", "gift jewelry").replaceAll("هدية", "gift jewelry")
+    .replaceAll("اسم", "name").replaceAll("حرف", "initial")
+    .replaceAll("قلاده", "necklace").replaceAll("قلادة", "necklace")
+    .replaceAll("دلايه", "pendant").replaceAll("دلاية", "pendant")
+    .replaceAll("رجالي", "men").replaceAll("رجال", "men")
+    .replaceAll("اطفال", "kids").replaceAll("أطفال", "kids")
+    .replaceAll("خصم", "discount").replaceAll("تخفيض", "discount")
+    .replaceAll("زوجين", "couple").replaceAll("زوجي", "couple")
+    .replaceAll("هدية", "gift").replaceAll("هديه", "gift");
+}
+
+function detectLanguage(message) {
+  return /[\u0600-\u06FF]/.test(message) ? "arabic" : "english";
+}
+
+async function extractIntent(userMessage) {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      temperature: 0,
+      messages: [
+        {
+          role: "system",
+          content: "You are a jewelry search intent extractor. Extract the customer jewelry search intent and return ONLY a JSON object. Format: {\"category\": \"ring|necklace|bracelet|earring|pendant|chain|\", \"metal\": \"rose gold|yellow gold|white gold|silver|platinum|\", \"stone\": \"moissanite|diamond|pearl|\", \"shape\": \"oval|pear|round|emerald|princess|radiant|marquise|cushion|heart|asscher|\", \"occasion\": \"wedding|engagement|gift|anniversary|birthday|\", \"style\": \"men|kids|couple|custom|name|initial|tennis|\", \"keywords\": []}. Only fill fields clearly mentioned. Return ONLY the JSON.",
+        },
+        { role: "user", content: userMessage },
+      ],
+    });
+    const raw = completion.choices[0].message.content.replace(/```json|```/g, "").trim();
+    return JSON.parse(raw);
+  } catch (err) {
+    return null;
+  }
+}
+
+function shouldSearchProducts(message) {
+  const msg = normalizeText(message);
+  const keywords = [
+    "ring", "necklace", "bracelet", "earring", "pendant", "chain",
+    "name", "initial", "letter", "custom", "personalized",
+    "diamond", "gold", "silver", "platinum", "rose gold", "moissanite", "pearl",
+    "gift", "luxury", "bridal", "wedding", "engagement",
+    "oval", "pear", "round", "emerald", "princess", "radiant", "heart",
+    "men", "kids", "couple", "tennis",
+    "show", "recommend", "suggest", "find", "want", "buy",
+    "هديه", "هدية", "ذكري", "عيد", "مجوهرات", "جواهر", "رجالي", "زوجين",
+  ];
+  return keywords.some((w) => msg.includes(normalizeText(w)));
+}
+
+function shouldShowNext(message) {
+  const msg = message.toLowerCase();
+  const keywords = [
+    "next", "another", "more", "different", "other", "else",
+    "تاني", "غيره", "غيرها", "واحد تاني", "ورني تاني",
+    "قطعه اخره", "قطعة اخرى", "قطعه اخري", "قطعة أخرى",
+    "اخري", "اخره", "اخرى", "مش عاجبني", "غير",
+    "كمان", "شوف تاني", "ورني غيره", "حاجة تانية",
+  ];
+  return keywords.some((w) => msg.includes(w));
+}
+
+function shouldAskDiscount(message) {
+  const msg = normalizeText(message);
+  return msg.includes("discount") || msg.includes("sale") ||
+    msg.includes("offer") || msg.includes("promo") || msg.includes("code");
+}
+
+function roughFilter(userMessage, intent, products) {
+  const msg = normalizeText(userMessage);
+  const words = msg.split(" ").filter((w) => w.length > 2);
+  const intentWords = [
+    intent && intent.category,
+    intent && intent.metal,
+    intent && intent.stone,
+    intent && intent.shape,
+    intent && intent.occasion,
+    intent && intent.style,
+    ...((intent && intent.keywords) || []),
+  ].filter(Boolean).map((w) => normalizeText(w));
+
+  let scoredProducts = products.map((p) => {
+    const collectionText = ((p.aiFeatures && p.aiFeatures.collections) || []).join(" ").toLowerCase();
+    const text = normalizeText(
+      (p.title || "") + " " + (p.description || "") + " " + (p.type || "") + " " +
+      ((p.tags && p.tags.join(" ")) || "") + " " +
+      ((p.aiFeatures && p.aiFeatures.category) || "") + " " +
+      ((p.aiFeatures && p.aiFeatures.collection) || "") + " " +
+      ((p.aiFeatures && p.aiFeatures.productType) || "") + " " +
+      ((p.aiFeatures && p.aiFeatures.styles && p.aiFeatures.styles.join(" ")) || "") + " " +
+      ((p.aiFeatures && p.aiFeatures.intent && p.aiFeatures.intent.join(" ")) || "") + " " +
+      ((p.aiFeatures && p.aiFeatures.searchKeywords && p.aiFeatures.searchKeywords.join(" ")) || "") + " " +
+      ((p.aiFeatures && p.aiFeatures.materials && p.aiFeatures.materials.join(" ")) || "") + " " +
+      ((p.aiFeatures && p.aiFeatures.variantMetalColors && p.aiFeatures.variantMetalColors.join(" ")) || "") + " " +
+      ((p.aiFeatures && p.aiFeatures.diamondShapes && p.aiFeatures.diamondShapes.join(" ")) || "") + " " +
+      collectionText
+    );
+
+    let score = 0;
+    words.forEach((word) => { if (text.includes(word)) score += 10; });
+    intentWords.forEach((word) => { if (word && text.includes(word)) score += 40; });
+    if (intent && intent.category && text.includes(intent.category)) score += 100;
+    if (intent && intent.metal && text.includes(intent.metal)) score += 150;
+    if (intent && intent.stone && text.includes(intent.stone)) score += 200;
+    if (intent && intent.shape && text.includes(intent.shape)) score += 150;
+    if (intent && intent.occasion && text.includes(intent.occasion)) score += 120;
+    if (intent && intent.style && text.includes(intent.style)) score += 100;
+    if (intent && intent.category) {
+      if (!text.includes(intent.category)) score -= 200;
+    } else {
+      if (msg.includes("ring") && !text.includes("ring")) score -= 150;
+      if (msg.includes("necklace") && !text.includes("necklace")) score -= 150;
+      if (msg.includes("bracelet") && !text.includes("bracelet")) score -= 150;
+      if (msg.includes("earring") && !text.includes("earring")) score -= 150;
+    }
+    return Object.assign({}, p, { score: score });
+  });
+
+  return scoredProducts.filter((p) => p.score > 0).sort((a, b) => b.score - a.score).slice(0, 30);
+}
+
+async function aiSelectProducts(userMessage, intent, candidates) {
+  try {
+    const candidateList = candidates.map((p, i) => ({
+      index: i, title: p.title,
+      category: (p.aiFeatures && p.aiFeatures.category) || "",
+      collections: ((p.aiFeatures && p.aiFeatures.collections) || []).slice(0, 5),
+      productType: (p.aiFeatures && p.aiFeatures.productType) || "",
+      metals: ((p.aiFeatures && p.aiFeatures.variantMetalColors) || []).join(", "),
+      shapes: ((p.aiFeatures && p.aiFeatures.diamondShapes) || []).join(", "),
+      stones: ((p.aiFeatures && p.aiFeatures.variantStoneColors) || []).join(", "),
+      styles: ((p.aiFeatures && p.aiFeatures.styles) || []).join(", "),
+      intent: ((p.aiFeatures && p.aiFeatures.intent) || []).join(", "),
+      price: (p.variants && p.variants[0] && p.variants[0].price) || p.price || "",
+    }));
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      temperature: 0,
+      messages: [
+        { role: "system", content: "You are a luxury jewelry product selector. Choose the 8 most relevant AND DIVERSE products. CATEGORY IS MANDATORY. Return ONLY a JSON array of index numbers. No extra text." },
+        { role: "user", content: "Customer: \"" + userMessage + "\"\nIntent: " + JSON.stringify(intent) + "\nProducts:\n" + JSON.stringify(candidateList, null, 2) + "\nReturn 8 diverse best index numbers as JSON array." },
+      ],
+    });
+
+    const raw = completion.choices[0].message.content.replace(/```json|```/g, "").trim();
+    const indices = JSON.parse(raw);
+    return indices.filter((i) => i >= 0 && i < candidates.length).slice(0, 8).map((i) => candidates[i]);
+  } catch (err) {
+    return candidates.slice(0, 8);
+  }
+}
+
+function buildProductDetails(p) {
+  const rawPrices = (p.variants || []).map((v) => v.rawPrice).filter(Boolean).sort((a, b) => a - b);
+  return {
+    title: p.title,
+    category: (p.aiFeatures && p.aiFeatures.category) || "",
+    collections: ((p.aiFeatures && p.aiFeatures.collections) || []).slice(0, 5),
+    metals: (p.aiFeatures && p.aiFeatures.variantMetalColors) || [],
+    shapes: (p.aiFeatures && p.aiFeatures.diamondShapes) || [],
+    stoneSizes: (p.aiFeatures && p.aiFeatures.variantStoneSizes) || [],
+    stoneColors: (p.aiFeatures && p.aiFeatures.variantStoneColors) || [],
+    certifications: (p.aiFeatures && p.aiFeatures.certifications) || [],
+    startingPrice: rawPrices.length > 0 ? rawPrices[0] + " AED" : p.price || "",
+    styles: (p.aiFeatures && p.aiFeatures.styles) || [],
+    emotionalTriggers: (p.aiFeatures && p.aiFeatures.emotionalTriggers) || [],
+    description: (p.description || "").slice(0, 200),
+  };
+}
+
+function buildProductForFrontend(p) {
+  const resolvedImage = p.image || "";
+  return {
+    id: p.id || "", title: p.title || "", handle: p.handle || "",
+    description: p.description || "", type: p.type || "", vendor: p.vendor || "",
+    image: resolvedImage, images: p.images || [],
+    url: p.url || "https://alymwndw.com/products/" + p.handle,
+    reviewRating: p.reviewRating != null ? p.reviewRating : 4.9,
+    reviewCount: p.reviewCount != null ? p.reviewCount : 120,
+    category: (p.aiFeatures && p.aiFeatures.category) || "",
+    collection: (p.aiFeatures && p.aiFeatures.collection) || "",
+    styles: (p.aiFeatures && p.aiFeatures.styles) || [],
+    emotionalTriggers: (p.aiFeatures && p.aiFeatures.emotionalTriggers) || [],
+    price: (p.variants && p.variants[0] && p.variants[0].price) || p.price || "",
+    rawPrice: (p.variants && p.variants[0] && p.variants[0].rawPrice) || p.rawPrice || 0,
+    currency: p.currency || "AED",
+    variants: (p.variants || []).slice(0, 20).map((v) => {
+      const variantImage = v.mappedImage || v.image || resolvedImage || "";
+      return {
+        id: v.id || "", title: v.title || "", sku: v.sku || "",
+        available: v.available != null ? v.available : true,
+        price: v.price || "", rawPrice: v.rawPrice || 0, currency: v.currency || "AED",
+        image: variantImage, mappedImage: variantImage,
+        metal: v.metal || "", stoneColor: v.stoneColor || "",
+        shape: v.shape || "", stoneSize: v.stoneSize || "", options: v.options || [],
+      };
+    }),
+  };
+}
+
+app.get("/", (req, res) => { res.send("ALYMWNDW AI RUNNING"); });
+
+// =====================================
+// SHOPIFY STOREFRONT API
+// =====================================
+
+async function storefrontQuery(query, variables = {}) {
+  try {
+    const response = await fetch(
+      "https://" + SHOP + "/api/2025-01/graphql.json",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Storefront-Access-Token": STOREFRONT_TOKEN,
+        },
+        body: JSON.stringify({ query, variables }),
+      }
+    );
+    return response.json();
+  } catch (err) {
+    console.log("STOREFRONT ERROR:", err.message);
+    return null;
+  }
+}
+
+// =====================================
+// ADD TO CART
+// =====================================
+
+app.post("/add-to-cart", async (req, res) => {
+  try {
+
+    const { variantId, quantity = 1, cartId } = req.body;
+
+    if (!variantId) {
+      return res.status(400).json({ error: "variantId required" });
+    }
+
+    let mutation;
+    let variables;
+
+    if (cartId) {
+      mutation = `
+        mutation cartLinesAdd($cartId: ID!, $lines: [CartLineInput!]!) {
+          cartLinesAdd(cartId: $cartId, lines: $lines) {
+            cart {
+              id
+              checkoutUrl
+              totalQuantity
+            }
+            userErrors { field message }
+          }
+        }
+      `;
+      variables = { cartId, lines: [{ merchandiseId: variantId, quantity }] };
+    } else {
+      mutation = `
+        mutation cartCreate($input: CartInput!) {
+          cartCreate(input: $input) {
+            cart {
+              id
+              checkoutUrl
+              totalQuantity
+            }
+            userErrors { field message }
+          }
+        }
+      `;
+      variables = { input: { lines: [{ merchandiseId: variantId, quantity }] } };
+    }
+
+    const data = await storefrontQuery(mutation, variables);
+
+    if (!data) return res.status(500).json({ error: "Storefront API error" });
+
+    const cartData = cartId
+      ? data.data?.cartLinesAdd?.cart
+      : data.data?.cartCreate?.cart;
+
+    const userErrors = cartId
+      ? data.data?.cartLinesAdd?.userErrors
+      : data.data?.cartCreate?.userErrors;
+
+    if (userErrors && userErrors.length > 0) {
+      return res.status(400).json({ error: userErrors[0].message });
+    }
+
+    if (!cartData) return res.status(500).json({ error: "Cart creation failed" });
+
+    res.json({
+      success: true,
+      cartId: cartData.id,
+      checkoutUrl: cartData.checkoutUrl,
+      totalQuantity: cartData.totalQuantity,
+    });
+
+  } catch (err) {
+    console.log("ADD TO CART ERROR:", err.message);
+    res.status(500).json({ error: "Add to cart failed" });
+  }
+});
+
+// =====================================
+// ADD TO CART - SHOPIFY STOREFRONT API
+// =====================================
+
+app.post("/add-to-cart", async (req, res) => {
+
+  try {
+
+    const { variantId, quantity = 1, cartId } = req.body;
+
+    if (!variantId) {
+      return res.status(400).json({ error: "variantId required" });
+    }
+
+    // =====================================
+    // CREATE OR UPDATE CART
+    // =====================================
+
+    let mutation;
+    let variables;
+
+    if (cartId) {
+
+      // ADD TO EXISTING CART
+      mutation = `
+        mutation cartLinesAdd($cartId: ID!, $lines: [CartLineInput!]!) {
+          cartLinesAdd(cartId: $cartId, lines: $lines) {
+            cart {
+              id
+              checkoutUrl
+              totalQuantity
+              lines(first: 10) {
+                edges {
+                  node {
+                    id
+                    quantity
+                    merchandise {
+                      ... on ProductVariant {
+                        id
+                        title
+                        price { amount currencyCode }
+                        product { title }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+
+      variables = {
+        cartId,
+        lines: [{ merchandiseId: variantId, quantity }],
+      };
+
+    } else {
+
+      // CREATE NEW CART
+      mutation = `
+        mutation cartCreate($input: CartInput!) {
+          cartCreate(input: $input) {
+            cart {
+              id
+              checkoutUrl
+              totalQuantity
+              lines(first: 10) {
+                edges {
+                  node {
+                    id
+                    quantity
+                    merchandise {
+                      ... on ProductVariant {
+                        id
+                        title
+                        price { amount currencyCode }
+                        product { title }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+
+      variables = {
+        input: {
+          lines: [{ merchandiseId: variantId, quantity }],
+        },
+      };
+
+    }
+
+    const data = await storefrontQuery(mutation, variables);
+
+    if (!data) {
+      return res.status(500).json({ error: "Storefront API error" });
+    }
+
+    const cartData = cartId
+      ? data.data?.cartLinesAdd?.cart
+      : data.data?.cartCreate?.cart;
+
+    const userErrors = cartId
+      ? data.data?.cartLinesAdd?.userErrors
+      : data.data?.cartCreate?.userErrors;
+
+    if (userErrors && userErrors.length > 0) {
+      return res.status(400).json({ error: userErrors[0].message });
+    }
+
+    if (!cartData) {
+      return res.status(500).json({ error: "Cart creation failed" });
+    }
+
+    res.json({
+      success: true,
+      cartId: cartData.id,
+      checkoutUrl: cartData.checkoutUrl,
+      totalQuantity: cartData.totalQuantity,
+    });
+
+  } catch (err) {
+    console.log("ADD TO CART ERROR:", err.message);
+    res.status(500).json({ error: "Add to cart failed" });
+  }
+
+});
+
+// =============================================
+// CUSTOMIZE PRODUCT - IMAGE TO IMAGE
+// =============================================
+
+app.post("/customize-product", async (req, res) => {
+  try {
+    const sessionId = req.body.sessionId || "";
+    const productHandle = req.body.productHandle || "";
+    const productImageUrl = req.body.productImageUrl || "";
+    const userDesc = req.body.userDescription || "";
+
+    if (!sessionImageCount[sessionId]) sessionImageCount[sessionId] = 0;
+    const count = sessionImageCount[sessionId];
+
+    if (count >= 2 && !sessionEmails[sessionId]) return res.json({ requireEmail: true });
+    if (count >= 3) return res.json({ blocked: true });
+
+    let englishDesc = userDesc;
+    if (/[\u0600-\u06FF]/.test(userDesc)) {
+      try {
+        const translation = await openai.chat.completions.create({
+          model: "gpt-4.1-mini",
+          temperature: 0,
+          messages: [
+            { role: "system", content: "Translate the following Arabic jewelry customization request to English. Return only the translated text." },
+            { role: "user", content: userDesc },
+          ],
+        });
+        englishDesc = translation.choices[0].message.content.trim();
+      } catch (e) { englishDesc = userDesc; }
+    }
+
+    const prompt =
+      "This is a luxury jewelry product photo. Keep the EXACT SAME jewelry design, shape, style, and structure. " +
+      "Only apply this specific change: " + englishDesc + ". " +
+      "Maintain professional studio lighting, pure white background, ultra-realistic 8K quality, photorealistic gemstones and metal finish.";
+
+    let response;
+
+    if (productImageUrl && (productImageUrl.startsWith("http://") || productImageUrl.startsWith("https://"))) {
+      try {
+        const imgFetch = await fetch(productImageUrl);
+        if (!imgFetch.ok) throw new Error("Image fetch failed: " + imgFetch.status);
+        const imgArrayBuffer = await imgFetch.arrayBuffer();
+        const imgBuffer = Buffer.from(imgArrayBuffer);
+        const { toFile } = await import("openai");
+        const imageFile = await toFile(imgBuffer, "product.jpg", { type: "image/jpeg" });
+        response = await openai.images.edit({
+          model: "gpt-image-1",
+          image: imageFile,
+          prompt: prompt,
+          n: 1,
+          size: "1024x1024",
+        });
+        console.log("IMAGE-TO-IMAGE used for: " + productHandle);
+      } catch (editErr) {
+        console.log("Image edit failed, falling back to generate: " + editErr.message);
+        response = await openai.images.generate({
+          model: "gpt-image-1",
+          prompt: "Luxury jewelry: " + productHandle.replace(/-/g, " ") + ". " + englishDesc + ". White background, professional studio lighting, photorealistic, 8K.",
+          n: 1,
+          size: "1024x1024",
+        });
+      }
+    } else {
+      response = await openai.images.generate({
+        model: "gpt-image-1",
+        prompt: "Luxury jewelry: " + productHandle.replace(/-/g, " ") + ". " + englishDesc + ". White background, professional studio lighting, photorealistic, 8K.",
+        n: 1,
+        size: "1024x1024",
+      });
+    }
+
+    sessionImageCount[sessionId]++;
+    const imageUrl = response.data[0].url || ("data:image/png;base64," + response.data[0].b64_json);
+
+    res.json({
+      imageUrl: imageUrl,
+      count: sessionImageCount[sessionId],
+      remaining: Math.max(0, 3 - sessionImageCount[sessionId]),
+    });
+
+  } catch (err) {
+    console.log("CUSTOMIZE ERROR: " + err.message);
+    res.status(500).json({ error: "Image generation failed." });
+  }
+});
+
+app.post("/save-email", async (req, res) => {
+  const sessionId = req.body.sessionId;
+  const email = req.body.email;
+  if (sessionId && email) sessionEmails[sessionId] = email;
+  res.json({ ok: true });
+});
+
+app.post("/generate-image", async (req, res) => {
+  try {
+    const sessionId = req.body.sessionId || "";
+    const productTitle = req.body.productTitle || "";
+    const productDescription = req.body.productDescription || "";
+    const email = req.body.email || "";
+
+    if (!sessionImageCount[sessionId]) sessionImageCount[sessionId] = 0;
+    const count = sessionImageCount[sessionId];
+
+    if (count >= 2 && !sessionEmails[sessionId]) return res.json({ requireEmail: true });
+    if (email) sessionEmails[sessionId] = email;
+    if (count >= 3) return res.json({ blocked: true });
+
+    const prompt = "Luxury jewelry product photo. " + productTitle + ". " + productDescription.slice(0, 100) + ". White background. Professional studio lighting. Ultra detailed.";
+
+    const response = await openai.images.generate({
+      model: "gpt-image-1",
+      prompt: prompt,
+      n: 1,
+      size: "1024x1024",
+    });
+
+    sessionImageCount[sessionId]++;
+    const imageUrl = response.data[0].url || ("data:image/png;base64," + response.data[0].b64_json);
+
+    res.json({
+      imageUrl: imageUrl,
+      count: sessionImageCount[sessionId],
+      remaining: Math.max(0, 3 - sessionImageCount[sessionId]),
+    });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: "Image generation failed." });
+  }
+});
+
+app.post("/chat", async (req, res) => {
+  try {
+    const userMessage = req.body.message || "";
+    const sessionId = req.body.sessionId || crypto.randomUUID();
+    const normalizedMessage = normalizeText(userMessage);
+    const language = detectLanguage(userMessage);
+
+    if (!conversations[sessionId]) conversations[sessionId] = [];
+    if (!sessionProducts[sessionId]) {
+      sessionProducts[sessionId] = { queue: [], lastSearch: "", lastIntent: null };
+    }
+    sessionTimestamps[sessionId] = Date.now();
+
+    const isGreeting = userMessage === "__greeting__";
+    if (!isGreeting) conversations[sessionId].push({ role: "user", content: userMessage });
+    if (conversations[sessionId].length > 20) conversations[sessionId] = conversations[sessionId].slice(-10);
+
+    if (conversations[sessionId].length > 10) {
+      const summaryCompletion = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        temperature: 0.2,
+        messages: [
+          { role: "system", content: "Summarize this luxury jewelry customer profile. Keep: style, taste, materials, budget. Be concise." },
+          { role: "user", content: JSON.stringify(conversations[sessionId]) },
+        ],
+      });
+      summaries[sessionId] = summaryCompletion.choices[0].message.content;
+    }
+
+    let discountContext = "";
+    if (shouldAskDiscount(userMessage)) {
+      const discounts = await getActiveDiscounts();
+      discountContext = discounts.length > 0
+        ? "ACTIVE DISCOUNTS: " + JSON.stringify(discounts, null, 2)
+        : "No active discounts right now.";
+    }
+
+    let currentProduct = null;
+    const isNextRequest = shouldShowNext(userMessage);
+    const isNewSearch = !isGreeting && shouldSearchProducts(normalizedMessage) && !isNextRequest;
+
+    if (isNextRequest) {
+      if (sessionProducts[sessionId].queue.length > 0) {
+        currentProduct = sessionProducts[sessionId].queue.shift();
+      } else if (sessionProducts[sessionId].lastSearch) {
+        const candidates = roughFilter(sessionProducts[sessionId].lastSearch, sessionProducts[sessionId].lastIntent, products);
+        if (candidates.length > 0) {
+          const selected = await aiSelectProducts(sessionProducts[sessionId].lastSearch, sessionProducts[sessionId].lastIntent, candidates);
+          sessionProducts[sessionId].queue = selected;
+          currentProduct = sessionProducts[sessionId].queue.shift();
+        }
+      }
+    } else if (isNewSearch) {
+      const intent = await extractIntent(userMessage);
+      sessionProducts[sessionId].lastIntent = intent;
+      const candidates = roughFilter(normalizedMessage, intent, products);
+      if (candidates.length > 0) {
+        const selected = await aiSelectProducts(userMessage, intent, candidates);
+        sessionProducts[sessionId].queue = selected;
+        sessionProducts[sessionId].lastSearch = normalizedMessage;
+        currentProduct = sessionProducts[sessionId].queue.shift();
+      }
+    }
+
+    const hasMore = sessionProducts[sessionId].queue.length > 0;
+    const aiProductForFrontend = currentProduct ? buildProductForFrontend(currentProduct) : null;
+    const aiProductDetails = currentProduct ? buildProductDetails(currentProduct) : null;
+
+    const languageInstruction = language === "arabic"
+      ? "CRITICAL: Respond ENTIRELY in Arabic only. Zero English words."
+      : "CRITICAL: Respond ENTIRELY in English only. Zero Arabic words.";
+
+    let systemPrompt = "You are Alymwndw AI — elite luxury jewelry sales concierge for Alymwndw Jewellery UAE.\n";
+    systemPrompt += "PERSONALITY: Warm, elegant, passionate. Max 4 sentences per response.\n";
+    systemPrompt += languageInstruction + "\n";
+    systemPrompt += "STRICT RULES:\n- NEVER invent products, metals, stones, prices\n- NEVER mention price unless from CURRENT PRODUCT startingPrice\n- NEVER use markdown\n- NEVER mix Arabic and English\n";
+    if (isGreeting) {
+      systemPrompt += "GREETING MODE: Welcome customer warmly. Ask what they are looking for. Short, warm, luxurious.\n";
+    } else if (!aiProductDetails) {
+      systemPrompt += "NO PRODUCT MODE: No product available. Ask customer questions to understand their preference better.\n";
+    } else {
+      systemPrompt += "SELLING MODE - Current product:\n" + JSON.stringify(aiProductDetails, null, 2) + "\n";
+      systemPrompt += "1. Emotional hook\n2. Metals available\n3. Stones/shapes\n4. Price EXACTLY: " + aiProductDetails.startingPrice + "\n5. One question\n";
+      if (hasMore) systemPrompt += "End with: ask if they want to see another piece.\n";
+    }
+    if (discountContext) systemPrompt += "DISCOUNT INFO: " + discountContext + "\n";
+    systemPrompt += "Customer Memory: " + (summaries[sessionId] || "New customer.");
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      temperature: 0.4,
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...(isGreeting ? [{ role: "user", content: "greeting" }] : conversations[sessionId].slice(-8)),
+      ],
+    });
+
+    const aiReply = completion.choices[0].message.content;
+    if (!isGreeting) conversations[sessionId].push({ role: "assistant", content: aiReply });
+
+    res.json({
+      reply: aiReply,
+      products: aiProductForFrontend ? [aiProductForFrontend] : [],
+      hasMore: hasMore,
+      sessionId: sessionId,
+    });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ reply: "Server error", products: [] });
+  }
+});
+
+app.listen(PORT, () => { console.log("ALYMWNDW AI RUNNING ON PORT " + PORT); });
