@@ -23,7 +23,6 @@ const openai = new OpenAI({
 const SHOP = process.env.SHOPIFY_STORE;
 const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 const STOREFRONT_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN;
-const STOREFRONT_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN;
 
 const conversations = {};
 const summaries = {};
@@ -75,11 +74,7 @@ async function shopifyQuery(query) {
   }
 }
 
-// =====================================
-// SHOPIFY STOREFRONT API
-// =====================================
-
-async function storefrontQuery(query, variables = {}) {
+async function storefrontQuery(query, variables) {
   try {
     const response = await fetch(
       "https://" + SHOP + "/api/2025-01/graphql.json",
@@ -371,37 +366,14 @@ function buildProductForFrontend(p) {
 app.get("/", (req, res) => { res.send("ALYMWNDW AI RUNNING"); });
 
 // =====================================
-// SHOPIFY STOREFRONT API
-// =====================================
-
-async function storefrontQuery(query, variables = {}) {
-  try {
-    const response = await fetch(
-      "https://" + SHOP + "/api/2025-01/graphql.json",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Shopify-Storefront-Access-Token": STOREFRONT_TOKEN,
-        },
-        body: JSON.stringify({ query, variables }),
-      }
-    );
-    return response.json();
-  } catch (err) {
-    console.log("STOREFRONT ERROR:", err.message);
-    return null;
-  }
-}
-
-// =====================================
 // ADD TO CART
 // =====================================
 
 app.post("/add-to-cart", async (req, res) => {
   try {
-
-    const { variantId, quantity = 1, cartId } = req.body;
+    const variantId = req.body.variantId;
+    const quantity = req.body.quantity || 1;
+    const cartId = req.body.cartId || null;
 
     if (!variantId) {
       return res.status(400).json({ error: "variantId required" });
@@ -414,11 +386,7 @@ app.post("/add-to-cart", async (req, res) => {
       mutation = `
         mutation cartLinesAdd($cartId: ID!, $lines: [CartLineInput!]!) {
           cartLinesAdd(cartId: $cartId, lines: $lines) {
-            cart {
-              id
-              checkoutUrl
-              totalQuantity
-            }
+            cart { id checkoutUrl totalQuantity }
             userErrors { field message }
           }
         }
@@ -428,11 +396,7 @@ app.post("/add-to-cart", async (req, res) => {
       mutation = `
         mutation cartCreate($input: CartInput!) {
           cartCreate(input: $input) {
-            cart {
-              id
-              checkoutUrl
-              totalQuantity
-            }
+            cart { id checkoutUrl totalQuantity }
             userErrors { field message }
           }
         }
@@ -444,19 +408,14 @@ app.post("/add-to-cart", async (req, res) => {
 
     if (!data) return res.status(500).json({ error: "Storefront API error" });
 
-    const cartData = cartId
-      ? data.data?.cartLinesAdd?.cart
-      : data.data?.cartCreate?.cart;
-
-    const userErrors = cartId
-      ? data.data?.cartLinesAdd?.userErrors
-      : data.data?.cartCreate?.userErrors;
+    const cartData = cartId ? data.data.cartLinesAdd.cart : data.data.cartCreate.cart;
+    const userErrors = cartId ? data.data.cartLinesAdd.userErrors : data.data.cartCreate.userErrors;
 
     if (userErrors && userErrors.length > 0) {
       return res.status(400).json({ error: userErrors[0].message });
     }
 
-    if (!cartData) return res.status(500).json({ error: "Cart creation failed" });
+    if (!cartData) return res.status(500).json({ error: "Cart failed" });
 
     res.json({
       success: true,
@@ -469,152 +428,11 @@ app.post("/add-to-cart", async (req, res) => {
     console.log("ADD TO CART ERROR:", err.message);
     res.status(500).json({ error: "Add to cart failed" });
   }
-});
-
-// =====================================
-// ADD TO CART - SHOPIFY STOREFRONT API
-// =====================================
-
-app.post("/add-to-cart", async (req, res) => {
-
-  try {
-
-    const { variantId, quantity = 1, cartId } = req.body;
-
-    if (!variantId) {
-      return res.status(400).json({ error: "variantId required" });
-    }
-
-    // =====================================
-    // CREATE OR UPDATE CART
-    // =====================================
-
-    let mutation;
-    let variables;
-
-    if (cartId) {
-
-      // ADD TO EXISTING CART
-      mutation = `
-        mutation cartLinesAdd($cartId: ID!, $lines: [CartLineInput!]!) {
-          cartLinesAdd(cartId: $cartId, lines: $lines) {
-            cart {
-              id
-              checkoutUrl
-              totalQuantity
-              lines(first: 10) {
-                edges {
-                  node {
-                    id
-                    quantity
-                    merchandise {
-                      ... on ProductVariant {
-                        id
-                        title
-                        price { amount currencyCode }
-                        product { title }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }
-      `;
-
-      variables = {
-        cartId,
-        lines: [{ merchandiseId: variantId, quantity }],
-      };
-
-    } else {
-
-      // CREATE NEW CART
-      mutation = `
-        mutation cartCreate($input: CartInput!) {
-          cartCreate(input: $input) {
-            cart {
-              id
-              checkoutUrl
-              totalQuantity
-              lines(first: 10) {
-                edges {
-                  node {
-                    id
-                    quantity
-                    merchandise {
-                      ... on ProductVariant {
-                        id
-                        title
-                        price { amount currencyCode }
-                        product { title }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }
-      `;
-
-      variables = {
-        input: {
-          lines: [{ merchandiseId: variantId, quantity }],
-        },
-      };
-
-    }
-
-    const data = await storefrontQuery(mutation, variables);
-
-    if (!data) {
-      return res.status(500).json({ error: "Storefront API error" });
-    }
-
-    const cartData = cartId
-      ? data.data?.cartLinesAdd?.cart
-      : data.data?.cartCreate?.cart;
-
-    const userErrors = cartId
-      ? data.data?.cartLinesAdd?.userErrors
-      : data.data?.cartCreate?.userErrors;
-
-    if (userErrors && userErrors.length > 0) {
-      return res.status(400).json({ error: userErrors[0].message });
-    }
-
-    if (!cartData) {
-      return res.status(500).json({ error: "Cart creation failed" });
-    }
-
-    res.json({
-      success: true,
-      cartId: cartData.id,
-      checkoutUrl: cartData.checkoutUrl,
-      totalQuantity: cartData.totalQuantity,
-    });
-
-  } catch (err) {
-    console.log("ADD TO CART ERROR:", err.message);
-    res.status(500).json({ error: "Add to cart failed" });
-  }
-
 });
 
 // =============================================
 // CUSTOMIZE PRODUCT - IMAGE TO IMAGE
 // =============================================
-
 app.post("/customize-product", async (req, res) => {
   try {
     const sessionId = req.body.sessionId || "";
