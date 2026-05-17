@@ -226,10 +226,7 @@ transition:all .2s;
 white-space:nowrap;
 }
 
-.metal-btn:hover{
-border-color:#44f1cf;
-color:#44f1cf;
-}
+.metal-btn:hover{ border-color:#44f1cf; color:#44f1cf; }
 
 .metal-btn.active{
 background:#44f1cf;
@@ -286,7 +283,7 @@ font-size:14px;
 margin-bottom:22px;
 }
 
-.product-buttons{ display:flex; gap:14px; }
+.product-buttons{ display:flex; gap:14px; margin-bottom:16px; }
 
 .view-btn{
 flex:1;
@@ -309,6 +306,24 @@ background:white;
 font-size:17px;
 font-weight:700;
 cursor:pointer;
+transition:all .2s;
+}
+
+.cart-btn:hover{ opacity:.9; }
+
+.cart-btn.loading{
+opacity:.7;
+cursor:not-allowed;
+}
+
+.cart-btn.success{
+background:#44f1cf;
+color:black;
+}
+
+.cart-btn.error{
+background:#ff4444;
+color:white;
 }
 
 .input-area{
@@ -487,10 +502,6 @@ border-radius:20px;
 white-space:nowrap;
 }
 
-/* ===================== */
-/* AI CUSTOMIZER         */
-/* ===================== */
-
 .ai-customizer{margin-top:20px;padding:16px;background:#141414;border:1px solid rgba(68,241,207,.15);border-radius:18px;}
 .ai-customizer-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
 .ai-customizer-icon{font-size:18px;}
@@ -638,6 +649,7 @@ onkeydown="handleKey(event)"
 
 const chatBox = document.getElementById("chat-box");
 let sessionId = null;
+let cartId = null;
 
 const stoneColorMap = {
   "white":"#f5f5f5","pink":"#f48fb1","rose":"#e57373","red":"#c62828",
@@ -731,8 +743,87 @@ function addUserMessage(text){
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
+// =====================
+// ADD TO CART
+// =====================
+
+async function addToCart(handle, btnId) {
+
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+
+  const state = window[`state_${handle}`];
+  if (!state) {
+    window.open(`https://alymwndw.com/products/${handle}`, "_blank");
+    return;
+  }
+
+  // Find matching variant
+  const { variants, selectedMetal, selectedStoneColor, selectedStoneSize, selectedShape } = state;
+
+  let match = variants.find((v) =>
+    (!selectedMetal || v.metal === selectedMetal) &&
+    (!selectedStoneColor || v.stoneColor === selectedStoneColor) &&
+    (!selectedStoneSize || v.stoneSize === selectedStoneSize) &&
+    (!selectedShape || v.shape === selectedShape)
+  );
+  if (!match) match = variants.find((v) => !selectedMetal || v.metal === selectedMetal);
+  if (!match) match = variants[0];
+
+  if (!match || !match.id) {
+    window.open(`https://alymwndw.com/products/${handle}`, "_blank");
+    return;
+  }
+
+  btn.classList.add("loading");
+  btn.innerText = "Adding...";
+
+  try {
+
+    const response = await fetch("/add-to-cart", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        variantId: match.id,
+        quantity: 1,
+        cartId: cartId,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      cartId = data.cartId;
+      btn.classList.remove("loading");
+      btn.classList.add("success");
+      btn.innerText = "✓ Added!";
+
+      // Show checkout option after 2 seconds
+      setTimeout(() => {
+        btn.classList.remove("success");
+        btn.innerText = "Checkout →";
+        btn.onclick = () => window.open(data.checkoutUrl, "_blank");
+      }, 2000);
+
+    } else {
+      throw new Error(data.error || "Failed");
+    }
+
+  } catch (err) {
+    btn.classList.remove("loading");
+    btn.classList.add("error");
+    btn.innerText = "Error - Try Again";
+    setTimeout(() => {
+      btn.classList.remove("error");
+      btn.innerText = "Add To Cart";
+      btn.onclick = () => addToCart(handle, btnId);
+    }, 2000);
+  }
+
+}
+
 // =============================================
-// AI CUSTOMIZE IMAGE - IMAGE TO IMAGE
+// AI CUSTOMIZE IMAGE
 // =============================================
 
 async function generateCustomImage(handle, imageId, descId, resultId, btnId) {
@@ -742,7 +833,6 @@ async function generateCustomImage(handle, imageId, descId, resultId, btnId) {
   const userDesc = descInput.value.trim();
   if (!userDesc) { descInput.focus(); return; }
 
-  // Get current product image src for image-to-image
   const productImgEl = document.getElementById(imageId);
   const productImageUrl = productImgEl ? productImgEl.src : "";
 
@@ -758,7 +848,7 @@ async function generateCustomImage(handle, imageId, descId, resultId, btnId) {
       body: JSON.stringify({
         sessionId,
         productHandle: handle,
-        productImageUrl: productImageUrl,   // ← KEY FIX: send current product image
+        productImageUrl: productImageUrl,
         userDescription: userDesc,
       }),
     });
@@ -822,6 +912,7 @@ const variants = product.variants || [];
 const url = product.url || `https://alymwndw.com/products/${product.handle}`;
 const imageId = `img-${product.handle}`;
 const priceId = `price-${product.handle}`;
+const cartBtnId = `cart-btn-${product.handle}`;
 const descId = `ai-desc-${product.handle}`;
 const resultId = `ai-result-${product.handle}`;
 const btnId = `ai-btn-${product.handle}`;
@@ -880,7 +971,7 @@ ${variantGroupsHTML}
 <div class="product-description">${(product.description||"").slice(0,120)}...</div>
 <div class="product-buttons">
 <a href="${url}" target="_blank" class="view-btn">View Product</a>
-<button class="cart-btn" onclick="window.open('${url}','_blank')">Add To Cart</button>
+<button id="${cartBtnId}" class="cart-btn" onclick="addToCart('${product.handle}','${cartBtnId}')">Add To Cart</button>
 </div>
 <div class="ai-customizer">
 <div class="ai-customizer-header">
@@ -897,7 +988,15 @@ ${variantGroupsHTML}
 
 chatBox.appendChild(card);
 
-window[`state_${product.handle}`] = { variants, selectedMetal: metals[0]||"", selectedStoneColor: stoneColors[0]||"", selectedStoneSize: stoneSizes[0]||"", selectedShape: shapes[0]||"", imageId, priceId };
+window[`state_${product.handle}`] = {
+  variants,
+  selectedMetal: metals[0]||"",
+  selectedStoneColor: stoneColors[0]||"",
+  selectedStoneSize: stoneSizes[0]||"",
+  selectedShape: shapes[0]||"",
+  imageId,
+  priceId,
+};
 
 });
 chatBox.scrollTop = chatBox.scrollHeight;
