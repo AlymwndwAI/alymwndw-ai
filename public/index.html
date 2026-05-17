@@ -226,7 +226,10 @@ transition:all .2s;
 white-space:nowrap;
 }
 
-.metal-btn:hover{ border-color:#44f1cf; color:#44f1cf; }
+.metal-btn:hover{
+border-color:#44f1cf;
+color:#44f1cf;
+}
 
 .metal-btn.active{
 background:#44f1cf;
@@ -283,7 +286,7 @@ font-size:14px;
 margin-bottom:22px;
 }
 
-.product-buttons{ display:flex; gap:14px; margin-bottom:16px; }
+.product-buttons{ display:flex; gap:14px; }
 
 .view-btn{
 flex:1;
@@ -307,24 +310,13 @@ font-size:17px;
 font-weight:700;
 cursor:pointer;
 transition:all .2s;
-}
-
-.cart-btn:hover{ opacity:.9; }
-
-.cart-btn.loading{
-opacity:.7;
-cursor:not-allowed;
-}
-
-.cart-btn.success{
-background:#44f1cf;
 color:black;
 }
 
-.cart-btn.error{
-background:#ff4444;
-color:white;
-}
+.cart-btn:hover{ opacity:.9; }
+.cart-btn.loading{ opacity:.7; cursor:not-allowed; }
+.cart-btn.success{ background:#44f1cf; color:black; }
+.cart-btn.error{ background:#ff4444; color:white; }
 
 .input-area{
 padding:24px;
@@ -748,17 +740,12 @@ function addUserMessage(text){
 // =====================
 
 async function addToCart(handle, btnId) {
-
   const btn = document.getElementById(btnId);
   if (!btn) return;
 
   const state = window[`state_${handle}`];
-  if (!state) {
-    window.open(`https://alymwndw.com/products/${handle}`, "_blank");
-    return;
-  }
+  if (!state) { window.open(`https://alymwndw.com/products/${handle}`, "_blank"); return; }
 
-  // Find matching variant
   const { variants, selectedMetal, selectedStoneColor, selectedStoneSize, selectedShape } = state;
 
   let match = variants.find((v) =>
@@ -770,26 +757,17 @@ async function addToCart(handle, btnId) {
   if (!match) match = variants.find((v) => !selectedMetal || v.metal === selectedMetal);
   if (!match) match = variants[0];
 
-  if (!match || !match.id) {
-    window.open(`https://alymwndw.com/products/${handle}`, "_blank");
-    return;
-  }
+  if (!match || !match.id) { window.open(`https://alymwndw.com/products/${handle}`, "_blank"); return; }
 
   btn.classList.add("loading");
   btn.innerText = "Adding...";
 
   try {
-
     const response = await fetch("/add-to-cart", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        variantId: match.id,
-        quantity: 1,
-        cartId: cartId,
-      }),
+      body: JSON.stringify({ variantId: match.id, quantity: 1, cartId }),
     });
-
     const data = await response.json();
 
     if (data.success) {
@@ -797,33 +775,28 @@ async function addToCart(handle, btnId) {
       btn.classList.remove("loading");
       btn.classList.add("success");
       btn.innerText = "✓ Added!";
-
-      // Show checkout option after 2 seconds
       setTimeout(() => {
         btn.classList.remove("success");
         btn.innerText = "Checkout →";
         btn.onclick = () => window.open(data.checkoutUrl, "_blank");
       }, 2000);
-
     } else {
       throw new Error(data.error || "Failed");
     }
-
   } catch (err) {
     btn.classList.remove("loading");
     btn.classList.add("error");
-    btn.innerText = "Error - Try Again";
+    btn.innerText = "Try Again";
     setTimeout(() => {
       btn.classList.remove("error");
       btn.innerText = "Add To Cart";
       btn.onclick = () => addToCart(handle, btnId);
     }, 2000);
   }
-
 }
 
 // =============================================
-// AI CUSTOMIZE IMAGE
+// AI CUSTOMIZE IMAGE - IMAGE TO IMAGE
 // =============================================
 
 async function generateCustomImage(handle, imageId, descId, resultId, btnId) {
@@ -988,15 +961,7 @@ ${variantGroupsHTML}
 
 chatBox.appendChild(card);
 
-window[`state_${product.handle}`] = {
-  variants,
-  selectedMetal: metals[0]||"",
-  selectedStoneColor: stoneColors[0]||"",
-  selectedStoneSize: stoneSizes[0]||"",
-  selectedShape: shapes[0]||"",
-  imageId,
-  priceId,
-};
+window[`state_${product.handle}`] = { variants, selectedMetal: metals[0]||"", selectedStoneColor: stoneColors[0]||"", selectedStoneSize: stoneSizes[0]||"", selectedShape: shapes[0]||"", imageId, priceId };
 
 });
 chatBox.scrollTop = chatBox.scrollHeight;
