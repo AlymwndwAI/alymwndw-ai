@@ -4,12 +4,7 @@
 <head>
 
 <meta charset="UTF-8"/>
-
-<meta
-name="viewport"
-content="width=device-width, initial-scale=1.0"
-/>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Alymwndw AI</title>
 
 <style>
@@ -37,10 +32,6 @@ body{ background:#050505; font-family:Arial,sans-serif; color:white; }
 .ai-message{ background:#121212; border:1px solid rgba(255,255,255,.05); }
 .user-message{ background:#44f1cf; color:black; font-weight:600; }
 
-/* ===================== */
-/* PRODUCT CARD */
-/* ===================== */
-
 .product-card{ background:#0d0d0d; border-radius:34px; overflow:hidden; margin-bottom:26px; border:1px solid rgba(255,255,255,.06); max-width:720px; margin-left:46px; animation:fade .3s ease; }
 .product-image{ width:100%; aspect-ratio:1/1; object-fit:cover; display:block; background:#111; transition:opacity .3s ease; }
 .product-content{ padding:24px; }
@@ -48,33 +39,22 @@ body{ background:#050505; font-family:Arial,sans-serif; color:white; }
 .product-price{ font-size:24px; font-weight:700; color:#44f1cf; margin-bottom:12px; }
 .product-rating{ opacity:.75; margin-bottom:20px; font-size:15px; }
 
-/* ===================== */
-/* VARIANT GROUPS */
-/* ===================== */
-
 .variant-groups{ margin-bottom:20px; display:flex; flex-direction:column; gap:16px; }
 .variant-group{ display:flex; flex-direction:column; gap:8px; }
 .variant-group-label{ font-size:11px; font-weight:600; opacity:.4; text-transform:uppercase; letter-spacing:1.5px; }
 .variant-group-options{ display:flex; flex-wrap:wrap; gap:8px; }
 
-/* TEXT BUTTON */
 .opt-btn{ padding:8px 16px; border-radius:30px; border:1px solid rgba(255,255,255,.15); background:#141414; color:white; font-size:13px; cursor:pointer; transition:all .2s; white-space:nowrap; }
 .opt-btn:hover{ border-color:#44f1cf; color:#44f1cf; }
 .opt-btn.active{ background:#44f1cf; color:black; font-weight:700; border-color:#44f1cf; }
 
-/* COLOR CIRCLE */
 .color-btn{ width:36px; height:36px; border-radius:50%; border:2px solid transparent; cursor:pointer; transition:all .2s; flex-shrink:0; }
 .color-btn:hover{ transform:scale(1.1); }
 .color-btn.active{ border-color:#44f1cf; box-shadow:0 0 12px rgba(68,241,207,.5); transform:scale(1.15); }
 
-/* SIZE BUTTON */
 .size-btn{ padding:8px 14px; border-radius:20px; border:1px solid rgba(255,255,255,.15); background:#141414; color:white; font-size:12px; font-weight:600; cursor:pointer; transition:all .2s; white-space:nowrap; }
 .size-btn:hover{ border-color:#44f1cf; color:#44f1cf; }
 .size-btn.active{ background:#44f1cf; color:black; font-weight:700; border-color:#44f1cf; }
-
-/* ===================== */
-/* BUTTONS */
-/* ===================== */
 
 .product-buttons{ display:flex; gap:14px; }
 .view-btn{ flex:1; padding:16px; border-radius:18px; background:#44f1cf; color:black; font-weight:700; text-align:center; text-decoration:none; font-size:17px; }
@@ -84,17 +64,9 @@ body{ background:#050505; font-family:Arial,sans-serif; color:white; }
 .cart-btn.success{ background:#44f1cf; color:black; }
 .cart-btn.error{ background:#ff4444; color:white; }
 
-/* ===================== */
-/* INPUT */
-/* ===================== */
-
 .input-area{ padding:24px; display:flex; gap:16px; background:#050505; border-top:1px solid rgba(255,255,255,.05); flex-shrink:0; }
 .input{ flex:1; background:#0f0f0f; border:1px solid rgba(255,255,255,.06); height:72px; border-radius:24px; padding:0 24px; font-size:20px; color:white; outline:none; }
 .send-btn{ width:78px; height:72px; border:none; border-radius:24px; background:#44f1cf; font-size:34px; font-weight:bold; cursor:pointer; }
-
-/* ===================== */
-/* TYPING */
-/* ===================== */
 
 .typing-loader{ margin-bottom:20px; }
 .typing-wrap{ display:flex; gap:12px; align-items:center; }
@@ -105,7 +77,7 @@ body{ background:#050505; font-family:Arial,sans-serif; color:white; }
 
 @keyframes bounce{ 0%,80%,100%{ transform:scale(0); opacity:.3; } 40%{ transform:scale(1); opacity:1; } }
 @keyframes fade{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:translateY(0); } }
-@keyframes pulse-glow{ 0%,100%{ box-shadow:0 0 25px rgba(68,241,207,.2), 0 0 50px rgba(68,241,207,.08); } 50%{ box-shadow:0 0 40px rgba(68,241,207,.4), 0 0 80px rgba(68,241,207,.15); } }
+@keyframes pulse-glow{ 0%,100%{ box-shadow:0 0 25px rgba(68,241,207,.2),0 0 50px rgba(68,241,207,.08); } 50%{ box-shadow:0 0 40px rgba(68,241,207,.4),0 0 80px rgba(68,241,207,.15); } }
 @keyframes spin{ to{ transform:rotate(360deg); } }
 
 .pull-tab{ display:none; }
@@ -171,7 +143,7 @@ body{ background:#050505; font-family:Arial,sans-serif; color:white; }
 .sidebar{ display:none; }
 .app{ display:block; height:100vh; position:relative; }
 .mobile-header{ display:flex; flex-direction:column; align-items:center; justify-content:center; padding:14px 20px 10px; background:#060606; border-bottom:1px solid rgba(68,241,207,.12); position:fixed; top:0; left:0; right:0; z-index:10; }
-.mobile-header-logo{ width:52px; height:52px; border-radius:50%; background:radial-gradient(circle at 40% 35%, #1a1a1a, #080808); display:flex; align-items:center; justify-content:center; border:1.5px solid rgba(68,241,207,.3); animation:pulse-glow 3s ease-in-out infinite; margin-bottom:6px; overflow:hidden; }
+.mobile-header-logo{ width:52px; height:52px; border-radius:50%; background:radial-gradient(circle at 40% 35%,#1a1a1a,#080808); display:flex; align-items:center; justify-content:center; border:1.5px solid rgba(68,241,207,.3); animation:pulse-glow 3s ease-in-out infinite; margin-bottom:6px; overflow:hidden; }
 .mobile-header-logo img{ width:34px; height:34px; object-fit:contain; }
 .mobile-header-name{ font-size:15px; font-weight:700; letter-spacing:.5px; display:flex; align-items:center; gap:8px; margin-bottom:2px; }
 .mobile-header-dots{ display:flex; gap:4px; align-items:center; }
@@ -277,8 +249,8 @@ const stoneColorMap = {
   "black":"#212121","orange":"#ef6c00",
 };
 
-function getStoneColor(v) {
-  const key = (v || "").toLowerCase();
+function getStoneColor(val) {
+  const key = (val || "").toLowerCase();
   for (const [name, hex] of Object.entries(stoneColorMap)) {
     if (key.includes(name)) return hex;
   }
@@ -286,12 +258,13 @@ function getStoneColor(v) {
 }
 
 // =====================
-// IS COLOR OPTION?
+// OPTION TYPE DETECTION
 // =====================
 
 function isColorOption(name) {
   const n = (name || "").toLowerCase();
-  return n.includes("color") || n.includes("colour") || n.includes("stone") || n.includes("gem");
+  // Only treat as color circles if it's STONE color - not generic "Color"
+  return n.includes("stone") || n.includes("gem") || n.includes("primary");
 }
 
 function isSizeOption(name) {
@@ -364,18 +337,30 @@ async function addToCart(handle, btnId) {
   const state = window[`state_${handle}`];
   if (!state) { window.open(`https://alymwndw.com/products/${handle}`, "_blank"); return; }
 
-  // Find best matching variant based on selected options
   const selectedOptions = state.selectedOptions || {};
   const variants = state.variants;
 
+  // Best match - all options
   let match = variants.find((v) => {
     if (!v.optionsMap) return false;
     return Object.keys(selectedOptions).every((name) =>
       v.optionsMap[name] === selectedOptions[name]
     );
   });
-  if (!match) match = variants[0];
 
+  // Fallback - partial match
+  if (!match) {
+    const keys = Object.keys(selectedOptions);
+    for (let i = keys.length - 1; i >= 1; i--) {
+      const partial = keys.slice(0, i);
+      match = variants.find((v) =>
+        v.optionsMap && partial.every((name) => v.optionsMap[name] === selectedOptions[name])
+      );
+      if (match) break;
+    }
+  }
+
+  if (!match) match = variants[0];
   if (!match || !match.id) { window.open(`https://alymwndw.com/products/${handle}`, "_blank"); return; }
 
   btn.classList.add("loading");
@@ -476,14 +461,12 @@ const defaultPrice = String(firstVariant.price || product.price || "").replace("
 // BUILD OPTION GROUPS FROM REAL SHOPIFY OPTIONS
 // =============================================
 
-// جمع كل الـ option names الفريدة
 const optionNamesSet = new Set();
 variants.forEach((v) => {
   (v.optionNames || []).forEach((n) => optionNamesSet.add(n));
 });
 const optionNames = [...optionNamesSet];
 
-// جمع القيم الفريدة لكل option
 const optionValuesMap = {};
 optionNames.forEach((name) => {
   const valSet = new Set();
@@ -493,14 +476,13 @@ optionNames.forEach((name) => {
   optionValuesMap[name] = [...valSet];
 });
 
-// الـ state الأولي = أول قيمة لكل option
 const initialSelected = {};
 optionNames.forEach((name) => {
   initialSelected[name] = optionValuesMap[name][0] || "";
 });
 
 // =============================================
-// BUILD HTML FOR EACH OPTION GROUP
+// BUILD HTML
 // =============================================
 
 let variantGroupsHTML = '<div class="variant-groups">';
@@ -518,31 +500,11 @@ optionNames.forEach((name) => {
     const colorHex = isColor ? getStoneColor(val) : null;
 
     if (colorHex) {
-      // COLOR CIRCLE
-      variantGroupsHTML += `<button
-        class="color-btn ${i===0?'active':''}"
-        data-option="${name}"
-        data-value="${val}"
-        title="${val}"
-        style="background:${colorHex};box-shadow:inset 0 0 0 1px rgba(255,255,255,.2);"
-        onclick="selectOption('${product.handle}','${name}','${val}',this)"
-      ></button>`;
+      variantGroupsHTML += `<button class="color-btn ${i===0?'active':''}" data-option="${name}" data-value="${val}" title="${val}" style="background:${colorHex};box-shadow:inset 0 0 0 1px rgba(255,255,255,.2);" onclick="selectOption('${product.handle}','${name}','${val}',this)"></button>`;
     } else if (isSize) {
-      // SIZE BUTTON
-      variantGroupsHTML += `<button
-        class="size-btn ${i===0?'active':''}"
-        data-option="${name}"
-        data-value="${val}"
-        onclick="selectOption('${product.handle}','${name}','${val}',this)"
-      >${val}</button>`;
+      variantGroupsHTML += `<button class="size-btn ${i===0?'active':''}" data-option="${name}" data-value="${val}" onclick="selectOption('${product.handle}','${name}','${val}',this)">${val}</button>`;
     } else {
-      // TEXT BUTTON
-      variantGroupsHTML += `<button
-        class="opt-btn ${i===0?'active':''}"
-        data-option="${name}"
-        data-value="${val}"
-        onclick="selectOption('${product.handle}','${name}','${val}',this)"
-      >${val}</button>`;
+      variantGroupsHTML += `<button class="opt-btn ${i===0?'active':''}" data-option="${name}" data-value="${val}" onclick="selectOption('${product.handle}','${name}','${val}',this)">${val}</button>`;
     }
   });
 
@@ -550,10 +512,6 @@ optionNames.forEach((name) => {
 });
 
 variantGroupsHTML += '</div>';
-
-// =============================================
-// BUILD CARD HTML
-// =============================================
 
 const card = document.createElement("div");
 card.className = "product-card";
@@ -584,7 +542,6 @@ ${variantGroupsHTML}
 
 chatBox.appendChild(card);
 
-// SAVE STATE
 window[`state_${product.handle}`] = {
   variants,
   selectedOptions: { ...initialSelected },
@@ -606,7 +563,6 @@ function selectOption(handle, optionName, value, btn) {
 
   state.selectedOptions[optionName] = value;
 
-  // Update active button in this group
   btn.closest(".variant-group-options")
     .querySelectorAll("[data-option]")
     .forEach((b) => b.classList.remove("active"));
@@ -621,7 +577,7 @@ function updateVariantFromOptions(handle) {
 
   const { variants, selectedOptions, imageId, priceId } = state;
 
-  // Find best matching variant
+  // Best match - all options
   let match = variants.find((v) => {
     if (!v.optionsMap) return false;
     return Object.keys(selectedOptions).every((name) =>
@@ -629,7 +585,7 @@ function updateVariantFromOptions(handle) {
     );
   });
 
-  // Fallback - partial match
+  // Fallback - partial match (remove last option one by one)
   if (!match) {
     const keys = Object.keys(selectedOptions);
     for (let i = keys.length - 1; i >= 1; i--) {
