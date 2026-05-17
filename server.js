@@ -344,10 +344,14 @@ function buildProductForFrontend(p) {
 
 app.get("/", (req, res) => { res.send("ALYMWNDW AI RUNNING"); });
 
+// =============================================
+// CUSTOMIZE PRODUCT - IMAGE TO IMAGE
+// =============================================
 app.post("/customize-product", async (req, res) => {
   try {
     const sessionId = req.body.sessionId || "";
     const productHandle = req.body.productHandle || "";
+    const productImageUrl = req.body.productImageUrl || "";
     const userDesc = req.body.userDescription || "";
 
     if (!sessionImageCount[sessionId]) sessionImageCount[sessionId] = 0;
@@ -356,6 +360,7 @@ app.post("/customize-product", async (req, res) => {
     if (count >= 2 && !sessionEmails[sessionId]) return res.json({ requireEmail: true });
     if (count >= 3) return res.json({ blocked: true });
 
+    // Translate Arabic to English if needed
     let englishDesc = userDesc;
     if (/[\u0600-\u06FF]/.test(userDesc)) {
       try {
@@ -371,14 +376,53 @@ app.post("/customize-product", async (req, res) => {
       } catch (e) { englishDesc = userDesc; }
     }
 
-    const prompt = "Luxury jewelry product photography. Piece: " + productHandle.replace(/-/g, " ") + ". Customization: " + englishDesc + ". Style: ultra-realistic, professional studio lighting, white background, 8K quality, photorealistic, highly detailed gemstones and metal finish.";
+    const prompt =
+      "This is a luxury jewelry product photo. Keep the EXACT SAME jewelry design, shape, style, and structure. " +
+      "Only apply this specific change: " + englishDesc + ". " +
+      "Maintain professional studio lighting, pure white background, ultra-realistic 8K quality, photorealistic gemstones and metal finish.";
 
-    const response = await openai.images.generate({
-      model: "gpt-image-1",
-      prompt: prompt,
-      n: 1,
-      size: "1024x1024",
-    });
+    let response;
+
+    // IMAGE-TO-IMAGE: use the actual product image as reference
+    if (productImageUrl && (productImageUrl.startsWith("http://") || productImageUrl.startsWith("https://"))) {
+      try {
+        const imgFetch = await fetch(productImageUrl);
+        if (!imgFetch.ok) throw new Error("Image fetch failed: " + imgFetch.status);
+        const imgArrayBuffer = await imgFetch.arrayBuffer();
+        const imgBuffer = Buffer.from(imgArrayBuffer);
+
+        // gpt-image-1 edit requires a File/Blob with name and type
+        const { toFile } = await import("openai");
+        const imageFile = await toFile(imgBuffer, "product.jpg", { type: "image/jpeg" });
+
+        response = await openai.images.edit({
+          model: "gpt-image-1",
+          image: imageFile,
+          prompt: prompt,
+          n: 1,
+          size: "1024x1024",
+        });
+
+        console.log("IMAGE-TO-IMAGE used for: " + productHandle);
+      } catch (editErr) {
+        console.log("Image edit failed, falling back to generate: " + editErr.message);
+        // Fallback to generate if edit fails
+        response = await openai.images.generate({
+          model: "gpt-image-1",
+          prompt: "Luxury jewelry: " + productHandle.replace(/-/g, " ") + ". " + englishDesc + ". White background, professional studio lighting, photorealistic, 8K.",
+          n: 1,
+          size: "1024x1024",
+        });
+      }
+    } else {
+      // No image URL: generate from scratch
+      response = await openai.images.generate({
+        model: "gpt-image-1",
+        prompt: "Luxury jewelry: " + productHandle.replace(/-/g, " ") + ". " + englishDesc + ". White background, professional studio lighting, photorealistic, 8K.",
+        n: 1,
+        size: "1024x1024",
+      });
+    }
 
     sessionImageCount[sessionId]++;
 
