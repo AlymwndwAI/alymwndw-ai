@@ -731,9 +731,9 @@ function addUserMessage(text){
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// =====================
-// AI CUSTOMIZE IMAGE
-// =====================
+// =============================================
+// AI CUSTOMIZE IMAGE - IMAGE TO IMAGE
+// =============================================
 
 async function generateCustomImage(handle, imageId, descId, resultId, btnId) {
   const descInput = document.getElementById(descId);
@@ -741,33 +741,59 @@ async function generateCustomImage(handle, imageId, descId, resultId, btnId) {
   const btn = document.getElementById(btnId);
   const userDesc = descInput.value.trim();
   if (!userDesc) { descInput.focus(); return; }
+
+  // Get current product image src for image-to-image
+  const productImgEl = document.getElementById(imageId);
+  const productImageUrl = productImgEl ? productImgEl.src : "";
+
   btn.disabled = true;
   btn.innerHTML = `<span class="ai-btn-spinner"></span> جاري التوليد...`;
-  resultDiv.innerHTML = `<div class="ai-generating"><div class="ai-gen-dots"><span></span><span></span><span></span></div><p>✨ الذكاء الاصطناعي يرسم قطعتك...</p></div>`;
+  resultDiv.innerHTML = `<div class="ai-generating"><div class="ai-gen-dots"><span></span><span></span><span></span></div><p>✨ الذكاء الاصطناعي يعدّل على نفس التصميم...</p></div>`;
   resultDiv.style.display = "block";
+
   try {
     const response = await fetch("/customize-product", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, productHandle: handle, userDescription: userDesc }),
+      body: JSON.stringify({
+        sessionId,
+        productHandle: handle,
+        productImageUrl: productImageUrl,   // ← KEY FIX: send current product image
+        userDescription: userDesc,
+      }),
     });
     const data = await response.json();
+
     if (data.requireEmail) {
       resultDiv.innerHTML = `<div class="ai-email-gate"><p>📧 أدخل إيميلك للاستمرار</p><input type="email" id="email-gate-${handle}" placeholder="example@email.com" class="ai-email-input"/><button class="ai-gen-btn" onclick="submitEmailAndGenerate('${handle}','${imageId}','${descId}','${resultId}','${btnId}')">متابعة</button></div>`;
-      btn.disabled = false; btn.innerHTML = `✨ توليد بالذكاء الاصطناعي`; return;
+      btn.disabled = false;
+      btn.innerHTML = `✨ توليد بالذكاء الاصطناعي`;
+      return;
     }
+
     if (data.blocked) {
       resultDiv.innerHTML = `<p class="ai-limit-msg">⚠️ وصلت للحد الأقصى من الصور.</p>`;
-      btn.disabled = true; btn.innerHTML = `✨ توليد بالذكاء الاصطناعي`; return;
+      btn.disabled = true;
+      btn.innerHTML = `✨ توليد بالذكاء الاصطناعي`;
+      return;
     }
+
     if (data.imageUrl) {
-      resultDiv.innerHTML = `<div class="ai-result-wrap"><p class="ai-result-label">✨ تصميمك بالذكاء الاصطناعي</p><img src="${data.imageUrl}" class="ai-result-img"/><p class="ai-result-remaining">متبقي ${data.remaining} توليد</p><a href="${data.imageUrl}" download="alymwndw-custom.jpg" class="ai-download-btn">⬇️ تحميل</a></div>`;
+      resultDiv.innerHTML = `
+        <div class="ai-result-wrap">
+          <p class="ai-result-label">✨ تصميمك بالذكاء الاصطناعي</p>
+          <img src="${data.imageUrl}" class="ai-result-img"/>
+          <p class="ai-result-remaining">متبقي ${data.remaining} توليد</p>
+          <a href="${data.imageUrl}" download="alymwndw-custom.jpg" class="ai-download-btn">⬇️ تحميل</a>
+        </div>`;
     } else {
       resultDiv.innerHTML = `<p class="ai-limit-msg">حدث خطأ. حاول مرة أخرى.</p>`;
     }
+
   } catch(err) {
     resultDiv.innerHTML = `<p class="ai-limit-msg">حدث خطأ في الاتصال.</p>`;
   }
+
   btn.disabled = false;
   btn.innerHTML = `✨ توليد بالذكاء الاصطناعي`;
   chatBox.scrollTop = chatBox.scrollHeight;
@@ -777,7 +803,11 @@ async function submitEmailAndGenerate(handle, imageId, descId, resultId, btnId) 
   const emailInput = document.getElementById(`email-gate-${handle}`);
   const email = emailInput ? emailInput.value.trim() : "";
   if (!email) return;
-  await fetch("/save-email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId, email }) });
+  await fetch("/save-email", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId, email }),
+  });
   generateCustomImage(handle, imageId, descId, resultId, btnId);
 }
 
@@ -910,7 +940,10 @@ function updateVariant(handle) {
   if (!match) return;
   const img = document.getElementById(imageId);
   const priceEl = document.getElementById(priceId);
-  if (img && (match.mappedImage||match.image)) { img.style.opacity="0.7"; setTimeout(()=>{ img.src=match.mappedImage||match.image; img.style.opacity="1"; },150); }
+  if (img && (match.mappedImage||match.image)) {
+    img.style.opacity="0.7";
+    setTimeout(()=>{ img.src=match.mappedImage||match.image; img.style.opacity="1"; },150);
+  }
   if (priceEl && match.price) { priceEl.innerText = String(match.price).replace("AED","").trim()+" AED"; }
 }
 
