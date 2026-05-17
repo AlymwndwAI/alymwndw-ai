@@ -8,10 +8,6 @@ dotenv.config();
 const SHOP = process.env.SHOPIFY_STORE;
 const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
-// ========================================
-// SHOPIFY GRAPHQL
-// ========================================
-
 async function shopifyQuery(query) {
   const response = await fetch(
     `https://${SHOP}/admin/api/2025-01/graphql.json`,
@@ -27,20 +23,11 @@ async function shopifyQuery(query) {
   return response.json();
 }
 
-// ========================================
-// PARSE STONE SIZE FROM VARIANT TITLE
-// e.g. "0.70 CT", "1.10ct", "2.5 carat"
-// ========================================
-
 function parseStoneSize(text) {
   const match = text.match(/(\d+\.?\d*)\s*(ct|carat)/i);
   if (match) return match[1].trim() + " CT";
   return "";
 }
-
-// ========================================
-// PARSE VARIANT
-// ========================================
 
 function parseVariant(v, images) {
 
@@ -51,28 +38,30 @@ function parseVariant(v, images) {
 
   // METAL
   let metal = "";
-  if (optionText.includes("rose gold"))   metal = "rose gold";
-  else if (optionText.includes("yellow gold")) metal = "yellow gold";
-  else if (optionText.includes("white gold"))  metal = "white gold";
-  else if (optionText.includes("platinum"))    metal = "platinum";
-  else if (optionText.includes("silver"))      metal = "silver";
-  else if (optionText.includes("gold"))        metal = "gold";
+  if (optionText.includes("rose gold"))        metal = "rose gold";
+  else if (optionText.includes("yellow gold"))  metal = "yellow gold";
+  else if (optionText.includes("white gold"))   metal = "white gold";
+  else if (optionText.includes("platinum"))     metal = "platinum";
+  else if (optionText.includes("gold 18k") || optionText.includes("gold 750")) metal = "gold";
+  else if (optionText.includes("silver 925") || optionText.includes("silver")) metal = "silver";
+  else if (optionText.includes("gold"))         metal = "gold";
 
   // STONE COLOR
   let stoneColor = "";
-  if (optionText.includes("blue"))   stoneColor = "blue";
-  else if (optionText.includes("green"))  stoneColor = "green";
-  else if (optionText.includes("pink"))   stoneColor = "pink";
-  else if (optionText.includes("yellow")) stoneColor = "yellow";
+  if (optionText.includes("royal purple") || optionText.includes("purple")) stoneColor = "purple";
+  else if (optionText.includes("red") || optionText.includes("ruby"))       stoneColor = "red";
+  else if (optionText.includes("rose") && !optionText.includes("rose gold")) stoneColor = "rose";
+  else if (optionText.includes("pink") && !optionText.includes("pink gold")) stoneColor = "pink";
+  else if (optionText.includes("yellow") && !optionText.includes("yellow gold")) stoneColor = "yellow";
+  else if (optionText.includes("white") && !optionText.includes("white gold")) stoneColor = "white";
+  else if (optionText.includes("blue") || optionText.includes("sapphire"))  stoneColor = "blue";
+  else if (optionText.includes("green") || optionText.includes("emerald"))  stoneColor = "green";
   else if (optionText.includes("black"))  stoneColor = "black";
-  else if (optionText.includes("red"))    stoneColor = "red";
-  else if (optionText.includes("white"))  stoneColor = "white";
-  else if (optionText.includes("purple")) stoneColor = "purple";
   else if (optionText.includes("orange")) stoneColor = "orange";
 
   // SHAPE
   let shape = "";
-  if (optionText.includes("round"))    shape = "round";
+  if (optionText.includes("round"))         shape = "round";
   else if (optionText.includes("oval"))     shape = "oval";
   else if (optionText.includes("pear"))     shape = "pear";
   else if (optionText.includes("radiant"))  shape = "radiant";
@@ -86,8 +75,23 @@ function parseVariant(v, images) {
   // STONE SIZE
   const stoneSize = parseStoneSize(optionText);
 
-  // IMAGE — prefer variant image, fallback to first product image
+  // IMAGE
   const matchedImage = v.node.image?.url || images[0]?.url || "";
+
+  // ========================================
+  // OPTION NAMES - الأسماء الحقيقية من Shopify
+  // e.g. ["Material", "Primary Stone Color", "Stone Size Round Shape"]
+  // ========================================
+  const optionNames = v.node.selectedOptions.map((o) => o.name);
+
+  // ========================================
+  // OPTIONS MAP - اسم الـ option -> قيمته
+  // e.g. { "Material": "Silver 925", "Primary Stone Color": "White" }
+  // ========================================
+  const optionsMap = {};
+  v.node.selectedOptions.forEach((o) => {
+    optionsMap[o.name] = o.value;
+  });
 
   return {
     id: v.node.id,
@@ -104,14 +108,10 @@ function parseVariant(v, images) {
     shape,
     stoneSize,
     options: v.node.selectedOptions,
+    optionNames,
+    optionsMap,
   };
 }
-
-// ========================================
-// BUILD AI FEATURES
-// pulls unique sets from variants so
-// server.js search scoring works correctly
-// ========================================
 
 function buildAiFeatures(product) {
 
@@ -128,19 +128,20 @@ function buildAiFeatures(product) {
     productType: "",
     collection: (product.collections?.[0]?.title || ""),
     collections: (product.collections || []).map((c) => c.title),
-
     styles: [],
     intent: [],
     materials: [],
     searchKeywords: [],
     emotionalTriggers: [],
     certifications: [],
-
-    // pulled from variants — critical for server.js scoring
     variantMetalColors: [],
     variantStoneColors: [],
     variantStoneSizes: [],
     diamondShapes: [],
+    // ========================================
+    // OPTION NAMES - الأسماء الفريدة لكل الـ options
+    // ========================================
+    productOptionNames: [],
   };
 
   // CATEGORY
@@ -192,20 +193,23 @@ function buildAiFeatures(product) {
   const stoneColorSet = new Set();
   const stoneSizeSet  = new Set();
   const shapeSet      = new Set();
+  const optionNamesSet = new Set();
 
   (product.variants || []).forEach((v) => {
     if (v.metal)      metalSet.add(v.metal);
     if (v.stoneColor) stoneColorSet.add(v.stoneColor);
     if (v.stoneSize)  stoneSizeSet.add(v.stoneSize);
     if (v.shape)      shapeSet.add(v.shape);
+    // جمع كل أسماء الـ options
+    (v.optionNames || []).forEach((n) => optionNamesSet.add(n));
   });
 
   ai.variantMetalColors  = [...metalSet];
   ai.variantStoneColors  = [...stoneColorSet];
   ai.variantStoneSizes   = [...stoneSizeSet];
   ai.diamondShapes       = [...shapeSet];
+  ai.productOptionNames  = [...optionNamesSet];
 
-  // SEARCH KEYWORDS — all useful terms in one flat array
   ai.searchKeywords = [
     ...new Set([
       ai.category,
@@ -222,10 +226,6 @@ function buildAiFeatures(product) {
 
   return ai;
 }
-
-// ========================================
-// FETCH ALL PRODUCTS FROM SHOPIFY
-// ========================================
 
 async function fetchProducts() {
 
@@ -306,7 +306,6 @@ async function fetchProducts() {
 
       const variants = p.variants.edges.map((v) => parseVariant(v, images));
 
-      // Clean domain — store URL without double domain
       const domain = SHOP.replace("https://", "").replace("http://", "").replace(/\/$/, "");
 
       const product = {
@@ -346,10 +345,6 @@ async function fetchProducts() {
 
   return allProducts;
 }
-
-// ========================================
-// BUILD BRAIN
-// ========================================
 
 async function buildBrain() {
   try {
