@@ -3,249 +3,280 @@ function enrichProduct(product) {
   const text = `
     ${product.title}
     ${product.description}
-    ${product.type}
-    ${product.vendor}
     ${product.tags?.join(" ")}
+    ${product.vendor}
+    ${product.type}
   `.toLowerCase();
 
   const enrichment = {
 
-    gemstones: [],
-    gemstoneColors: [],
-    metals: [],
-    luxuryStyles: [],
-    occasions: [],
-    emotions: [],
-    celebrityStyles: [],
-    customCapabilities: [],
+    jewelryType: "",
+    luxuryLevel: "",
+
+    jewelryStyles: [],
+    jewelryOccasions: [],
+    jewelryEmotions: [],
+    jewelryAudience: [],
+    jewelryMaterials: [],
+    jewelryGemstones: [],
+    jewelryStoneColors: [],
+    jewelryShapes: [],
+    jewelryThemes: [],
     jewelryVibes: [],
-    fashionStyles: [],
-    bridalStyles: [],
-    stackable: false,
-    customizable: false,
-    luxuryLevel: "standard",
+    aiTags: [],
+    searchUnderstanding: [],
+
+    bridal: false,
+    engagement: false,
+    customJewelry: false,
+    luxury: false,
+    iced: false,
+    arabicJewelry: false,
 
   };
 
-  // ========================================
-  // METALS
-  // ========================================
+  // PRODUCT TYPE
 
-  if (text.includes("gold")) {
-    enrichment.metals.push("gold");
+  if (text.includes("ring")) {
+    enrichment.jewelryType = "ring";
   }
 
-  if (text.includes("white gold")) {
-    enrichment.metals.push("white gold");
+  if (text.includes("necklace")) {
+    enrichment.jewelryType = "necklace";
   }
 
-  if (text.includes("rose gold")) {
-    enrichment.metals.push("rose gold");
+  if (text.includes("bracelet")) {
+    enrichment.jewelryType = "bracelet";
   }
 
-  if (text.includes("yellow gold")) {
-    enrichment.metals.push("yellow gold");
+  if (text.includes("earring")) {
+    enrichment.jewelryType = "earring";
   }
 
-  if (text.includes("silver")) {
-    enrichment.metals.push("silver");
+  if (text.includes("pendant")) {
+    enrichment.jewelryType = "pendant";
   }
 
-  if (text.includes("platinum")) {
-    enrichment.metals.push("platinum");
-  }
+  // MATERIALS
 
-  // ========================================
+  const materials = [
+
+    "gold",
+    "yellow gold",
+    "white gold",
+    "rose gold",
+    "18k",
+    "21k",
+    "22k",
+    "silver",
+    "925 silver",
+    "platinum",
+    "diamond",
+    "lab diamond",
+    "lab grown diamond",
+    "moissanite",
+    "pearl",
+
+  ];
+
+  materials.forEach((material) => {
+
+    if (text.includes(material)) {
+      enrichment.jewelryMaterials.push(material);
+    }
+
+  });
+
   // GEMSTONES
-  // ========================================
 
-  if (text.includes("diamond")) {
-    enrichment.gemstones.push("diamond");
-  }
+  const gemstones = [
 
-  if (text.includes("moissanite")) {
-    enrichment.gemstones.push("moissanite");
-  }
+    "diamond",
+    "moissanite",
+    "ruby",
+    "emerald",
+    "sapphire",
+    "opal",
+    "onyx",
+    "amethyst",
+    "topaz",
+    "aquamarine",
+    "garnet",
+    "pearl",
 
-  if (text.includes("ruby")) {
-    enrichment.gemstones.push("ruby");
-  }
+  ];
 
-  if (text.includes("emerald")) {
-    enrichment.gemstones.push("emerald");
-  }
+  gemstones.forEach((stone) => {
 
-  if (text.includes("sapphire")) {
-    enrichment.gemstones.push("sapphire");
-  }
+    if (text.includes(stone)) {
+      enrichment.jewelryGemstones.push(stone);
+    }
 
-  if (text.includes("opal")) {
-    enrichment.gemstones.push("opal");
-  }
+  });
 
-  if (text.includes("pearl")) {
-    enrichment.gemstones.push("pearl");
-  }
+  // COLORS
 
-  // ========================================
-  // GEMSTONE COLORS
-  // ========================================
+  const colors = [
 
-  if (text.includes("blue")) {
-    enrichment.gemstoneColors.push("blue");
-  }
+    "white",
+    "yellow",
+    "pink",
+    "blue",
+    "green",
+    "purple",
+    "black",
+    "red",
 
-  if (text.includes("green")) {
-    enrichment.gemstoneColors.push("green");
-  }
+  ];
 
-  if (text.includes("pink")) {
-    enrichment.gemstoneColors.push("pink");
-  }
+  colors.forEach((color) => {
 
-  if (text.includes("yellow")) {
-    enrichment.gemstoneColors.push("yellow");
-  }
+    if (text.includes(color)) {
+      enrichment.jewelryStoneColors.push(color);
+    }
 
-  if (text.includes("red")) {
-    enrichment.gemstoneColors.push("red");
-  }
+  });
 
-  if (text.includes("black")) {
-    enrichment.gemstoneColors.push("black");
-  }
+  // SHAPES
 
-  if (text.includes("white")) {
-    enrichment.gemstoneColors.push("white");
-  }
+  const shapes = [
 
-  if (text.includes("purple")) {
-    enrichment.gemstoneColors.push("purple");
-  }
+    "round",
+    "oval",
+    "pear",
+    "emerald",
+    "radiant",
+    "princess",
+    "cushion",
+    "heart",
+    "marquise",
 
-  // ========================================
-  // LUXURY STYLES
-  // ========================================
+  ];
+
+  shapes.forEach((shape) => {
+
+    if (text.includes(shape)) {
+      enrichment.jewelryShapes.push(shape);
+    }
+
+  });
+
+  // LUXURY
 
   if (
+
     text.includes("luxury") ||
-    text.includes("premium")
+    text.includes("diamond") ||
+    text.includes("moissanite") ||
+    text.includes("platinum")
+
   ) {
 
-    enrichment.luxuryStyles.push(
-      "luxury"
+    enrichment.luxury = true;
+
+    enrichment.luxuryLevel = "high";
+
+    enrichment.jewelryStyles.push(
+      "luxury",
+      "premium",
+      "elegant"
     );
 
   }
 
-  if (
-    text.includes("minimal")
-  ) {
-
-    enrichment.luxuryStyles.push(
-      "minimal"
-    );
-
-  }
+  // BRIDAL
 
   if (
-    text.includes("vintage")
-  ) {
 
-    enrichment.luxuryStyles.push(
-      "vintage"
-    );
-
-  }
-
-  if (
-    text.includes("tennis")
-  ) {
-
-    enrichment.luxuryStyles.push(
-      "iced"
-    );
-
-    enrichment.celebrityStyles.push(
-      "celebrity luxury"
-    );
-
-  }
-
-  // ========================================
-  // OCCASIONS
-  // ========================================
-
-  if (
-    text.includes("engagement")
-  ) {
-
-    enrichment.occasions.push(
-      "engagement"
-    );
-
-    enrichment.bridalStyles.push(
-      "proposal ring"
-    );
-
-  }
-
-  if (
+    text.includes("engagement") ||
+    text.includes("proposal") ||
     text.includes("wedding")
+
   ) {
 
-    enrichment.occasions.push(
+    enrichment.bridal = true;
+
+    enrichment.engagement = true;
+
+    enrichment.jewelryOccasions.push(
+      "engagement",
+      "proposal",
       "wedding"
     );
 
   }
 
+  // CUSTOM
+
   if (
-    text.includes("gift")
+
+    text.includes("custom") ||
+    text.includes("personalized") ||
+    text.includes("name necklace")
+
   ) {
 
-    enrichment.occasions.push(
-      "gift"
+    enrichment.customJewelry = true;
+
+    enrichment.jewelryThemes.push(
+      "custom jewelry",
+      "personalized jewelry"
     );
 
   }
 
+  // ARABIC
+
   if (
-    text.includes("birthday")
+
+    text.includes("arabic") ||
+    text.includes("allah") ||
+    text.includes("عربي")
+
   ) {
 
-    enrichment.occasions.push(
-      "birthday"
+    enrichment.arabicJewelry = true;
+
+    enrichment.jewelryThemes.push(
+      "arabic jewelry"
     );
 
   }
 
-  // ========================================
-  // EMOTIONS
-  // ========================================
+  // ICED
 
   if (
-    text.includes("love")
+
+    text.includes("iced") ||
+    text.includes("tennis")
+
   ) {
 
-    enrichment.emotions.push(
-      "love"
+    enrichment.iced = true;
+
+    enrichment.jewelryVibes.push(
+      "celebrity luxury"
     );
 
   }
 
-  if (
-    text.includes("forever")
-  ) {
+  // SEARCH UNDERSTANDING
 
-    enrichment.emotions.push(
-      "forever"
-    );
+  enrichment.searchUnderstanding = [
 
-  }
+    ...enrichment.jewelryMaterials,
+    ...enrichment.jewelryGemstones,
+    ...enrichment.jewelryStoneColors,
+    ...enrichment.jewelryShapes,
+    ...enrichment.jewelryStyles,
+    ...enrichment.jewelryThemes,
 
-  if (
-    text.includes("elegance")
-  ) {
+  ];
 
-    enrichment.emotions.push
+  return enrichment;
+
+}
+
+module.exports = {
+  enrichProduct
+};
